@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOPA Airport Weather Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 25px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .station-info {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 1.1em;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-icon {
+            font-size: 2em;
+        }
+
+        .status-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .status-value {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .connected {
+            border-left: 5px solid #4CAF50;
+        }
+
+        .disconnected {
+            border-left: 5px solid #f44336;
+        }
+
+        /* Main Grid */
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        /* Weather Cards */
+        .weather-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .weather-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header h2 {
+            font-size: 1.3em;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .runway-badge {
+            background: #1e3c72;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+        }
+
+        /* Wind Section */
+        .wind-compass {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+        }
+
+        .compass-circle {
+            width: 100%;
+            height: 100%;
+            border: 3px solid #1e3c72;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .wind-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 0% 0%;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #f44336, #ff9800);
+            border-radius: 4px;
+        }
+
+        .wind-speed {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        /* Temperature Section */
+        .temp-display {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .temp-current {
+            text-align: center;
+        }
+
+        .temp-value {
+            font-size: 3.5em;
+            font-weight: bold;
+            color: #f44336;
+        }
+
+        .temp-unit {
+            font-size: 1.5em;
+            color: #666;
+        }
+
+        .temp-range {
+            display: flex;
+            gap: 20px;
+        }
+
+        .temp-min, .temp-max {
+            text-align: center;
+        }
+
+        .temp-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .temp-number {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .temp-min .temp-number {
+            color: #2196F3;
+        }
+
+        .temp-max .temp-number {
+            color: #f44336;
+        }
+
+        /* Pressure Section */
+        .pressure-display {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .pressure-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .pressure-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .pressure-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        /* Humidity & Dew Point */
+        .humidity-display {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .humidity-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .humidity-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .humidity-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        /* Visibility Section */
+        .visibility-display {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .vis-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .vis-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .vis-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        /* Data Table */
+        .data-table {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .table-header h2 {
+            color: #333;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #1e3c72;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2a5298;
+        }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #1e3c72;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e3c72;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Alert */
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <span>🌤️</span>
+                MOPA Airport Weather Monitor
+            </h1>
+            <div class="station-info">
+                <span>📍 Station ID: VOGA</span>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-card connected" id="connectionCard">
+                <div class="status-icon">🔌</div>
+                <div>
+                    <div class="status-label">Connection</div>
+                    <div class="status-value" id="connectionStatus">Connected</div>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-icon">🕒</div>
+                <div>
+                    <div class="status-label">Last Update</div>
+                    <div class="status-value" id="lastUpdate">--:--:--</div>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-icon">📊</div>
+                <div>
+                    <div class="status-label">Total Packets</div>
+                    <div class="status-value" id="totalPackets">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Runway Tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="selectRunway('10-END')">Runway 10-END</button>
+            <button class="btn btn-primary" onclick="selectRunway('28-END')">Runway 28-END</button>
+        </div>
+
+        <!-- Weather Grid -->
+        <div class="weather-grid" id="weatherGrid">
+            <!-- Wind Card -->
+            <div class="weather-card">
+                <div class="card-header">
+                    <h2>🌪️ Wind Conditions</h2>
+                    <span class="runway-badge" id="windRunway">10-END</span>
+                </div>
+                <div class="wind-compass">
+                    <div class="compass-circle">
+                        <div class="wind-arrow" id="windArrow" style="transform: rotate(0deg);"></div>
+                    </div>
+                </div>
+                <div class="wind-speed" id="windSpeed">0 kts</div>
+                <div style="display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 20px;">
+                    <div>
+                        <div style="color:#666;">Direction</div>
+                        <div style="font-size:1.3em; font-weight:bold;" id="windDir">230°</div>
+                    </div>
+                    <div>
+                        <div style="color:#666;">Gusts</div>
+                        <div style="font-size:1.3em; font-weight:bold;" id="windGust">7 kts</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperature Card -->
+            <div class="weather-card">
+                <div class="card-header">
+                    <h2>🌡️ Temperature</h2>
+                    <span class="runway-badge" id="tempRunway">10-END</span>
+                </div>
+                <div class="temp-display">
+                    <div class="temp-current">
+                        <div class="temp-value" id="currentTemp">29</div>
+                        <div class="temp-unit">°C</div>
+                    </div>
+                    <div class="temp-range">
+                        <div class="temp-min">
+                            <div class="temp-label">Min</div>
+                            <div class="temp-number" id="minTemp">22.2</div>
+                        </div>
+                        <div class="temp-max">
+                            <div class="temp-label">Max</div>
+                            <div class="temp-number" id="maxTemp">32.7</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>1min Avg:</span>
+                        <span id="temp1min">29°C</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>10min Avg:</span>
+                        <span id="temp10min">29°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pressure Card -->
+            <div class="weather-card">
+                <div class="card-header">
+                    <h2>📊 Pressure</h2>
+                    <span class="runway-badge" id="pressureRunway">10-END</span>
+                </div>
+                <div class="pressure-display">
+                    <div class="pressure-item">
+                        <span class="pressure-label">QNH</span>
+                        <span class="pressure-value" id="qnh">1006.6 hPa</span>
+                    </div>
+                    <div class="pressure-item">
+                        <span class="pressure-label">QFE</span>
+                        <span class="pressure-value" id="qfe">988.3 hPa</span>
+                    </div>
+                    <div class="pressure-item">
+                        <span class="pressure-label">Station Pressure</span>
+                        <span class="pressure-value" id="stationPressure">988 hPa</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="weather-card">
+                <div class="card-header">
+                    <h2>💧 Humidity & Dew Point</h2>
+                    <span class="runway-badge" id="humidityRunway">10-END</span>
+                </div>
+                <div class="humidity-display">
+                    <div class="humidity-item">
+                        <div class="humidity-icon">💧</div>
+                        <div class="humidity-value" id="humidity">85%</div>
+                        <div style="color:#666;">Humidity</div>
+                    </div>
+                    <div class="humidity-item">
+                        <div class="humidity-icon">🌡️</div>
+                        <div class="humidity-value" id="dewPoint">26°C</div>
+                        <div style="color:#666;">Dew Point</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visibility Card -->
+            <div class="weather-card">
+                <div class="card-header">
+                    <h2>👁️ Visibility</h2>
+                    <span class="runway-badge" id="visRunway">10-END</span>
+                </div>
+                <div class="visibility-display">
+                    <div class="vis-item">
+                        <div class="vis-label">Visibility</div>
+                        <div class="vis-value" id="visibility">7000m</div>
+                    </div>
+                    <div class="vis-item">
+                        <div class="vis-label">RVR</div>
+                        <div class="vis-value" id="rvr">P2000</div>
+                    </div>
+                    <div class="vis-item">
+                        <div class="vis-label">MOR</div>
+                        <div class="vis-value" id="mor">5320m</div>
+                    </div>
+                    <div class="vis-item">
+                        <div class="vis-label">Luminance</div>
+                        <div class="vis-value" id="luminance">1239</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historical Data Card -->
+            <div class="weather-card">
+                <div class="card-header">
+                    <h2>📈 Historical Data</h2>
+                    <span class="runway-badge" id="historyRunway">10-END</span>
+                </div>
+                <div style="margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Max Wind (10min):</span>
+                        <span id="maxWind10">8 kts</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Max Wind Dir:</span>
+                        <span id="maxWindDir">230°</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Min Wind (10min):</span>
+                        <span id="minWind10">3 kts</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-table">
+            <div class="table-header">
+                <h2>📋 Recent Weather Reports</h2>
+                <div class="table-controls">
+                    <button class="btn btn-success" onclick="exportData()">📥 Export CSV</button>
+                    <button class="btn btn-danger" onclick="clearData()">🗑️ Clear</button>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Runway</th>
+                            <th>Wind Dir</th>
+                            <th>Wind Spd</th>
+                            <th>Temp</th>
+                            <th>Humidity</th>
+                            <th>QNH</th>
+                            <th>Visibility</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center;">No data available</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2026 MOPA Airport Weather Monitor | Data updates every seconds</p>
+        </div>
+    </div>
+
+    <!-- Alert -->
+    <div class="alert" id="alert"></div>
+
+    <script>
+        // Configuration
+        const WS_URL = 'ws://localhost:8765'; // Local server
+        
+        let ws = null;
+        let packets = [];
+        let currentRunway = '10-END';
+        
+        // Connect to WebSocket
+        function connect() {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = function() {
+                document.getElementById('connectionCard').className = 'status-card connected';
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                showAlert('✅ Connected to server', 'success');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    packets = JSON.parse(event.data);
+                    updateDisplay();
+                } catch (e) {
+                    console.error('Error parsing data:', e);
+                }
+            };
+            
+            ws.onclose = function() {
+                document.getElementById('connectionCard').className = 'status-card disconnected';
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                setTimeout(connect, 2000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                showAlert('❌ Connection error', 'danger');
+            };
+        }
+        
+        // Update display based on selected runway
+        function updateDisplay() {
+            if (packets.length === 0) return;
+            
+            // Filter packets for current runway
+            const runwayPackets = packets.filter(p => {
+                try {
+                    const data = JSON.parse(p.packet);
+                    return data.runway === currentRunway;
+                } catch {
+                    return false;
+                }
+            });
+            
+            if (runwayPackets.length === 0) return;
+            
+            // Get latest packet for current runway
+            const latest = runwayPackets[runwayPackets.length - 1];
+            const data = JSON.parse(latest.packet);
+            
+            // Update all runway badges
+            document.querySelectorAll('.runway-badge').forEach(el => {
+                el.textContent = currentRunway;
+            });
+            
+            // Update wind display
+            updateWindDisplay(data);
+            
+            // Update temperature
+            updateTemperatureDisplay(data);
+            
+            // Update pressure
+            updatePressureDisplay(data);
+            
+            // Update humidity
+            updateHumidityDisplay(data);
+            
+            // Update visibility
+            updateVisibilityDisplay(data);
+            
+            // Update historical data
+            updateHistoricalData(data);
+            
+            // Update table
+            updateTable(runwayPackets);
+            
+            // Update status
+            document.getElementById('lastUpdate').textContent = data.time || new Date().toLocaleTimeString();
+            document.getElementById('totalPackets').textContent = packets.length;
+        }
+        
+        function updateWindDisplay(data) {
+            if (data.windDirection) {
+                const dir = data.windDirection.instantaneous || 0;
+                const speed = data.windSpeed.instantaneous || 0;
+                const gust = data.windSpeed.oneMinuteMax || 0;
+                
+                // Update compass arrow
+                const arrow = document.getElementById('windArrow');
+                arrow.style.transform = `rotate(${dir}deg)`;
+                
+                document.getElementById('windSpeed').textContent = `${speed} kts`;
+                document.getElementById('windDir').textContent = `${dir}°`;
+                document.getElementById('windGust').textContent = `${gust} kts`;
+            }
+        }
+        
+        function updateTemperatureDisplay(data) {
+            if (data.temperature) {
+                document.getElementById('currentTemp').textContent = data.temperature.instantaneous || '--';
+                document.getElementById('minTemp').textContent = data.temperature.dailyMin || '--';
+                document.getElementById('maxTemp').textContent = data.temperature.dailyMax || '--';
+                document.getElementById('temp1min').textContent = (data.temperature.oneMinuteAvg || '--') + '°C';
+                document.getElementById('temp10min').textContent = (data.temperature.tenMinuteAvg || '--') + '°C';
+            }
+        }
+        
+        function updatePressureDisplay(data) {
+            if (data.pressureData) {
+                document.getElementById('qnh').textContent = (data.pressureData.qnh?.instantaneous || '--') + ' hPa';
+                document.getElementById('qfe').textContent = (data.pressureData.qfe?.instantaneous || '--') + ' hPa';
+                document.getElementById('stationPressure').textContent = (data.pressureData.pressure?.instantaneous || '--') + ' hPa';
+            }
+        }
+        
+        function updateHumidityDisplay(data) {
+            if (data.humidity) {
+                document.getElementById('humidity').textContent = (data.humidity.instantaneous || '--') + '%';
+                document.getElementById('dewPoint').textContent = (data.dewPoint?.instantaneous || '--') + '°C';
+            }
+        }
+        
+        function updateVisibilityDisplay(data) {
+            if (data.pwdParameters) {
+                document.getElementById('visibility').textContent = (data.pwdParameters.visibility?.oneMinuteAvg || '--') + 'm';
+                document.getElementById('rvr').textContent = data.pwdParameters.rvr?.oneMinuteAvg || '--';
+                document.getElementById('mor').textContent = (data.pwdParameters.mor?.oneMinuteAvg || '--') + 'm';
+                document.getElementById('luminance').textContent = data.pwdParameters.backgroundLuminance || '--';
+            }
+        }
+        
+        function updateHistoricalData(data) {
+            if (data.windSpeed) {
+                document.getElementById('maxWind10').textContent = (data.windSpeed.tenMinuteMax || '--') + ' kts';
+                document.getElementById('minWind10').textContent = (data.windSpeed.tenMinuteMin || '--') + ' kts';
+            }
+            if (data.windDirection) {
+                document.getElementById('maxWindDir').textContent = (data.windDirection.atMaxWindSpeedInTenMinute || '--') + '°';
+            }
+        }
+        
+        function updateTable(packets) {
+            const tbody = document.getElementById('tableBody');
+            
+            if (packets.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No data available</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            
+            // Show last 10 packets
+            packets.slice(-10).reverse().forEach(p => {
+                try {
+                    const data = JSON.parse(p.packet);
+                    html += `
+                        <tr>
+                            <td>${data.time || '--'}</td>
+                            <td>${data.runway || '--'}</td>
+                            <td>${data.windDirection?.instantaneous || '--'}°</td>
+                            <td>${data.windSpeed?.instantaneous || '--'} kts</td>
+                            <td>${data.temperature?.instantaneous || '--'}°C</td>
+                            <td>${data.humidity?.instantaneous || '--'}%</td>
+                            <td>${data.pressureData?.qnh?.instantaneous || '--'} hPa</td>
+                            <td>${data.pwdParameters?.visibility?.oneMinuteAvg || '--'}m</td>
+                        </tr>
+                    `;
+                } catch (e) {
+                    console.error('Error parsing packet:', e);
+                }
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        function selectRunway(runway) {
+            currentRunway = runway;
+            updateDisplay();
+            showAlert(`🛬 Showing data for Runway ${runway}`, 'success');
+        }
+        
+        function exportData() {
+            let csv = 'Time,Runway,Wind Dir,Wind Speed,Temp,Humidity,QNH,Visibility\n';
+            
+            packets.forEach(p => {
+                try {
+                    const data = JSON.parse(p.packet);
+                    csv += `"${data.time || ''}","${data.runway || ''}","${data.windDirection?.instantaneous || ''}","${data.windSpeed?.instantaneous || ''}","${data.temperature?.instantaneous || ''}","${data.humidity?.instantaneous || ''}","${data.pressureData?.qnh?.instantaneous || ''}","${data.pwdParameters?.visibility?.oneMinuteAvg || ''}"\n`;
+                } catch (e) {}
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `weather-data-${new Date().toISOString()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function clearData() {
+            if (confirm('Clear all data?')) {
+                packets = [];
+                updateDisplay();
+            }
+        }
+        
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Auto connect
+        window.onload = function() {
+            connect();
+            setInterval(updateDisplay, 2000);
+        };
+    </script>
+</body>
+</html>
