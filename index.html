@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>VOGA-MOPA AWOS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #07111c;
@@ -36,6 +36,9 @@
       --compass-arr: #ff7700;
       --shadow: 0 2px 12px rgba(0,0,0,0.5);
       --panel-border: #1a3a5a;
+      --sev-orange: #ff9800;
+      --sev-red: #ff1744;
+      --metar-bg: #0a1628;
     }
     body.light {
       --bg: #ffffff;
@@ -67,13 +70,16 @@
       --compass-arr: #ff6600;
       --shadow: 0 2px 8px rgba(0,0,0,0.15);
       --panel-border: #90b8d8;
+      --sev-orange: #e65100;
+      --sev-red: #c62828;
+      --metar-bg: #e8f0f8;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     html,body {
       height:100%; width:100%;
       background:var(--bg);
       color:var(--val-white);
-      font-family:'Rajdhani',Arial,sans-serif;
+      font-family:'Inter',Arial,sans-serif;
       overflow:hidden;
       display:flex; flex-direction:column;
       transition: background 0.3s, color 0.3s;
@@ -82,77 +88,70 @@
       display:flex; align-items:center;
       background:var(--top-bg);
       border-bottom:3px solid var(--hdr-bg);
-      padding:0 20px; height:44px; flex-shrink:0;
-      gap:14px;
+      padding:0 clamp(6px,1.5vw,20px);
+      height:clamp(36px,5vh,48px); flex-shrink:0;
+      gap:clamp(6px,1vw,14px);
       box-shadow: var(--shadow);
     }
     .brand {
       font-family:'Orbitron',sans-serif;
-      font-weight:900; font-size:22px;
-      letter-spacing:3px; color:var(--brand);
+      font-weight:900; font-size:clamp(11px,2vw,22px);
+      letter-spacing:2px; color:var(--brand);
       white-space:nowrap;
     }
     .brand span { color:var(--brand-acc); }
     #clock {
       flex:1; text-align:center;
-      font-family:'Share Tech Mono',monospace;
-      font-size:17px; color:#90caf9; letter-spacing:1px;
+      font-family:'Inter',sans-serif;
+      font-weight:600;
+      font-size:clamp(8px,1.2vw,16px); color:#90caf9; letter-spacing:1px;
     }
-    .top-btns { display:flex; align-items:center; gap:12px; }
+    .top-btns { display:flex; align-items:center; gap:6px; }
     #status {
-      font-size:13px; font-weight:700; padding:4px 16px;
+      font-size:clamp(8px,0.9vw,12px); font-weight:700;
+      padding:2px clamp(5px,1vw,14px);
       border-radius:12px; border:1px solid #555;
       background:#003a10; color:#00ff88; white-space:nowrap;
-      font-family:'Share Tech Mono',monospace;
-      border-color:#00cc66;
+      font-family:'Inter',sans-serif; border-color:#00cc66;
     }
     .icon-btn {
       background:rgba(255,255,255,0.1);
       border:1px solid rgba(255,255,255,0.2);
-      color:#fff; font-size:18px; cursor:pointer;
-      border-radius:6px; padding:4px 12px;
+      color:#fff; font-size:clamp(12px,1.4vw,17px); cursor:pointer;
+      border-radius:6px; padding:2px 7px;
       transition:all 0.2s; line-height:1;
     }
     .icon-btn:hover { background:rgba(255,255,255,0.25); }
-    #cfgbar {
-      display:flex; align-items:center; gap:10px;
-      background:var(--cfg-bg);
-      border-bottom:2px solid var(--border);
-      padding:4px 20px; height:34px; flex-shrink:0;
-      font-size:14px; color:var(--cfg-txt);
-    }
-    #cfgbar label { font-weight:700; white-space:nowrap; }
-    #pkt-info { margin-left:auto; font-size:13px; color:var(--sub); font-family:'Share Tech Mono',monospace; }
     #rwybar {
       display:grid; grid-template-columns:1fr 1fr;
       background:var(--bg2);
       border-bottom:2px solid var(--border);
-      height:40px; flex-shrink:0;
+      height:clamp(32px,4.5vh,44px); flex-shrink:0;
     }
     .rwybar-half {
       display:flex; align-items:center;
-      padding:0 16px; gap:12px;
+      padding:0 clamp(4px,1.2vw,14px); gap:clamp(3px,0.8vw,10px);
       border-right:1px solid var(--border);
     }
     .rwybar-half:last-child { border-right:none; }
     .stn-lbl {
       font-family:'Orbitron',sans-serif;
-      font-size:13px; color:var(--lbl); font-weight:700; letter-spacing:1px;
+      font-size:clamp(8px,1vw,12px); color:var(--lbl); font-weight:700; letter-spacing:1px;
     }
     .rwy-sel {
       background:var(--bg); border:1px solid var(--border);
       color:var(--val-white);
-      font-size:13px; padding:3px 8px; border-radius:4px;
-      font-family:'Rajdhani',sans-serif; font-weight:600;
-      cursor:pointer;
+      font-size:clamp(8px,1vw,12px); padding:1px 4px; border-radius:4px;
+      font-family:'Inter',sans-serif; font-weight:600; cursor:pointer;
+      max-width:80px;
     }
-    .rwy-wrap { margin-left:auto; display:flex; align-items:center; gap:12px; }
-    .rwy-txt { font-size:13px; color:var(--sub); font-weight:600; }
+    .rwy-wrap { margin-left:auto; display:flex; align-items:center; gap:5px; }
+    .rwy-txt { font-size:clamp(8px,1vw,12px); color:var(--sub); font-weight:600; }
     .rwy-num {
       background:var(--rwy-bg); color:var(--rwy-txt);
       font-family:'Orbitron',sans-serif; font-weight:900;
-      font-size:24px; padding:2px 20px; border-radius:4px;
-      min-width:60px; text-align:center; letter-spacing:2px;
+      font-size:clamp(12px,2vw,22px); padding:1px clamp(6px,1.5vw,18px); border-radius:4px;
+      min-width:36px; text-align:center; letter-spacing:2px;
       box-shadow: 0 2px 6px rgba(21,101,192,0.4);
     }
     #main {
@@ -168,64 +167,77 @@
     .panel:last-child { border-right:none; }
     .pb { flex:1; display:flex; flex-direction:column; min-height:0; }
     .wind-row {
-      display:grid; grid-template-columns:1fr 1fr 220px;
+      display:grid; grid-template-columns:1fr 1fr minmax(50px,11vw);
       flex-shrink:0; border-bottom:2px solid var(--border);
+      min-height:70px;
     }
     .wind-col { display:flex; flex-direction:column; }
     .wbox {
       flex:1; display:flex; flex-direction:column;
       align-items:center; justify-content:center;
-      padding:12px 10px 10px;
+      padding:clamp(2px,0.6vh,8px) clamp(2px,0.6vw,8px);
       border-bottom:1px solid var(--border);
       border-right:1px solid var(--border);
       background:var(--bg);
       transition:background 0.3s;
+      min-height:30px;
     }
     .wbox:last-child { border-bottom:none; }
     .wbox:hover { background:var(--bg2); }
     .wlbl {
-      font-size:13px; color:var(--lbl); text-transform:uppercase;
-      letter-spacing:1px; line-height:1.4; text-align:center;
-      font-weight:600;
+      font-size:clamp(9px,1.2vw,16px); color:var(--lbl); text-transform:uppercase;
+      letter-spacing:0.3px; line-height:1.2; text-align:center;
+      font-weight:700;
     }
-    .wsub { font-size:11px; color:var(--sub); }
+    .wsub { font-size:clamp(7px,0.8vw,11px); color:var(--sub); }
     .wval {
-      font-size:46px; font-weight:900; line-height:1.05;
-      letter-spacing:-1px; font-family:'Orbitron',sans-serif;
+      font-size:clamp(22px,4.5vw,56px); font-weight:900; line-height:1;
+      letter-spacing:-0.5px; font-family:'Inter',sans-serif;
       transition: color 0.3s;
     }
+    .hw-green { color:#00e676 !important; }
+    .hw-red   { color:#ff1744 !important; }
     .cyan { color:var(--val-cyan); }
     .red  { color:var(--val-red); }
+    .sev-orange { color:var(--sev-orange) !important; }
+    .sev-red { color:var(--sev-red) !important; }
     .compass-cell {
       display:flex; align-items:center; justify-content:center;
       background:var(--compass-bg); overflow:hidden;
       border-left:1px solid var(--border);
       transition:background 0.3s;
-      min-width:220px;
+      min-height:70px;
     }
-    .compass-cell canvas { 
-      display:block; 
-      width:100%; 
-      height:100%;
-    }
+    .compass-cell canvas { display:block; width:100%; height:100%; }
     .range-row {
       display:grid; grid-template-columns:1fr 1fr;
       border-bottom:2px solid var(--border);
-      height:36px; flex-shrink:0;
-      background:var(--range-bg);
-      transition:background 0.3s;
+      min-height:clamp(22px,2.8vh,34px); flex-shrink:0;
+      background:var(--range-bg); transition:background 0.3s;
     }
-    .rr { display:flex; align-items:center; padding:0 16px; gap:10px; }
+    .rr {
+      display:flex; align-items:center; flex-wrap:wrap;
+      padding:2px clamp(4px,0.8vw,10px); gap:2px 6px;
+      min-width:0; overflow:hidden;
+    }
     .rr:first-child { border-right:1px solid var(--border); }
-    .rl { font-size:18px; color:var(--sub); white-space:nowrap; font-weight:600; }
+    .rl {
+      font-size:clamp(8px,1.1vw,14px);
+      color:var(--sub); white-space:nowrap; font-weight:600;
+      flex-shrink:0;
+    }
     .rv {
-      font-size:26px; font-weight:700;
-      color:var(--range-val); font-family:'Share Tech Mono',monospace;
-      letter-spacing:1px;
+      font-size:clamp(10px,1.5vw,22px);
+      font-weight:700;
+      color:var(--range-val);
+      font-family:'Inter',sans-serif;
+      letter-spacing:0.5px; white-space:nowrap;
+      min-width:0; overflow:hidden; text-overflow:ellipsis; flex-shrink:1;
     }
     .data-row {
       display:grid; flex-shrink:0;
       border-bottom:1px solid var(--border);
+      min-height:45px;
     }
     .data-row.c2 { grid-template-columns:1fr 1fr; }
     .data-row.c3 { grid-template-columns:1fr 1fr 1fr; }
@@ -233,32 +245,196 @@
       display:flex; flex-direction:column;
       border-right:1px solid var(--border); overflow:hidden;
       transition:background 0.3s;
+      min-height:0;
     }
     .dc:last-child { border-right:none; }
     .dc:hover { background:var(--bg2); }
     .dch {
       background:var(--hdr-bg); color:var(--hdr-txt);
-      font-size:20px; font-weight:700;
-      text-align:center; padding:8px 10px;
-      letter-spacing:0.5px; line-height:1.4; flex-shrink:0;
+      font-size:clamp(12px,1.8vw,22px); font-weight:700;
+      text-align:center; padding:clamp(3px,0.5vh,7px) 3px;
+      letter-spacing:0.5px; line-height:1.2; flex-shrink:0;
       text-transform:uppercase;
+      font-family:'Inter',sans-serif;
     }
     .dcv {
       flex:1; display:flex; align-items:center; justify-content:center;
-      font-size:44px; font-weight:900;
-      color:var(--val-white); font-family:'Orbitron',sans-serif;
-      letter-spacing:-0.5px;
-      min-height:45px;
+      font-size:clamp(18px,3.8vw,44px); font-weight:900;
+      color:var(--val-white);
+      font-family:'Inter',sans-serif;
+      letter-spacing:-0.5px; min-height:0;
+      transition: color 0.3s;
+      gap:4px;
     }
     #footer {
       background:var(--top-bg); border-top:2px solid var(--hdr-bg);
-      padding:4px 20px; font-size:12px; color:rgba(255,255,255,0.4);
-      text-align:right; flex-shrink:0;
-      letter-spacing:0.5px;
+      padding:2px clamp(6px,1.5vw,18px);
+      display:flex; align-items:center; justify-content:space-between;
+      flex-shrink:0; min-height:clamp(28px,4vh,40px);
+      gap:10px;
     }
-    .auto-refresh {
-      font-size:12px; color:#4caf50; margin-left:8px;
-      font-family:'Share Tech Mono',monospace;
+    #footer .dev {
+      font-size:clamp(7px,0.7vw,10px); 
+      color:rgba(255,255,255,0.35);
+      letter-spacing:0.3px;
+      white-space:nowrap;
+      font-family:'Inter',sans-serif;
+      font-weight:500;
+    }
+    #metar-container {
+      flex:1;
+      display:flex; align-items:center;
+      justify-content:flex-end;
+      min-width:0;
+      padding:0 5px;
+    }
+    #metar-display {
+      font-family:'Inter',sans-serif;
+      font-weight:700;
+      font-size:clamp(12px,1.8vw,22px);
+      color:var(--val-cyan);
+      background:var(--metar-bg);
+      padding:2px 12px;
+      border-radius:4px;
+      border:1px solid var(--border);
+      letter-spacing:0.5px;
+      white-space:nowrap;
+      overflow-x:auto;
+      max-width:100%;
+      text-shadow: 0 0 20px rgba(0,229,255,0.1);
+      transition: opacity 0.4s ease;
+      opacity: 1;
+    }
+    #metar-display.fade {
+      opacity: 0.4;
+    }
+    body.light #metar-display {
+      color:var(--val-cyan);
+      text-shadow: none;
+    }
+
+    /* Mode Pills */
+    .mode-pill {
+      display:inline-block;
+      font-family:'Inter',sans-serif;
+      font-size:8px; font-weight:700;
+      padding:1px 5px; border-radius:8px;
+      letter-spacing:0.3px; text-transform:uppercase;
+      border:1px solid;
+      transition: background 0.2s, color 0.2s;
+    }
+    .mode-pill.pill-inst  { background:rgba(0,229,255,0.12); color:#00e5ff; border-color:#00e5ff; }
+    .mode-pill.pill-1min  { background:rgba(100,181,246,0.12); color:#64b5f6; border-color:#64b5f6; }
+    .mode-pill.pill-2min  { background:rgba(129,212,250,0.12); color:#81d4fa; border-color:#81d4fa; }
+    .mode-pill.pill-10min { background:rgba(174,213,129,0.12); color:#aed581; border-color:#aed581; }
+    body.light .mode-pill.pill-inst  { background:rgba(0,119,204,0.10); color:#0077cc; border-color:#0077cc; }
+    body.light .mode-pill.pill-1min  { background:rgba(21,101,192,0.10); color:#1565c0; border-color:#1565c0; }
+    body.light .mode-pill.pill-2min  { background:rgba(2,119,189,0.10); color:#0277bd; border-color:#0277bd; }
+    body.light .mode-pill.pill-10min { background:rgba(85,139,47,0.10); color:#558b2f; border-color:#558b2f; }
+
+    /* Wind Component Badge */
+    .wcomp-badge {
+      display:inline-flex; align-items:center;
+      font-family:'Inter',sans-serif; font-weight:800;
+      font-size:clamp(8px,1vw,13px);
+      padding:1px 5px; border-radius:3px;
+      margin-top:1px; letter-spacing:0.3px;
+      border:1px solid transparent;
+      transition: all 0.25s; white-space:nowrap;
+    }
+    .badge-headwind { background:rgba(0,230,118,0.15); color:#00e676; border-color:#00c853; }
+    .badge-tailwind { background:rgba(255,23,68,0.20); color:#ff1744; border-color:#b71c1c;
+                      animation: tailwind-pulse 1.4s ease-in-out infinite; }
+    .badge-crossR   { background:rgba(255,152,0,0.15); color:#ffb74d; border-color:#e65100; }
+    .badge-crossL   { background:rgba(255,152,0,0.15); color:#ffb74d; border-color:#e65100; }
+    .badge-zero     { background:rgba(255,255,255,0.07); color:#78909c; border-color:#37474f; }
+    body.light .badge-headwind { background:rgba(0,150,76,0.12); color:#00695c; border-color:#00695c; }
+    body.light .badge-tailwind { background:rgba(183,28,28,0.12); color:#b71c1c; border-color:#b71c1c; }
+    body.light .badge-crossR   { background:rgba(230,81,0,0.10);  color:#e65100; border-color:#e65100; }
+    body.light .badge-crossL   { background:rgba(230,81,0,0.10);  color:#e65100; border-color:#e65100; }
+    body.light .badge-zero     { background:rgba(0,0,0,0.05);     color:#546e7a; border-color:#90a4ae; }
+    @keyframes tailwind-pulse {
+      0%,100% { box-shadow:0 0 0 0 rgba(255,23,68,0.5); }
+      50%      { box-shadow:0 0 0 4px rgba(255,23,68,0); }
+    }
+
+    /* Dew Point Spread - ONLY shows in fog conditions */
+    .dew-spread {
+      font-size:clamp(9px,1.1vw,13px); font-family:'Inter',sans-serif;
+      margin-top:1px; padding:2px 5px; border-radius:3px;
+      letter-spacing:0.3px; font-weight:600;
+    }
+    .spread-fog    { color:#ff5252; background:rgba(239,83,80,0.18);
+                     animation: tailwind-pulse 2s ease-in-out infinite; }
+    body.light .spread-fog     { color:#c62828; background:rgba(198,40,40,0.10); }
+
+    /* Pressure Trend */
+    .qnh-trend {
+      font-size:clamp(14px,1.8vw,22px); font-weight:900;
+      transition: color 0.3s;
+    }
+    .trend-rise { color:#69f0ae; }
+    .trend-fall { color:#ff5252; }
+    .trend-flat { color:#90caf9; opacity:0.6; }
+    body.light .trend-rise { color:#2e7d32; }
+    body.light .trend-fall { color:#c62828; }
+    body.light .trend-flat { color:#546e7a; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #main { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+      .panel { border-right:none; border-bottom:2px solid var(--panel-border); }
+      .panel:last-child { border-bottom:none; }
+      .brand { font-size:clamp(10px,3vw,16px); }
+      #clock { font-size:clamp(7px,2vw,12px); }
+      .wind-row { grid-template-columns:1fr 1fr minmax(50px,18vw); min-height:60px; }
+      .compass-cell { min-height:60px; }
+      .dch { font-size:clamp(10px,2.5vw,16px); }
+      .dcv { font-size:clamp(16px,4.5vw,32px); }
+      .wval { font-size:clamp(18px,5.5vw,36px); }
+      #metar-display { font-size:clamp(10px,1.8vw,16px); }
+      #footer { flex-wrap:wrap; justify-content:center; gap:4px; }
+    }
+    @media (max-width: 480px) {
+      .wind-row { grid-template-columns:1fr 1fr minmax(40px,20vw); min-height:50px; }
+      .compass-cell { min-height:50px; }
+      .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
+      .dcv { font-size:clamp(14px,4vw,28px); }
+      .wval { font-size:clamp(16px,5vw,30px); }
+      .range-row { min-height:18px; }
+      .rl { font-size:clamp(7px,1.5vw,10px); }
+      .rv { font-size:clamp(8px,1.8vw,14px); }
+      .data-row { min-height:35px; }
+      .rwy-sel { font-size:7px; max-width:60px; padding:1px 3px; }
+      .rwy-num { font-size:10px; min-width:28px; padding:1px 4px; }
+      .stn-lbl { font-size:7px; }
+      #status { font-size:7px; padding:1px 4px; }
+      .icon-btn { font-size:10px; padding:1px 5px; }
+      .top-btns { gap:4px; }
+      .wcomp-badge { font-size:7px; padding:0 3px; }
+      .mode-pill { font-size:7px; padding:1px 4px; }
+      .wlbl { font-size:8px; }
+      #metar-display { font-size:clamp(8px,1.5vw,12px); padding:1px 8px; }
+      #footer .dev { font-size:6px; }
+    }
+    @media (max-width: 360px) {
+      .wind-row { grid-template-columns:1fr 1fr minmax(35px,22vw); min-height:45px; }
+      .compass-cell { min-height:45px; }
+      .wval { font-size:14px; }
+      .dcv { font-size:12px; }
+      .dch { font-size:7px; }
+      .rwy-sel { max-width:50px; font-size:6px; }
+      #metar-display { font-size:7px; padding:1px 4px; }
+    }
+    @media (orientation: landscape) and (max-height: 500px) {
+      .wind-row { min-height:50px; }
+      .compass-cell { min-height:50px; }
+      .wval { font-size:clamp(16px,3vw,30px); }
+      .dch { font-size:clamp(8px,1.2vw,14px); }
+      .dcv { font-size:clamp(14px,2.5vw,28px); }
+      .data-row { min-height:30px; }
+      .range-row { min-height:16px; }
+      #metar-display { font-size:clamp(10px,1.5vw,16px); }
     }
   </style>
 </head>
@@ -267,149 +443,153 @@
     <div class="brand">VOGA-MOPA <span>AWOS</span></div>
     <div id="clock">—</div>
     <div class="top-btns">
-      <div id="status">⬤ CONNECTED</div>
+      <div id="status">⬤ LIVE</div>
       <button class="icon-btn" onclick="toggleTheme()">☀</button>
-      <button class="icon-btn" onclick="toggleFullscreen()">⛶</button>
+      <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
-  </div>
-  <div id="cfgbar">
-    <label>Auto Refresh :</label>
-    <span id="pkt-info">
-      Packets : <span id="pkt-count">0</span> | 
-      <span id="last-update">—</span>
-      <span class="auto-refresh" id="auto-status">● LIVE (2s)</span>
-    </span>
   </div>
   <div id="rwybar">
     <div class="rwybar-half">
-      <span class="stn-lbl">VOGA</span>
+      <span class="stn-lbl">RWY</span>
       <select class="rwy-sel" id="mode-28" onchange="onModeChange('28',this.value)">
-        <option value="instant" selected>Instant</option>
-        <option value="1min">1 Min Avg</option>
-        <option value="2min">2 Min Avg</option>
-        <option value="10min">10 Min Avg</option>
+        <option value="instant" selected>Inst</option>
+        <option value="1min">1Min</option>
+        <option value="2min">2Min</option>
+        <option value="10min">10Min</option>
       </select>
-      <div class="rwy-wrap"><span class="rwy-txt">Runway :</span><div class="rwy-num">28</div></div>
+      <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">28</div></div>
     </div>
     <div class="rwybar-half">
-      <span class="stn-lbl">VOGA</span>
+      <span class="stn-lbl">RWY</span>
       <select class="rwy-sel" id="mode-10" onchange="onModeChange('10',this.value)">
-        <option value="instant" selected>Instant</option>
-        <option value="1min">1 Min Avg</option>
-        <option value="2min">2 Min Avg</option>
-        <option value="10min">10 Min Avg</option>
+        <option value="instant" selected>Inst</option>
+        <option value="1min">1Min</option>
+        <option value="2min">2Min</option>
+        <option value="10min">10Min</option>
       </select>
-      <div class="rwy-wrap"><span class="rwy-txt">Runway :</span><div class="rwy-num">10</div></div>
+      <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">10</div></div>
     </div>
   </div>
   <div id="main">
+    <!-- Panel 28 -->
     <div class="panel">
       <div class="pb">
         <div class="wind-row">
           <div class="wind-col">
             <div class="wbox">
-              <div class="wlbl">WD (DEGREE)<br><span class="wsub" id="sub28-wd">INST</span></div>
+              <div class="wlbl">WD (DEG)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill28-wd">INST</span></span></div>
               <div class="wval cyan" id="r28-wd">—</div>
             </div>
             <div class="wbox">
-              <div class="wlbl">WS (KNOTS)<br><span class="wsub" id="sub28-ws">INST</span></div>
-              <div class="wval cyan" id="r28-ws">—</div>
+              <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
+              <div class="wval hw-green" id="r28-hw">—</div>
+              <div id="badge28-hw"></div>
             </div>
           </div>
           <div class="wind-col">
             <div class="wbox">
-              <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
-              <div class="wval red" id="r28-hw">—</div>
+              <div class="wlbl">WS (KNOTS)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill28-ws">INST</span></span></div>
+              <div class="wval cyan" id="r28-ws">—</div>
             </div>
             <div class="wbox">
               <div class="wlbl">CROSS WIND<br><span class="wsub">(KNOTS)</span></div>
-              <div class="wval red" id="r28-cw">—</div>
+              <div class="wval" id="r28-cw">—</div>
+              <div id="badge28-cw"></div>
             </div>
           </div>
           <div class="compass-cell"><canvas id="compass-28"></canvas></div>
         </div>
         <div class="range-row">
-          <div class="rr"><span class="rl">WS 2 min</span><span class="rv" id="r28-ws2">—</span></div>
-          <div class="rr"><span class="rl">WD 2 min</span><span class="rv" id="r28-wd2">—</span></div>
+          <div class="rr"><span class="rl">WS 2min</span><span class="rv" id="r28-ws2">—</span></div>
+          <div class="rr"><span class="rl">WD 2min</span><span class="rv" id="r28-wd2">—</span></div>
         </div>
         <div class="data-row c2">
           <div class="dc"><div class="dch">RVR</div><div class="dcv" id="r28-rvr">—</div></div>
           <div class="dc"><div class="dch">MOR</div><div class="dcv" id="r28-mor">—</div></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—</div></div>
+          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—<span class="qnh-trend trend-flat" id="trend28-qnh">→</span></div></div>
           <div class="dc"><div class="dch">QFE (hPa)</div><div class="dcv" id="r28-qfe">—</div></div>
         </div>
         <div class="data-row c3">
-          <div class="dc"><div class="dch">Temp. (°C)</div><div class="dcv" id="r28-temp">—</div></div>
-          <div class="dc"><div class="dch">Hum. (%)</div><div class="dcv" id="r28-hum">—</div></div>
-          <div class="dc"><div class="dch">Dew Pt. (°C)</div><div class="dcv" id="r28-dew">—</div></div>
+          <div class="dc"><div class="dch">TEMP (°C)</div><div class="dcv" id="r28-temp">—</div></div>
+          <div class="dc"><div class="dch">HUM (%)</div><div class="dcv" id="r28-hum">—</div></div>
+          <div class="dc"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r28-dew">—</div><div id="spread28" style="text-align:center;padding-bottom:2px;min-height:18px;"></div></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Max WS (1 min)</div><div class="dcv" id="r28-wsmax">—</div></div>
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Min WS (1 min)</div><div class="dcv" id="r28-wsmin">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r28-wsmax">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r28-wsmin">—</div></div>
         </div>
       </div>
     </div>
+    <!-- Panel 10 -->
     <div class="panel">
       <div class="pb">
         <div class="wind-row">
           <div class="wind-col">
             <div class="wbox">
-              <div class="wlbl">WD (DEGREE)<br><span class="wsub" id="sub10-wd">INST</span></div>
+              <div class="wlbl">WD (DEG)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill10-wd">INST</span></span></div>
               <div class="wval cyan" id="r10-wd">—</div>
             </div>
             <div class="wbox">
-              <div class="wlbl">WS (KNOTS)<br><span class="wsub" id="sub10-ws">INST</span></div>
-              <div class="wval cyan" id="r10-ws">—</div>
+              <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
+              <div class="wval hw-green" id="r10-hw">—</div>
+              <div id="badge10-hw"></div>
             </div>
           </div>
           <div class="wind-col">
             <div class="wbox">
-              <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
-              <div class="wval red" id="r10-hw">—</div>
+              <div class="wlbl">WS (KNOTS)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill10-ws">INST</span></span></div>
+              <div class="wval cyan" id="r10-ws">—</div>
             </div>
             <div class="wbox">
               <div class="wlbl">CROSS WIND<br><span class="wsub">(KNOTS)</span></div>
-              <div class="wval red" id="r10-cw">—</div>
+              <div class="wval" id="r10-cw">—</div>
+              <div id="badge10-cw"></div>
             </div>
           </div>
           <div class="compass-cell"><canvas id="compass-10"></canvas></div>
         </div>
         <div class="range-row">
-          <div class="rr"><span class="rl">WS 2 min</span><span class="rv" id="r10-ws2">—</span></div>
-          <div class="rr"><span class="rl">WD 2 min</span><span class="rv" id="r10-wd2">—</span></div>
+          <div class="rr"><span class="rl">WS 2min</span><span class="rv" id="r10-ws2">—</span></div>
+          <div class="rr"><span class="rl">WD 2min</span><span class="rv" id="r10-wd2">—</span></div>
         </div>
         <div class="data-row c2">
           <div class="dc"><div class="dch">RVR</div><div class="dcv" id="r10-rvr">—</div></div>
           <div class="dc"><div class="dch">MOR</div><div class="dcv" id="r10-mor">—</div></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—</div></div>
+          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—<span class="qnh-trend trend-flat" id="trend10-qnh">→</span></div></div>
           <div class="dc"><div class="dch">QFE (hPa)</div><div class="dcv" id="r10-qfe">—</div></div>
         </div>
         <div class="data-row c3">
-          <div class="dc"><div class="dch">Temp. (°C)</div><div class="dcv" id="r10-temp">—</div></div>
-          <div class="dc"><div class="dch">Hum. (%)</div><div class="dcv" id="r10-hum">—</div></div>
-          <div class="dc"><div class="dch">Dew Pt. (°C)</div><div class="dcv" id="r10-dew">—</div></div>
+          <div class="dc"><div class="dch">TEMP (°C)</div><div class="dcv" id="r10-temp">—</div></div>
+          <div class="dc"><div class="dch">HUM (%)</div><div class="dcv" id="r10-hum">—</div></div>
+          <div class="dc"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r10-dew">—</div><div id="spread10" style="text-align:center;padding-bottom:2px;min-height:18px;"></div></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Min WS (1 min)</div><div class="dcv" id="r10-wsmin">—</div></div>
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Max WS (1 min)</div><div class="dcv" id="r10-wsmax">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r10-wsmin">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r10-wsmax">—</div></div>
         </div>
       </div>
     </div>
   </div>
-  <div id="footer">Developed By : AJAY YADAV, GOA</div>
+  <div id="footer">
+    <div class="dev">DEVELOPER: AJAY (GOA)</div>
+    <div id="metar-container">
+      <div id="metar-display">⏳ LOADING METAR...</div>
+    </div>
+  </div>
 
   <script>
     // ── STORED DATA ──
     const latestData = { '28': null, '10': null };
     const modes = { '28': 'instant', '10': 'instant' };
     const compassDirs = { '28': null, '10': null };
-    let packetCount = 0;
     let isDark = true;
     let autoRefreshInterval = null;
+    let metarInterval = null;
+    let isFirstMetarFetch = true;
 
     // ── CLOCK ──
     (function(){
@@ -449,17 +629,63 @@
       if(!document.fullscreenElement && isFS){ isFS=false; document.getElementById('fullscreen-btn').textContent='⛶'; }
     });
 
+    // ── FETCH METAR with CORS PROXY ──
+    function fetchMETAR(){
+      const metarDisplay = document.getElementById('metar-display');
+      
+      // Only show fetching text on first load
+      if(isFirstMetarFetch){
+        metarDisplay.textContent = '⏳ LOADING METAR...';
+        metarDisplay.style.opacity = '1';
+        isFirstMetarFetch = false;
+      } else {
+        // Smooth fade for background updates
+        metarDisplay.classList.add('fade');
+      }
+      
+      // Use CORS proxy to bypass CORS restrictions
+      const url = 'https://api.allorigins.win/raw?url=' + 
+        encodeURIComponent('https://aviationweather.gov/api/data/metar?ids=VOGA&hours=0&sep=true');
+      
+      fetch(url)
+        .then(res => {
+          if(!res.ok) throw new Error('HTTP '+res.status);
+          return res.text();
+        })
+        .then(data => {
+          // Check if we got valid METAR data
+          if(data && data.trim().length > 0 && data.includes('VOGA')){
+            const clean = data.trim().replace(/\s+/g, ' ');
+            metarDisplay.textContent = clean;
+            metarDisplay.style.color = '';
+          } else {
+            metarDisplay.textContent = '⚠ METAR UNAVAILABLE';
+            metarDisplay.style.color = '#ff5252';
+          }
+          // Fade back in
+          metarDisplay.classList.remove('fade');
+          metarDisplay.style.opacity = '1';
+        })
+        .catch(err => {
+          console.error('METAR fetch error:', err);
+          metarDisplay.textContent = '⚠ METAR ERROR';
+          metarDisplay.style.color = '#ff5252';
+          metarDisplay.classList.remove('fade');
+          metarDisplay.style.opacity = '1';
+        });
+    }
+
     // ── COMPASS ──
     function drawCompass(rwy, windDeg){
       const canvas = document.getElementById('compass-'+rwy);
       if(!canvas) return;
       const parent = canvas.parentElement;
-      canvas.width = parent.clientWidth || 220;
-      canvas.height = parent.clientHeight || 100;
+      canvas.width = parent.clientWidth || 200;
+      canvas.height = parent.clientHeight || 90;
       const ctx = canvas.getContext('2d');
       const W=canvas.width, H=canvas.height;
-      const cx=W/2, cy=H/2, r=Math.min(W,H)*0.46;
-      if(r<5) return;
+      const cx=W/2, cy=H/2, r=Math.min(W,H)*0.44;
+      if(r<4) return;
       const isLight = document.body.classList.contains('light');
       ctx.clearRect(0,0,W,H);
       ctx.fillStyle = isLight ? '#e8f0f8' : '#04090f';
@@ -469,7 +695,7 @@
       grad.addColorStop(0, isLight?'#1976d2':'#1565c0');
       grad.addColorStop(1, isLight?'#42a5f5':'#0d3a80');
       ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.strokeStyle=grad; ctx.lineWidth=3; ctx.stroke();
+      ctx.strokeStyle=grad; ctx.lineWidth=2.5; ctx.stroke();
 
       ctx.beginPath(); ctx.arc(cx,cy,r-1,0,Math.PI*2);
       ctx.fillStyle = isLight?'rgba(21,101,192,0.06)':'rgba(21,101,192,0.08)';
@@ -483,33 +709,33 @@
         ctx.moveTo(cx+Math.cos(a)*inner, cy+Math.sin(a)*inner);
         ctx.lineTo(cx+Math.cos(a)*(r-1), cy+Math.sin(a)*(r-1));
         ctx.strokeStyle=isMaj?(isLight?'#1565c0':'#64b5f6'):(isLight?'#90b8d8':'#1a3a70');
-        ctx.lineWidth=isMaj?2.5:1.2; ctx.stroke();
+        ctx.lineWidth=isMaj?2:1; ctx.stroke();
       }
 
-      const fs=Math.max(14,Math.round(r*0.34));
+      const fs=Math.max(10,Math.round(r*0.3));
       [['N',0,isLight?'#d32f2f':'#ff4444'],['E',90,isLight?'#1565c0':'#64b5f6'],
        ['S',180,isLight?'#1565c0':'#64b5f6'],['W',270,isLight?'#1565c0':'#64b5f6']].forEach(([c,deg,col])=>{
         const a=(deg-90)*Math.PI/180;
         ctx.font=`900 ${fs}px Orbitron,Arial`;
         ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillStyle=col;
-        ctx.fillText(c, cx+Math.cos(a)*r*0.56, cy+Math.sin(a)*r*0.56);
+        ctx.fillText(c, cx+Math.cos(a)*r*0.54, cy+Math.sin(a)*r*0.54);
       });
 
-      ctx.beginPath(); ctx.arc(cx,cy,4.5,0,Math.PI*2);
+      ctx.beginPath(); ctx.arc(cx,cy,3.5,0,Math.PI*2);
       ctx.fillStyle=isLight?'#ff6600':'#ff7700'; ctx.fill();
 
       if(windDeg!==null && !isNaN(windDeg)){
         const a=(windDeg-90)*Math.PI/180;
-        const len=r*0.72, tail=r*0.25;
+        const len=r*0.7, tail=r*0.22;
         ctx.shadowColor=isLight?'rgba(255,80,0,0.3)':'rgba(255,119,0,0.5)';
-        ctx.shadowBlur=12;
+        ctx.shadowBlur=10;
         ctx.beginPath();
         ctx.moveTo(cx-Math.cos(a)*tail, cy-Math.sin(a)*tail);
         ctx.lineTo(cx+Math.cos(a)*len,  cy+Math.sin(a)*len);
-        ctx.strokeStyle=isLight?'#e65100':'#ff7700'; ctx.lineWidth=4; ctx.stroke();
+        ctx.strokeStyle=isLight?'#e65100':'#ff7700'; ctx.lineWidth=3.5; ctx.stroke();
         ctx.shadowBlur=0; ctx.shadowColor='transparent';
-        const hs=r*0.2;
+        const hs=r*0.18;
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*len, cy+Math.sin(a)*len);
         ctx.lineTo(cx+Math.cos(a)*len+Math.cos(a+2.7)*hs, cy+Math.sin(a)*len+Math.sin(a+2.7)*hs);
@@ -528,12 +754,12 @@
         const windRow=pb.querySelector('.wind-row');
         const rangeRow=pb.querySelector('.range-row');
         const dataRows=pb.querySelectorAll('.data-row');
-        const windH=Math.round(totalH*0.31);
-        const rangeH=36;
+        const windH=Math.round(totalH*0.32);
+        const rangeH = rangeRow ? Math.max(rangeRow.getBoundingClientRect().height, 30) : 30;
         const remaining=totalH-windH-rangeH;
         const perData=Math.floor(remaining/dataRows.length);
-        if(windRow) windRow.style.height=windH+'px';
-        dataRows.forEach(r=>r.style.height=perData+'px');
+        if(windRow) windRow.style.height=Math.max(windH, 70)+'px';
+        dataRows.forEach(r=>r.style.height=Math.max(perData, 45)+'px');
       });
       ['28','10'].forEach(rwy=>{
         const cell=document.getElementById('compass-'+rwy)?.parentElement;
@@ -541,7 +767,7 @@
       });
     }
 
-    // ── SET VALUE (INSTANT, NO ANIMATION) ──
+    // ── SET VALUE ──
     function setValue(id, newVal){
       const el = document.getElementById(id);
       if(!el) return;
@@ -551,33 +777,69 @@
       }
     }
 
-    // ── GET VALUE BY MODE - FIXED FOR ALL MODES ──
+    // ── SEVERITY ──
+    function parseLeadingNumber(val){
+      if(val === null || val === undefined) return null;
+      if(typeof val === 'number') return val;
+      const str = String(val).trim();
+      if(str === '--' || str === '' || str === '—') return null;
+      const match = str.match(/-?\d+(\.\d+)?/);
+      if(!match) return null;
+      return parseFloat(match[0]);
+    }
+
+    const SEVERITY_THRESHOLDS = {
+      windSpeed:  { normalMax: 15,   highMax: 25   },
+      crossWind:  { normalMax: 10,   highMax: 20   },
+      headWind:   { normalMax: 20,   highMax: 30   },
+      temperature:{ normalMax: 35,   highMax: 40   },
+      humidity:   { normalMax: 70,   highMax: 85   },
+      visibility: { normalMax: 1500, highMax: 550, reverse: true }
+    };
+
+    function getSeverityClass(paramKey, rawValue){
+      const cfg = SEVERITY_THRESHOLDS[paramKey];
+      if(!cfg) return null;
+      const num = parseLeadingNumber(rawValue);
+      if(num === null || isNaN(num)) return null;
+      if(cfg.reverse){
+        if(num < cfg.highMax) return 'sev-red';
+        if(num < cfg.normalMax) return 'sev-orange';
+        return null;
+      } else {
+        if(num > cfg.highMax) return 'sev-red';
+        if(num > cfg.normalMax) return 'sev-orange';
+        return null;
+      }
+    }
+
+    function setValueWithSeverity(id, newVal, paramKey){
+      setValue(id, newVal);
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.classList.remove('sev-orange', 'sev-red');
+      const sevClass = getSeverityClass(paramKey, newVal);
+      if(sevClass) el.classList.add(sevClass);
+    }
+
+    // ── GET VALUE BY MODE ──
     function getValueByMode(data, field, mode){
       if(!data) return null;
-      
-      // Map mode to exact API field suffix
       const suffixMap = {
         'instant': 'instant_rounded',
         '1min': 'avgOneMin_rounded',
         '2min': 'avgTwoMin_rounded',
         '10min': 'avgTenMin_rounded'
       };
-      
       const suffix = suffixMap[mode] || 'instant_rounded';
-      
-      // Try exact match first: windDirection_avgOneMin_rounded
       let key = field + '_' + suffix;
       if(data[key] !== undefined && data[key] !== '--') {
         return data[key];
       }
-      
-      // Try without _rounded: windDirection_avgOneMin
       key = field + '_' + suffix.replace('_rounded', '');
       if(data[key] !== undefined && data[key] !== '--') {
         return data[key];
       }
-      
-      // Try alternative format for some fields
       const altMap = {
         'windDirection': ['windDirection_avgOneMin_rounded', 'windDirection_avgOneMin', 'windDirection_instant_rounded'],
         'windSpeed': ['windSpeed_avgOneMin_rounded', 'windSpeed_avgOneMin', 'windSpeed_instant_rounded'],
@@ -587,7 +849,6 @@
         'qnh': ['qnh_avgOneMin_rounded', 'qnh_avgOneMin', 'qnh_instant_rounded'],
         'qfe': ['qfe_avgOneMin_rounded', 'qfe_avgOneMin', 'qfe_instant_rounded']
       };
-      
       if(altMap[field]) {
         for(let altKey of altMap[field]) {
           if(data[altKey] !== undefined && data[altKey] !== '--') {
@@ -595,71 +856,126 @@
           }
         }
       }
-      
       return null;
     }
 
-    // ── GET HEAD/CROSS WIND ──
+    // ── HEAD/CROSS WIND ──
     function getHeadCrossWind(data, mode){
       if(!data) return { hw: '--', cw: '--' };
-      
       const suffixMap = {
         'instant': 'instant',
         '1min': 'avgOneMin',
         '2min': 'avgTwoMin',
         '10min': 'avgTenMin'
       };
-      
       const suffix = suffixMap[mode] || 'instant';
-      
-      // Try with mode first
       let hwKey = 'headwind_' + suffix;
       let cwKey = 'crosswind_' + suffix;
-      
       let hw = data[hwKey];
       let cw = data[cwKey];
-      
-      // If not found, try fallback to 1min
       if(hw === undefined || hw === null || hw === '--') {
         hw = data['headwind_avgOneMin'] || '--';
         cw = data['crosswind_avgOneMin'] || '--';
       }
-      
       return { hw: hw || '--', cw: cw || '--' };
+    }
+
+    // ── WIND BADGE ──
+    function renderWindBadge(containerId, raw, type){
+      const el = document.getElementById(containerId);
+      if(!el) return;
+      if(!raw || raw === '--' || raw === '—'){ el.innerHTML=''; return; }
+      const s = String(raw).trim();
+      if(parseLeadingNumber(s) === null){ el.innerHTML=''; return; }
+      let cls, icon;
+      if(type === 'head'){
+        if(s.endsWith('T'))      { cls='badge-tailwind'; icon='↙ TAIL'; }
+        else if(s.endsWith('H')) { cls='badge-headwind'; icon='↗ HEAD'; }
+        else                     { cls='badge-zero';     icon='→'; }
+      } else {
+        if(s.endsWith('R'))      { cls='badge-crossR'; icon='→ R'; }
+        else if(s.endsWith('L')) { cls='badge-crossL'; icon='← L'; }
+        else                     { cls='badge-zero';   icon='○'; }
+      }
+      el.innerHTML = `<span class="wcomp-badge ${cls}">${icon}</span>`;
+    }
+
+    // ── DEW SPREAD (ONLY FOG) ──
+    function renderDewSpread(containerId, temp, dew){
+      const el = document.getElementById(containerId);
+      if(!el) return;
+      const t = parseFloat(temp), d = parseFloat(dew);
+      if(isNaN(t) || isNaN(d)){ el.innerHTML=''; return; }
+      const spread = Math.round((t - d) * 10) / 10;
+      
+      // Fog condition: spread <= 2°C, temp < 25°C
+      const isFoggy = spread <= 2 && t < 25;
+      
+      if(isFoggy){
+        el.innerHTML = `<span class="dew-spread spread-fog">⚠ FOG RISK (${spread}°C)</span>`;
+      } else {
+        el.innerHTML = '';
+      }
+    }
+
+    // ── PRESSURE TREND ──
+    function renderPressureTrend(spanId, instant, tenMin){
+      const el = document.getElementById(spanId);
+      if(!el) return;
+      const i = parseFloat(instant), t = parseFloat(tenMin);
+      if(isNaN(i) || isNaN(t)){ el.className='qnh-trend trend-flat'; el.textContent='→'; return; }
+      const diff = i - t;
+      if(diff > 0.3){
+        el.className='qnh-trend trend-rise'; el.textContent=' ↑';
+      } else if(diff < -0.3){
+        el.className='qnh-trend trend-fall'; el.textContent=' ↓';
+      } else {
+        el.className='qnh-trend trend-flat'; el.textContent=' →';
+      }
     }
 
     // ── RENDER PANEL ──
     function renderPanel(rwy){
       const d=latestData[rwy];
-      if(!d) {
-        console.warn('No data for runway', rwy);
-        return;
-      }
+      if(!d) return;
       
       const mode=modes[rwy];
       const p='r'+rwy+'-';
 
-      // Update mode label
-      const modeLabel={ instant:'INST', '1min':'1 MIN', '2min':'2 MIN', '10min':'10 MIN' }[mode]||'INST';
-      const subEl=document.getElementById('sub'+rwy+'-wd');
-      const subElws=document.getElementById('sub'+rwy+'-ws');
-      if(subEl) subEl.textContent=modeLabel;
-      if(subElws) subElws.textContent=modeLabel;
+      const modeLabel={ instant:'INST', '1min':'1MIN', '2min':'2MIN', '10min':'10MIN' }[mode]||'INST';
+      const pillClass={ instant:'pill-inst', '1min':'pill-1min', '2min':'pill-2min', '10min':'pill-10min' }[mode]||'pill-inst';
+      ['wd','ws'].forEach(f=>{
+        const pill=document.getElementById('pill'+rwy+'-'+f);
+        if(pill){
+          pill.textContent=modeLabel;
+          pill.className='mode-pill '+pillClass;
+        }
+      });
 
-      // Wind Direction
       const wd = getValueByMode(d, 'windDirection', mode);
       setValue(p+'wd', wd);
 
-      // Wind Speed
       const ws = getValueByMode(d, 'windSpeed', mode);
-      setValue(p+'ws', ws);
+      setValueWithSeverity(p+'ws', ws, 'windSpeed');
 
-      // Head/Cross wind
       const { hw, cw } = getHeadCrossWind(d, mode);
-      setValue(p+'hw', hw);
-      setValue(p+'cw', cw);
+      const hwEl = document.getElementById(p+'hw');
+      if(hwEl){
+        const hwStr = String(hw||'');
+        if(hwStr.endsWith('T')){
+          hwEl.className = 'wval hw-red';
+        } else {
+          hwEl.className = 'wval hw-green';
+        }
+        setValue(p+'hw', hw);
+        hwEl.classList.remove('sev-orange','sev-red');
+      }
+      setValueWithSeverity(p+'cw', cw, 'crossWind');
+      const cwEl = document.getElementById(p+'cw');
+      if(cwEl){ cwEl.classList.remove('sev-orange','sev-red'); }
+      renderWindBadge('badge'+rwy+'-hw', hw, 'head');
+      renderWindBadge('badge'+rwy+'-cw', cw, 'cross');
 
-      // 2-min ranges (always from data)
       if(d.windSpeed_minTwoMin_rounded !== undefined && d.windSpeed_maxTwoMin_rounded !== undefined){
         setValue(p+'ws2', d.windSpeed_minTwoMin_rounded + '-' + d.windSpeed_maxTwoMin_rounded);
       }
@@ -670,39 +986,34 @@
         );
       }
 
-      // RVR
       const rvrKey = mode === '10min' ? 'pwd_rvr_avgTenMin' : 'pwd_rvr_avgOneMin';
-      setValue(p+'rvr', d[rvrKey] || '--');
+      setValueWithSeverity(p+'rvr', d[rvrKey] || '--', 'visibility');
 
-      // MOR
       const morKey = mode === '10min' ? 'pwd_mor_avgTenMin' : 'pwd_mor_avgOneMin';
-      setValue(p+'mor', d[morKey] || '--');
+      setValueWithSeverity(p+'mor', d[morKey] || '--', 'visibility');
 
-      // QNH
       const qnh = getValueByMode(d, 'qnh', mode);
       setValue(p+'qnh', qnh);
 
-      // QFE
       const qfe = getValueByMode(d, 'qfe', mode);
       setValue(p+'qfe', qfe);
 
-      // Temperature
       const temp = getValueByMode(d, 'temperature', mode);
-      setValue(p+'temp', temp);
+      setValueWithSeverity(p+'temp', temp, 'temperature');
 
-      // Humidity
       const hum = getValueByMode(d, 'humidity', mode);
-      setValue(p+'hum', hum);
+      setValueWithSeverity(p+'hum', hum, 'humidity');
 
-      // Dew Point
       const dew = getValueByMode(d, 'dewPoint', mode);
       setValue(p+'dew', dew);
 
-      // Min/Max WS 1-min
+      renderDewSpread('spread'+rwy, temp, dew);
+
+      renderPressureTrend('trend'+rwy+'-qnh', d.qnh_instant_rounded, d.qnh_avgTenMin_rounded);
+
       setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
       setValue(p+'wsmax', d.windSpeed_maxOneMin_rounded || '--');
 
-      // Compass
       compassDirs[rwy]=wd;
       drawCompass(rwy, wd);
     }
@@ -721,10 +1032,6 @@
           return res.json();
         })
         .then(data => {
-          packetCount++;
-          document.getElementById('pkt-count').textContent = packetCount;
-          document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-          
           if(data['10']) {
             latestData['10'] = data['10'];
             renderPanel('10');
@@ -733,19 +1040,23 @@
             latestData['28'] = data['28'];
             renderPanel('28');
           }
+          setTimeout(resizeLayout, 50);
         })
         .catch(err => {
           console.error('Fetch error:', err);
         });
     }
 
-    // ── START AUTO REFRESH ──
+    // ── START ──
     function startAutoRefresh(){
       if(autoRefreshInterval) clearInterval(autoRefreshInterval);
       autoRefreshInterval = setInterval(fetchData, 2000);
+      if(metarInterval) clearInterval(metarInterval);
+      metarInterval = setInterval(fetchMETAR, 120000); // 2 min
+      // Initial fetch with small delay
+      setTimeout(fetchMETAR, 500);
     }
 
-    // ── INIT ──
     window.addEventListener('load', ()=>{
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
@@ -755,6 +1066,7 @@
 
     window.addEventListener('beforeunload', () => {
       if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+      if(metarInterval) clearInterval(metarInterval);
     });
   </script>
 </body>
