@@ -1,902 +1,761 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOPA Airport Weather Monitor</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 100%;
-            margin: 0;
-            padding: 0 20px;
-        }
-
-        /* Header */
-        .header {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .header h1 {
-            font-size: 2.2em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .station-info {
-            background: rgba(255,255,255,0.2);
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-size: 1.1em;
-        }
-
-        /* Status Bar */
-        .status-bar {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .status-card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 15px;
-            flex: 1;
-            min-width: 200px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .status-icon {
-            font-size: 2em;
-        }
-
-        .status-label {
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-
-        .status-value {
-            font-size: 1.3em;
-            font-weight: bold;
-        }
-
-        .connected {
-            border-left: 5px solid #4CAF50;
-        }
-
-        .disconnected {
-            border-left: 5px solid #f44336;
-        }
-
-        /* Main Grid */
-        .weather-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 20px;
-            width: 100%;
-        }
-
-        /* Weather Cards */
-        .weather-card {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            transition: transform 0.3s;
-        }
-
-        .weather-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .card-header h2 {
-            font-size: 1.3em;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .runway-badge {
-            background: #1e3c72;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8em;
-        }
-
-        /* Wind Section */
-        .wind-compass {
-            position: relative;
-            width: 150px;
-            height: 150px;
-            margin: 20px auto;
-        }
-
-        .compass-circle {
-            width: 100%;
-            height: 100%;
-            border: 3px solid #1e3c72;
-            border-radius: 50%;
-            position: relative;
-        }
-
-        .wind-arrow {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform-origin: 0% 0%;
-            width: 60px;
-            height: 4px;
-            background: linear-gradient(90deg, #f44336, #ff9800);
-            border-radius: 4px;
-        }
-
-        .wind-speed {
-            text-align: center;
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #1e3c72;
-        }
-
-        /* Temperature Section */
-        .temp-display {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            margin: 20px 0;
-        }
-
-        .temp-current {
-            text-align: center;
-        }
-
-        .temp-value {
-            font-size: 3.5em;
-            font-weight: bold;
-            color: #f44336;
-        }
-
-        .temp-unit {
-            font-size: 1.5em;
-            color: #666;
-        }
-
-        .temp-range {
-            display: flex;
-            gap: 20px;
-        }
-
-        .temp-min, .temp-max {
-            text-align: center;
-        }
-
-        .temp-label {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .temp-number {
-            font-size: 1.3em;
-            font-weight: bold;
-        }
-
-        .temp-min .temp-number {
-            color: #2196F3;
-        }
-
-        .temp-max .temp-number {
-            color: #f44336;
-        }
-
-        /* Pressure Section */
-        .pressure-display {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .pressure-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .pressure-label {
-            font-weight: 600;
-            color: #666;
-        }
-
-        .pressure-value {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #1e3c72;
-        }
-
-        /* Humidity & Dew Point */
-        .humidity-display {
-            display: flex;
-            gap: 20px;
-            margin: 20px 0;
-        }
-
-        .humidity-item {
-            flex: 1;
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 15px;
-        }
-
-        .humidity-icon {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .humidity-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #1e3c72;
-        }
-
-        /* Visibility Section */
-        .visibility-display {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .vis-item {
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 15px;
-        }
-
-        .vis-label {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .vis-value {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #1e3c72;
-        }
-
-        /* Data Table */
-        .data-table {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .table-header h2 {
-            color: #333;
-        }
-
-        .table-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: #1e3c72;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2a5298;
-        }
-
-        .btn-success {
-            background: #4CAF50;
-            color: white;
-        }
-
-        .btn-danger {
-            background: #f44336;
-            color: white;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #1e3c72;
-            color: white;
-            padding: 12px;
-            text-align: left;
-        }
-
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        tr:hover {
-            background: #f5f5f5;
-        }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            margin-top: 20px;
-            color: rgba(255,255,255,0.7);
-        }
-
-        /* Loading */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
-        }
-
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #1e3c72;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Alert */
-        .alert {
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOGA-MOPA AWOS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07111c;
+      --bg2: #0b1825;
+      --bg3: #0f2030;
+      --border: #1a3050;
+      --hdr-bg: #1565c0;
+      --hdr2-bg: #0d47a1;
+      --hdr-txt: #ffffff;
+      --val-cyan: #00e5ff;
+      --val-red: #ef5350;
+      --val-white: #ffffff;
+      --lbl: #4a8aaa;
+      --sub: #2a6888;
+      --rwy-bg: #1565c0;
+      --rwy-txt: #ffffff;
+      --range-bg: #071015;
+      --range-val: #b0d0f0;
+      --top-bg: #030c14;
+      --top-txt: #ffffff;
+      --cfg-bg: #04090f;
+      --cfg-txt: #7ab0d8;
+      --brand: #ffffff;
+      --brand-acc: #00e5ff;
+      --compass-bg: #04090f;
+      --compass-ring: #1a4a7a;
+      --compass-tick: #4a8ac0;
+      --compass-n: #ff4444;
+      --compass-arr: #ff7700;
+      --shadow: 0 2px 12px rgba(0,0,0,0.5);
+      --panel-border: #1a3a5a;
+    }
+    body.light {
+      --bg: #ffffff;
+      --bg2: #f0f4f8;
+      --bg3: #e2eaf2;
+      --border: #b8cfe0;
+      --hdr-bg: #1565c0;
+      --hdr2-bg: #0d47a1;
+      --hdr-txt: #ffffff;
+      --val-cyan: #0077cc;
+      --val-red: #d32f2f;
+      --val-white: #1a2a3a;
+      --lbl: #4a6a88;
+      --sub: #7a9ab8;
+      --rwy-bg: #1565c0;
+      --rwy-txt: #ffffff;
+      --range-bg: #dce8f4;
+      --range-val: #0d47a1;
+      --top-bg: #0d47a1;
+      --top-txt: #ffffff;
+      --cfg-bg: #1565c0;
+      --cfg-txt: #ffffff;
+      --brand: #ffffff;
+      --brand-acc: #00e5ff;
+      --compass-bg: #e8f0f8;
+      --compass-ring: #1565c0;
+      --compass-tick: #4a8ac0;
+      --compass-n: #d32f2f;
+      --compass-arr: #ff6600;
+      --shadow: 0 2px 8px rgba(0,0,0,0.15);
+      --panel-border: #90b8d8;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body {
+      height:100%; width:100%;
+      background:var(--bg);
+      color:var(--val-white);
+      font-family:'Rajdhani',Arial,sans-serif;
+      overflow:hidden;
+      display:flex; flex-direction:column;
+      transition: background 0.3s, color 0.3s;
+    }
+    #topbar {
+      display:flex; align-items:center;
+      background:var(--top-bg);
+      border-bottom:3px solid var(--hdr-bg);
+      padding:0 20px; height:44px; flex-shrink:0;
+      gap:14px;
+      box-shadow: var(--shadow);
+    }
+    .brand {
+      font-family:'Orbitron',sans-serif;
+      font-weight:900; font-size:22px;
+      letter-spacing:3px; color:var(--brand);
+      white-space:nowrap;
+    }
+    .brand span { color:var(--brand-acc); }
+    #clock {
+      flex:1; text-align:center;
+      font-family:'Share Tech Mono',monospace;
+      font-size:17px; color:#90caf9; letter-spacing:1px;
+    }
+    .top-btns { display:flex; align-items:center; gap:12px; }
+    #status {
+      font-size:13px; font-weight:700; padding:4px 16px;
+      border-radius:12px; border:1px solid #555;
+      background:#003a10; color:#00ff88; white-space:nowrap;
+      font-family:'Share Tech Mono',monospace;
+      border-color:#00cc66;
+    }
+    .icon-btn {
+      background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2);
+      color:#fff; font-size:18px; cursor:pointer;
+      border-radius:6px; padding:4px 12px;
+      transition:all 0.2s; line-height:1;
+    }
+    .icon-btn:hover { background:rgba(255,255,255,0.25); }
+    #cfgbar {
+      display:flex; align-items:center; gap:10px;
+      background:var(--cfg-bg);
+      border-bottom:2px solid var(--border);
+      padding:4px 20px; height:34px; flex-shrink:0;
+      font-size:14px; color:var(--cfg-txt);
+    }
+    #cfgbar label { font-weight:700; white-space:nowrap; }
+    #pkt-info { margin-left:auto; font-size:13px; color:var(--sub); font-family:'Share Tech Mono',monospace; }
+    #rwybar {
+      display:grid; grid-template-columns:1fr 1fr;
+      background:var(--bg2);
+      border-bottom:2px solid var(--border);
+      height:40px; flex-shrink:0;
+    }
+    .rwybar-half {
+      display:flex; align-items:center;
+      padding:0 16px; gap:12px;
+      border-right:1px solid var(--border);
+    }
+    .rwybar-half:last-child { border-right:none; }
+    .stn-lbl {
+      font-family:'Orbitron',sans-serif;
+      font-size:13px; color:var(--lbl); font-weight:700; letter-spacing:1px;
+    }
+    .rwy-sel {
+      background:var(--bg); border:1px solid var(--border);
+      color:var(--val-white);
+      font-size:13px; padding:3px 8px; border-radius:4px;
+      font-family:'Rajdhani',sans-serif; font-weight:600;
+      cursor:pointer;
+    }
+    .rwy-wrap { margin-left:auto; display:flex; align-items:center; gap:12px; }
+    .rwy-txt { font-size:13px; color:var(--sub); font-weight:600; }
+    .rwy-num {
+      background:var(--rwy-bg); color:var(--rwy-txt);
+      font-family:'Orbitron',sans-serif; font-weight:900;
+      font-size:24px; padding:2px 20px; border-radius:4px;
+      min-width:60px; text-align:center; letter-spacing:2px;
+      box-shadow: 0 2px 6px rgba(21,101,192,0.4);
+    }
+    #main {
+      flex:1; display:grid; grid-template-columns:1fr 1fr;
+      min-height:0; gap:0;
+    }
+    .panel {
+      display:flex; flex-direction:column;
+      border-right:2px solid var(--panel-border);
+      min-height:0; overflow:hidden;
+      background:var(--bg);
+    }
+    .panel:last-child { border-right:none; }
+    .pb { flex:1; display:flex; flex-direction:column; min-height:0; }
+    .wind-row {
+      display:grid; grid-template-columns:1fr 1fr 220px;
+      flex-shrink:0; border-bottom:2px solid var(--border);
+    }
+    .wind-col { display:flex; flex-direction:column; }
+    .wbox {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      padding:12px 10px 10px;
+      border-bottom:1px solid var(--border);
+      border-right:1px solid var(--border);
+      background:var(--bg);
+      transition:background 0.3s;
+    }
+    .wbox:last-child { border-bottom:none; }
+    .wbox:hover { background:var(--bg2); }
+    .wlbl {
+      font-size:13px; color:var(--lbl); text-transform:uppercase;
+      letter-spacing:1px; line-height:1.4; text-align:center;
+      font-weight:600;
+    }
+    .wsub { font-size:11px; color:var(--sub); }
+    .wval {
+      font-size:46px; font-weight:900; line-height:1.05;
+      letter-spacing:-1px; font-family:'Orbitron',sans-serif;
+      transition: color 0.3s;
+    }
+    .cyan { color:var(--val-cyan); }
+    .red  { color:var(--val-red); }
+    .compass-cell {
+      display:flex; align-items:center; justify-content:center;
+      background:var(--compass-bg); overflow:hidden;
+      border-left:1px solid var(--border);
+      transition:background 0.3s;
+      min-width:220px;
+    }
+    .compass-cell canvas { 
+      display:block; 
+      width:100%; 
+      height:100%;
+    }
+    .range-row {
+      display:grid; grid-template-columns:1fr 1fr;
+      border-bottom:2px solid var(--border);
+      height:36px; flex-shrink:0;
+      background:var(--range-bg);
+      transition:background 0.3s;
+    }
+    .rr { display:flex; align-items:center; padding:0 16px; gap:10px; }
+    .rr:first-child { border-right:1px solid var(--border); }
+    .rl { font-size:18px; color:var(--sub); white-space:nowrap; font-weight:600; }
+    .rv {
+      font-size:26px; font-weight:700;
+      color:var(--range-val); font-family:'Share Tech Mono',monospace;
+      letter-spacing:1px;
+    }
+    .data-row {
+      display:grid; flex-shrink:0;
+      border-bottom:1px solid var(--border);
+    }
+    .data-row.c2 { grid-template-columns:1fr 1fr; }
+    .data-row.c3 { grid-template-columns:1fr 1fr 1fr; }
+    .dc {
+      display:flex; flex-direction:column;
+      border-right:1px solid var(--border); overflow:hidden;
+      transition:background 0.3s;
+    }
+    .dc:last-child { border-right:none; }
+    .dc:hover { background:var(--bg2); }
+    .dch {
+      background:var(--hdr-bg); color:var(--hdr-txt);
+      font-size:20px; font-weight:700;
+      text-align:center; padding:8px 10px;
+      letter-spacing:0.5px; line-height:1.4; flex-shrink:0;
+      text-transform:uppercase;
+    }
+    .dcv {
+      flex:1; display:flex; align-items:center; justify-content:center;
+      font-size:44px; font-weight:900;
+      color:var(--val-white); font-family:'Orbitron',sans-serif;
+      letter-spacing:-0.5px;
+      min-height:45px;
+    }
+    #footer {
+      background:var(--top-bg); border-top:2px solid var(--hdr-bg);
+      padding:4px 20px; font-size:12px; color:rgba(255,255,255,0.4);
+      text-align:right; flex-shrink:0;
+      letter-spacing:0.5px;
+    }
+    .auto-refresh {
+      font-size:12px; color:#4caf50; margin-left:8px;
+      font-family:'Share Tech Mono',monospace;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>
-                <span>🌤️</span>
-                MOPA Airport Weather Monitor
-            </h1>
-            <div class="station-info">
-                <span>📍 Station ID: VOGA</span>
-            </div>
-        </div>
-
-        <!-- Status Bar -->
-        <div class="status-bar">
-            <div class="status-card connected" id="connectionCard">
-                <div class="status-icon">🔌</div>
-                <div>
-                    <div class="status-label">Connection</div>
-                    <div class="status-value" id="connectionStatus">Connected</div>
-                </div>
-            </div>
-            <div class="status-card">
-                <div class="status-icon">🕒</div>
-                <div>
-                    <div class="status-label">Last Update</div>
-                    <div class="status-value" id="lastUpdate">--:--:--</div>
-                </div>
-            </div>
-            <div class="status-card">
-                <div class="status-icon">📊</div>
-                <div>
-                    <div class="status-label">Total Packets</div>
-                    <div class="status-value" id="totalPackets">0</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Runway Tabs -->
-        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <button class="btn btn-primary" onclick="selectRunway('10-END')">Runway 10-END</button>
-            <button class="btn btn-primary" onclick="selectRunway('28-END')">Runway 28-END</button>
-        </div>
-
-        <!-- Weather Grid -->
-        <div class="weather-grid" id="weatherGrid">
-            <!-- Wind Card -->
-            <div class="weather-card">
-                <div class="card-header">
-                    <h2>🌪️ Wind Conditions</h2>
-                    <span class="runway-badge" id="windRunway">10-END</span>
-                </div>
-                <div class="wind-compass">
-                    <div class="compass-circle">
-                        <div class="wind-arrow" id="windArrow" style="transform: rotate(0deg);"></div>
-                    </div>
-                </div>
-                <div class="wind-speed" id="windSpeed">0 kts</div>
-                <div style="display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 20px;">
-                    <div>
-                        <div style="color:#666;">Direction</div>
-                        <div style="font-size:1.3em; font-weight:bold;" id="windDir">230°</div>
-                    </div>
-                    <div>
-                        <div style="color:#666;">Gusts</div>
-                        <div style="font-size:1.3em; font-weight:bold;" id="windGust">7 kts</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Temperature Card -->
-            <div class="weather-card">
-                <div class="card-header">
-                    <h2>🌡️ Temperature</h2>
-                    <span class="runway-badge" id="tempRunway">10-END</span>
-                </div>
-                <div class="temp-display">
-                    <div class="temp-current">
-                        <div class="temp-value" id="currentTemp">29</div>
-                        <div class="temp-unit">°C</div>
-                    </div>
-                    <div class="temp-range">
-                        <div class="temp-min">
-                            <div class="temp-label">Min</div>
-                            <div class="temp-number" id="minTemp">22.2</div>
-                        </div>
-                        <div class="temp-max">
-                            <div class="temp-label">Max</div>
-                            <div class="temp-number" id="maxTemp">32.7</div>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-top: 20px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>1min Avg:</span>
-                        <span id="temp1min">29°C</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>10min Avg:</span>
-                        <span id="temp10min">29°C</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pressure Card -->
-            <div class="weather-card">
-                <div class="card-header">
-                    <h2>📊 Pressure</h2>
-                    <span class="runway-badge" id="pressureRunway">10-END</span>
-                </div>
-                <div class="pressure-display">
-                    <div class="pressure-item">
-                        <span class="pressure-label">QNH</span>
-                        <span class="pressure-value" id="qnh">1006.6 hPa</span>
-                    </div>
-                    <div class="pressure-item">
-                        <span class="pressure-label">QFE</span>
-                        <span class="pressure-value" id="qfe">988.3 hPa</span>
-                    </div>
-                    <div class="pressure-item">
-                        <span class="pressure-label">Station Pressure</span>
-                        <span class="pressure-value" id="stationPressure">988 hPa</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Humidity Card -->
-            <div class="weather-card">
-                <div class="card-header">
-                    <h2>💧 Humidity & Dew Point</h2>
-                    <span class="runway-badge" id="humidityRunway">10-END</span>
-                </div>
-                <div class="humidity-display">
-                    <div class="humidity-item">
-                        <div class="humidity-icon">💧</div>
-                        <div class="humidity-value" id="humidity">85%</div>
-                        <div style="color:#666;">Humidity</div>
-                    </div>
-                    <div class="humidity-item">
-                        <div class="humidity-icon">🌡️</div>
-                        <div class="humidity-value" id="dewPoint">26°C</div>
-                        <div style="color:#666;">Dew Point</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Visibility Card -->
-            <div class="weather-card">
-                <div class="card-header">
-                    <h2>👁️ Visibility</h2>
-                    <span class="runway-badge" id="visRunway">10-END</span>
-                </div>
-                <div class="visibility-display">
-                    <div class="vis-item">
-                        <div class="vis-label">Visibility</div>
-                        <div class="vis-value" id="visibility">7000m</div>
-                    </div>
-                    <div class="vis-item">
-                        <div class="vis-label">RVR</div>
-                        <div class="vis-value" id="rvr">P2000</div>
-                    </div>
-                    <div class="vis-item">
-                        <div class="vis-label">MOR</div>
-                        <div class="vis-value" id="mor">5320m</div>
-                    </div>
-                    <div class="vis-item">
-                        <div class="vis-label">Luminance</div>
-                        <div class="vis-value" id="luminance">1239</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Historical Data Card -->
-            <div class="weather-card">
-                <div class="card-header">
-                    <h2>📈 Historical Data</h2>
-                    <span class="runway-badge" id="historyRunway">10-END</span>
-                </div>
-                <div style="margin: 15px 0;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Max Wind (10min):</span>
-                        <span id="maxWind10">8 kts</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Max Wind Dir:</span>
-                        <span id="maxWindDir">230°</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Min Wind (10min):</span>
-                        <span id="minWind10">3 kts</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Data Table -->
-        <div class="data-table">
-            <div class="table-header">
-                <h2>📋 Recent Weather Reports</h2>
-                <div class="table-controls">
-                    <button class="btn btn-success" onclick="exportData()">📥 Export CSV</button>
-                    <button class="btn btn-danger" onclick="clearData()">🗑️ Clear</button>
-                </div>
-            </div>
-            <div style="overflow-x: auto;">
-                <table id="dataTable">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Runway</th>
-                            <th>Wind Dir</th>
-                            <th>Wind Spd</th>
-                            <th>Temp</th>
-                            <th>Humidity</th>
-                            <th>QNH</th>
-                            <th>Visibility</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        <tr>
-                            <td colspan="8" style="text-align: center;">No data available</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p>© 2026 MOPA Airport Weather Monitor | Data updates every seconds</p>
-        </div>
+  <div id="topbar">
+    <div class="brand">VOGA-MOPA <span>AWOS</span></div>
+    <div id="clock">—</div>
+    <div class="top-btns">
+      <div id="status">⬤ CONNECTED</div>
+      <button class="icon-btn" onclick="toggleTheme()">☀</button>
+      <button class="icon-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
+  </div>
+  <div id="cfgbar">
+    <label>Auto Refresh :</label>
+    <span id="pkt-info">
+      Packets : <span id="pkt-count">0</span> | 
+      <span id="last-update">—</span>
+      <span class="auto-refresh" id="auto-status">● LIVE (2s)</span>
+    </span>
+  </div>
+  <div id="rwybar">
+    <div class="rwybar-half">
+      <span class="stn-lbl">VOGA</span>
+      <select class="rwy-sel" id="mode-28" onchange="onModeChange('28',this.value)">
+        <option value="instant" selected>Instant</option>
+        <option value="1min">1 Min Avg</option>
+        <option value="2min">2 Min Avg</option>
+        <option value="10min">10 Min Avg</option>
+      </select>
+      <div class="rwy-wrap"><span class="rwy-txt">Runway :</span><div class="rwy-num">28</div></div>
+    </div>
+    <div class="rwybar-half">
+      <span class="stn-lbl">VOGA</span>
+      <select class="rwy-sel" id="mode-10" onchange="onModeChange('10',this.value)">
+        <option value="instant" selected>Instant</option>
+        <option value="1min">1 Min Avg</option>
+        <option value="2min">2 Min Avg</option>
+        <option value="10min">10 Min Avg</option>
+      </select>
+      <div class="rwy-wrap"><span class="rwy-txt">Runway :</span><div class="rwy-num">10</div></div>
+    </div>
+  </div>
+  <div id="main">
+    <div class="panel">
+      <div class="pb">
+        <div class="wind-row">
+          <div class="wind-col">
+            <div class="wbox">
+              <div class="wlbl">WD (DEGREE)<br><span class="wsub" id="sub28-wd">INST</span></div>
+              <div class="wval cyan" id="r28-wd">—</div>
+            </div>
+            <div class="wbox">
+              <div class="wlbl">WS (KNOTS)<br><span class="wsub" id="sub28-ws">INST</span></div>
+              <div class="wval cyan" id="r28-ws">—</div>
+            </div>
+          </div>
+          <div class="wind-col">
+            <div class="wbox">
+              <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
+              <div class="wval red" id="r28-hw">—</div>
+            </div>
+            <div class="wbox">
+              <div class="wlbl">CROSS WIND<br><span class="wsub">(KNOTS)</span></div>
+              <div class="wval red" id="r28-cw">—</div>
+            </div>
+          </div>
+          <div class="compass-cell"><canvas id="compass-28"></canvas></div>
+        </div>
+        <div class="range-row">
+          <div class="rr"><span class="rl">WS 2 min</span><span class="rv" id="r28-ws2">—</span></div>
+          <div class="rr"><span class="rl">WD 2 min</span><span class="rv" id="r28-wd2">—</span></div>
+        </div>
+        <div class="data-row c2">
+          <div class="dc"><div class="dch">RVR</div><div class="dcv" id="r28-rvr">—</div></div>
+          <div class="dc"><div class="dch">MOR</div><div class="dcv" id="r28-mor">—</div></div>
+        </div>
+        <div class="data-row c2">
+          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—</div></div>
+          <div class="dc"><div class="dch">QFE (hPa)</div><div class="dcv" id="r28-qfe">—</div></div>
+        </div>
+        <div class="data-row c3">
+          <div class="dc"><div class="dch">Temp. (°C)</div><div class="dcv" id="r28-temp">—</div></div>
+          <div class="dc"><div class="dch">Hum. (%)</div><div class="dcv" id="r28-hum">—</div></div>
+          <div class="dc"><div class="dch">Dew Pt. (°C)</div><div class="dcv" id="r28-dew">—</div></div>
+        </div>
+        <div class="data-row c2">
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Max WS (1 min)</div><div class="dcv" id="r28-wsmax">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Min WS (1 min)</div><div class="dcv" id="r28-wsmin">—</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="pb">
+        <div class="wind-row">
+          <div class="wind-col">
+            <div class="wbox">
+              <div class="wlbl">WD (DEGREE)<br><span class="wsub" id="sub10-wd">INST</span></div>
+              <div class="wval cyan" id="r10-wd">—</div>
+            </div>
+            <div class="wbox">
+              <div class="wlbl">WS (KNOTS)<br><span class="wsub" id="sub10-ws">INST</span></div>
+              <div class="wval cyan" id="r10-ws">—</div>
+            </div>
+          </div>
+          <div class="wind-col">
+            <div class="wbox">
+              <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
+              <div class="wval red" id="r10-hw">—</div>
+            </div>
+            <div class="wbox">
+              <div class="wlbl">CROSS WIND<br><span class="wsub">(KNOTS)</span></div>
+              <div class="wval red" id="r10-cw">—</div>
+            </div>
+          </div>
+          <div class="compass-cell"><canvas id="compass-10"></canvas></div>
+        </div>
+        <div class="range-row">
+          <div class="rr"><span class="rl">WS 2 min</span><span class="rv" id="r10-ws2">—</span></div>
+          <div class="rr"><span class="rl">WD 2 min</span><span class="rv" id="r10-wd2">—</span></div>
+        </div>
+        <div class="data-row c2">
+          <div class="dc"><div class="dch">RVR</div><div class="dcv" id="r10-rvr">—</div></div>
+          <div class="dc"><div class="dch">MOR</div><div class="dcv" id="r10-mor">—</div></div>
+        </div>
+        <div class="data-row c2">
+          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—</div></div>
+          <div class="dc"><div class="dch">QFE (hPa)</div><div class="dcv" id="r10-qfe">—</div></div>
+        </div>
+        <div class="data-row c3">
+          <div class="dc"><div class="dch">Temp. (°C)</div><div class="dcv" id="r10-temp">—</div></div>
+          <div class="dc"><div class="dch">Hum. (%)</div><div class="dcv" id="r10-hum">—</div></div>
+          <div class="dc"><div class="dch">Dew Pt. (°C)</div><div class="dcv" id="r10-dew">—</div></div>
+        </div>
+        <div class="data-row c2">
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Min WS (1 min)</div><div class="dcv" id="r10-wsmin">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">Max WS (1 min)</div><div class="dcv" id="r10-wsmax">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="footer">Developed By : Accel Systems, Pune</div>
 
-    <!-- Alert -->
-    <div class="alert" id="alert"></div>
+  <script>
+    // ── STORED DATA ──
+    const latestData = { '28': null, '10': null };
+    const modes = { '28': 'instant', '10': 'instant' };
+    const compassDirs = { '28': null, '10': null };
+    let packetCount = 0;
+    let isDark = true;
+    let autoRefreshInterval = null;
 
-    <script>
-        // Configuration
-        const WS_URL = 'ws://localhost:8765'; // Local server
-        
-        let ws = null;
-        let packets = [];
-        let currentRunway = '10-END';
-        
-        // Connect to WebSocket
-        function connect() {
-            ws = new WebSocket(WS_URL);
-            
-            ws.onopen = function() {
-                document.getElementById('connectionCard').className = 'status-card connected';
-                document.getElementById('connectionStatus').textContent = 'Connected';
-                showAlert('✅ Connected to server', 'success');
-            };
-            
-            ws.onmessage = function(event) {
-                try {
-                    packets = JSON.parse(event.data);
-                    updateDisplay();
-                } catch (e) {
-                    console.error('Error parsing data:', e);
-                }
-            };
-            
-            ws.onclose = function() {
-                document.getElementById('connectionCard').className = 'status-card disconnected';
-                document.getElementById('connectionStatus').textContent = 'Disconnected';
-                setTimeout(connect, 2000);
-            };
-            
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                showAlert('❌ Connection error', 'danger');
-            };
+    // ── CLOCK ──
+    (function(){
+      const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function tick(){
+        const n=new Date();
+        document.getElementById('clock').textContent=
+          `${D[n.getUTCDay()]}, ${String(n.getUTCDate()).padStart(2,'0')} ${M[n.getUTCMonth()]} ${n.getUTCFullYear()} `+
+          `${String(n.getUTCHours()).padStart(2,'0')}:${String(n.getUTCMinutes()).padStart(2,'0')}:${String(n.getUTCSeconds()).padStart(2,'0')} GMT`;
+      }
+      tick(); setInterval(tick,1000);
+    })();
+
+    // ── THEME ──
+    window.toggleTheme = function(){
+      isDark = !isDark;
+      document.body.classList.toggle('light', !isDark);
+      document.querySelector('[onclick="toggleTheme()"]').textContent = isDark ? '☀' : '🌙';
+      ['28','10'].forEach(r => drawCompass(r, compassDirs[r]));
+    };
+
+    // ── FULLSCREEN ──
+    let isFS = false;
+    window.toggleFullscreen = function(){
+      isFS = !isFS;
+      if(isFS){
+        document.documentElement.requestFullscreen?.();
+        document.getElementById('fullscreen-btn').textContent = '⊡';
+      } else {
+        document.exitFullscreen?.();
+        document.getElementById('fullscreen-btn').textContent = '⛶';
+      }
+      setTimeout(resizeLayout, 100);
+    };
+    document.addEventListener('fullscreenchange', () => {
+      if(!document.fullscreenElement && isFS){ isFS=false; document.getElementById('fullscreen-btn').textContent='⛶'; }
+    });
+
+    // ── COMPASS ──
+    function drawCompass(rwy, windDeg){
+      const canvas = document.getElementById('compass-'+rwy);
+      if(!canvas) return;
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth || 220;
+      canvas.height = parent.clientHeight || 100;
+      const ctx = canvas.getContext('2d');
+      const W=canvas.width, H=canvas.height;
+      const cx=W/2, cy=H/2, r=Math.min(W,H)*0.46;
+      if(r<5) return;
+      const isLight = document.body.classList.contains('light');
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = isLight ? '#e8f0f8' : '#04090f';
+      ctx.fillRect(0,0,W,H);
+      
+      const grad = ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
+      grad.addColorStop(0, isLight?'#1976d2':'#1565c0');
+      grad.addColorStop(1, isLight?'#42a5f5':'#0d3a80');
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.strokeStyle=grad; ctx.lineWidth=3; ctx.stroke();
+
+      ctx.beginPath(); ctx.arc(cx,cy,r-1,0,Math.PI*2);
+      ctx.fillStyle = isLight?'rgba(21,101,192,0.06)':'rgba(21,101,192,0.08)';
+      ctx.fill();
+
+      for(let i=0;i<36;i++){
+        const a=(i*10-90)*Math.PI/180;
+        const isMaj=i%9===0;
+        const inner=isMaj?r*0.72:r*0.85;
+        ctx.beginPath();
+        ctx.moveTo(cx+Math.cos(a)*inner, cy+Math.sin(a)*inner);
+        ctx.lineTo(cx+Math.cos(a)*(r-1), cy+Math.sin(a)*(r-1));
+        ctx.strokeStyle=isMaj?(isLight?'#1565c0':'#64b5f6'):(isLight?'#90b8d8':'#1a3a70');
+        ctx.lineWidth=isMaj?2.5:1.2; ctx.stroke();
+      }
+
+      const fs=Math.max(14,Math.round(r*0.34));
+      [['N',0,isLight?'#d32f2f':'#ff4444'],['E',90,isLight?'#1565c0':'#64b5f6'],
+       ['S',180,isLight?'#1565c0':'#64b5f6'],['W',270,isLight?'#1565c0':'#64b5f6']].forEach(([c,deg,col])=>{
+        const a=(deg-90)*Math.PI/180;
+        ctx.font=`900 ${fs}px Orbitron,Arial`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle=col;
+        ctx.fillText(c, cx+Math.cos(a)*r*0.56, cy+Math.sin(a)*r*0.56);
+      });
+
+      ctx.beginPath(); ctx.arc(cx,cy,4.5,0,Math.PI*2);
+      ctx.fillStyle=isLight?'#ff6600':'#ff7700'; ctx.fill();
+
+      if(windDeg!==null && !isNaN(windDeg)){
+        const a=(windDeg-90)*Math.PI/180;
+        const len=r*0.72, tail=r*0.25;
+        ctx.shadowColor=isLight?'rgba(255,80,0,0.3)':'rgba(255,119,0,0.5)';
+        ctx.shadowBlur=12;
+        ctx.beginPath();
+        ctx.moveTo(cx-Math.cos(a)*tail, cy-Math.sin(a)*tail);
+        ctx.lineTo(cx+Math.cos(a)*len,  cy+Math.sin(a)*len);
+        ctx.strokeStyle=isLight?'#e65100':'#ff7700'; ctx.lineWidth=4; ctx.stroke();
+        ctx.shadowBlur=0; ctx.shadowColor='transparent';
+        const hs=r*0.2;
+        ctx.beginPath();
+        ctx.moveTo(cx+Math.cos(a)*len, cy+Math.sin(a)*len);
+        ctx.lineTo(cx+Math.cos(a)*len+Math.cos(a+2.7)*hs, cy+Math.sin(a)*len+Math.sin(a+2.7)*hs);
+        ctx.lineTo(cx+Math.cos(a)*len+Math.cos(a-2.7)*hs, cy+Math.sin(a)*len+Math.sin(a-2.7)*hs);
+        ctx.closePath(); ctx.fillStyle=isLight?'#e65100':'#ff7700'; ctx.fill();
+      }
+    }
+
+    // ── RESIZE ──
+    function resizeLayout(){
+      document.querySelectorAll('.panel').forEach(panel=>{
+        const pb=panel.querySelector('.pb');
+        if(!pb) return;
+        const totalH=pb.getBoundingClientRect().height;
+        if(totalH<10) return;
+        const windRow=pb.querySelector('.wind-row');
+        const rangeRow=pb.querySelector('.range-row');
+        const dataRows=pb.querySelectorAll('.data-row');
+        const windH=Math.round(totalH*0.31);
+        const rangeH=36;
+        const remaining=totalH-windH-rangeH;
+        const perData=Math.floor(remaining/dataRows.length);
+        if(windRow) windRow.style.height=windH+'px';
+        dataRows.forEach(r=>r.style.height=perData+'px');
+      });
+      ['28','10'].forEach(rwy=>{
+        const cell=document.getElementById('compass-'+rwy)?.parentElement;
+        if(cell) drawCompass(rwy, compassDirs[rwy]);
+      });
+    }
+
+    // ── SET VALUE (INSTANT, NO ANIMATION) ──
+    function setValue(id, newVal){
+      const el = document.getElementById(id);
+      if(!el) return;
+      const displayVal = (newVal !== undefined && newVal !== null && newVal !== '') ? String(newVal) : '—';
+      if(el.textContent !== displayVal){
+        el.textContent = displayVal;
+      }
+    }
+
+    // ── GET VALUE BY MODE - FIXED FOR ALL MODES ──
+    function getValueByMode(data, field, mode){
+      if(!data) return null;
+      
+      // Map mode to exact API field suffix
+      const suffixMap = {
+        'instant': 'instant_rounded',
+        '1min': 'avgOneMin_rounded',
+        '2min': 'avgTwoMin_rounded',
+        '10min': 'avgTenMin_rounded'
+      };
+      
+      const suffix = suffixMap[mode] || 'instant_rounded';
+      
+      // Try exact match first: windDirection_avgOneMin_rounded
+      let key = field + '_' + suffix;
+      if(data[key] !== undefined && data[key] !== '--') {
+        return data[key];
+      }
+      
+      // Try without _rounded: windDirection_avgOneMin
+      key = field + '_' + suffix.replace('_rounded', '');
+      if(data[key] !== undefined && data[key] !== '--') {
+        return data[key];
+      }
+      
+      // Try alternative format for some fields
+      const altMap = {
+        'windDirection': ['windDirection_avgOneMin_rounded', 'windDirection_avgOneMin', 'windDirection_instant_rounded'],
+        'windSpeed': ['windSpeed_avgOneMin_rounded', 'windSpeed_avgOneMin', 'windSpeed_instant_rounded'],
+        'temperature': ['temperature_avgOneMin_rounded', 'temperature_avgOneMin', 'temperature_instant_rounded'],
+        'humidity': ['humidity_avgOneMin_rounded', 'humidity_avgOneMin', 'humidity_instant_rounded'],
+        'dewPoint': ['dewPoint_avgOneMin_rounded', 'dewPoint_avgOneMin', 'dewPoint_instant_rounded'],
+        'qnh': ['qnh_avgOneMin_rounded', 'qnh_avgOneMin', 'qnh_instant_rounded'],
+        'qfe': ['qfe_avgOneMin_rounded', 'qfe_avgOneMin', 'qfe_instant_rounded']
+      };
+      
+      if(altMap[field]) {
+        for(let altKey of altMap[field]) {
+          if(data[altKey] !== undefined && data[altKey] !== '--') {
+            return data[altKey];
+          }
         }
-        
-        // Update display based on selected runway
-        function updateDisplay() {
-            if (packets.length === 0) return;
-            
-            // Filter packets for current runway
-            const runwayPackets = packets.filter(p => {
-                try {
-                    const data = JSON.parse(p.packet);
-                    return data.runway === currentRunway;
-                } catch {
-                    return false;
-                }
-            });
-            
-            if (runwayPackets.length === 0) return;
-            
-            // Get latest packet for current runway
-            const latest = runwayPackets[runwayPackets.length - 1];
-            const data = JSON.parse(latest.packet);
-            
-            // Update all runway badges
-            document.querySelectorAll('.runway-badge').forEach(el => {
-                el.textContent = currentRunway;
-            });
-            
-            // Update wind display
-            updateWindDisplay(data);
-            
-            // Update temperature
-            updateTemperatureDisplay(data);
-            
-            // Update pressure
-            updatePressureDisplay(data);
-            
-            // Update humidity
-            updateHumidityDisplay(data);
-            
-            // Update visibility
-            updateVisibilityDisplay(data);
-            
-            // Update historical data
-            updateHistoricalData(data);
-            
-            // Update table
-            updateTable(runwayPackets);
-            
-            // Update status
-            document.getElementById('lastUpdate').textContent = data.time || new Date().toLocaleTimeString();
-            document.getElementById('totalPackets').textContent = packets.length;
-        }
-        
-        function updateWindDisplay(data) {
-            if (data.windDirection) {
-                const dir = data.windDirection.instantaneous || 0;
-                const speed = data.windSpeed.instantaneous || 0;
-                const gust = data.windSpeed.oneMinuteMax || 0;
-                
-                // Update compass arrow
-                const arrow = document.getElementById('windArrow');
-                arrow.style.transform = `rotate(${dir}deg)`;
-                
-                document.getElementById('windSpeed').textContent = `${speed} kts`;
-                document.getElementById('windDir').textContent = `${dir}°`;
-                document.getElementById('windGust').textContent = `${gust} kts`;
-            }
-        }
-        
-        function updateTemperatureDisplay(data) {
-            if (data.temperature) {
-                document.getElementById('currentTemp').textContent = data.temperature.instantaneous || '--';
-                document.getElementById('minTemp').textContent = data.temperature.dailyMin || '--';
-                document.getElementById('maxTemp').textContent = data.temperature.dailyMax || '--';
-                document.getElementById('temp1min').textContent = (data.temperature.oneMinuteAvg || '--') + '°C';
-                document.getElementById('temp10min').textContent = (data.temperature.tenMinuteAvg || '--') + '°C';
-            }
-        }
-        
-        function updatePressureDisplay(data) {
-            if (data.pressureData) {
-                document.getElementById('qnh').textContent = (data.pressureData.qnh?.instantaneous || '--') + ' hPa';
-                document.getElementById('qfe').textContent = (data.pressureData.qfe?.instantaneous || '--') + ' hPa';
-                document.getElementById('stationPressure').textContent = (data.pressureData.pressure?.instantaneous || '--') + ' hPa';
-            }
-        }
-        
-        function updateHumidityDisplay(data) {
-            if (data.humidity) {
-                document.getElementById('humidity').textContent = (data.humidity.instantaneous || '--') + '%';
-                document.getElementById('dewPoint').textContent = (data.dewPoint?.instantaneous || '--') + '°C';
-            }
-        }
-        
-        function updateVisibilityDisplay(data) {
-            if (data.pwdParameters) {
-                document.getElementById('visibility').textContent = (data.pwdParameters.visibility?.oneMinuteAvg || '--') + 'm';
-                document.getElementById('rvr').textContent = data.pwdParameters.rvr?.oneMinuteAvg || '--';
-                document.getElementById('mor').textContent = (data.pwdParameters.mor?.oneMinuteAvg || '--') + 'm';
-                document.getElementById('luminance').textContent = data.pwdParameters.backgroundLuminance || '--';
-            }
-        }
-        
-        function updateHistoricalData(data) {
-            if (data.windSpeed) {
-                document.getElementById('maxWind10').textContent = (data.windSpeed.tenMinuteMax || '--') + ' kts';
-                document.getElementById('minWind10').textContent = (data.windSpeed.tenMinuteMin || '--') + ' kts';
-            }
-            if (data.windDirection) {
-                document.getElementById('maxWindDir').textContent = (data.windDirection.atMaxWindSpeedInTenMinute || '--') + '°';
-            }
-        }
-        
-        function updateTable(packets) {
-            const tbody = document.getElementById('tableBody');
-            
-            if (packets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No data available</td></tr>';
-                return;
-            }
-            
-            let html = '';
-            
-            // Show last 10 packets
-            packets.slice(-10).reverse().forEach(p => {
-                try {
-                    const data = JSON.parse(p.packet);
-                    html += `
-                        <tr>
-                            <td>${data.time || '--'}</td>
-                            <td>${data.runway || '--'}</td>
-                            <td>${data.windDirection?.instantaneous || '--'}°</td>
-                            <td>${data.windSpeed?.instantaneous || '--'} kts</td>
-                            <td>${data.temperature?.instantaneous || '--'}°C</td>
-                            <td>${data.humidity?.instantaneous || '--'}%</td>
-                            <td>${data.pressureData?.qnh?.instantaneous || '--'} hPa</td>
-                            <td>${data.pwdParameters?.visibility?.oneMinuteAvg || '--'}m</td>
-                        </tr>
-                    `;
-                } catch (e) {
-                    console.error('Error parsing packet:', e);
-                }
-            });
-            
-            tbody.innerHTML = html;
-        }
-        
-        function selectRunway(runway) {
-            currentRunway = runway;
-            updateDisplay();
-            showAlert(`🛬 Showing data for Runway ${runway}`, 'success');
-        }
-        
-        function exportData() {
-            let csv = 'Time,Runway,Wind Dir,Wind Speed,Temp,Humidity,QNH,Visibility\n';
-            
-            packets.forEach(p => {
-                try {
-                    const data = JSON.parse(p.packet);
-                    csv += `"${data.time || ''}","${data.runway || ''}","${data.windDirection?.instantaneous || ''}","${data.windSpeed?.instantaneous || ''}","${data.temperature?.instantaneous || ''}","${data.humidity?.instantaneous || ''}","${data.pressureData?.qnh?.instantaneous || ''}","${data.pwdParameters?.visibility?.oneMinuteAvg || ''}"\n`;
-                } catch (e) {}
-            });
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `weather-data-${new Date().toISOString()}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-        
-        function clearData() {
-            if (confirm('Clear all data?')) {
-                packets = [];
-                updateDisplay();
-            }
-        }
-        
-        function showAlert(message, type) {
-            const alert = document.getElementById('alert');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
-            alert.style.display = 'block';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 3000);
-        }
-        
-        // Auto connect
-        window.onload = function() {
-            connect();
-            setInterval(updateDisplay, 2000);
-        };
-    </script>
+      }
+      
+      return null;
+    }
+
+    // ── GET HEAD/CROSS WIND ──
+    function getHeadCrossWind(data, mode){
+      if(!data) return { hw: '--', cw: '--' };
+      
+      const suffixMap = {
+        'instant': 'instant',
+        '1min': 'avgOneMin',
+        '2min': 'avgTwoMin',
+        '10min': 'avgTenMin'
+      };
+      
+      const suffix = suffixMap[mode] || 'instant';
+      
+      // Try with mode first
+      let hwKey = 'headwind_' + suffix;
+      let cwKey = 'crosswind_' + suffix;
+      
+      let hw = data[hwKey];
+      let cw = data[cwKey];
+      
+      // If not found, try fallback to 1min
+      if(hw === undefined || hw === null || hw === '--') {
+        hw = data['headwind_avgOneMin'] || '--';
+        cw = data['crosswind_avgOneMin'] || '--';
+      }
+      
+      return { hw: hw || '--', cw: cw || '--' };
+    }
+
+    // ── RENDER PANEL ──
+    function renderPanel(rwy){
+      const d=latestData[rwy];
+      if(!d) {
+        console.warn('No data for runway', rwy);
+        return;
+      }
+      
+      const mode=modes[rwy];
+      const p='r'+rwy+'-';
+
+      // Update mode label
+      const modeLabel={ instant:'INST', '1min':'1 MIN', '2min':'2 MIN', '10min':'10 MIN' }[mode]||'INST';
+      const subEl=document.getElementById('sub'+rwy+'-wd');
+      const subElws=document.getElementById('sub'+rwy+'-ws');
+      if(subEl) subEl.textContent=modeLabel;
+      if(subElws) subElws.textContent=modeLabel;
+
+      // Wind Direction
+      const wd = getValueByMode(d, 'windDirection', mode);
+      setValue(p+'wd', wd);
+
+      // Wind Speed
+      const ws = getValueByMode(d, 'windSpeed', mode);
+      setValue(p+'ws', ws);
+
+      // Head/Cross wind
+      const { hw, cw } = getHeadCrossWind(d, mode);
+      setValue(p+'hw', hw);
+      setValue(p+'cw', cw);
+
+      // 2-min ranges (always from data)
+      if(d.windSpeed_minTwoMin_rounded !== undefined && d.windSpeed_maxTwoMin_rounded !== undefined){
+        setValue(p+'ws2', d.windSpeed_minTwoMin_rounded + '-' + d.windSpeed_maxTwoMin_rounded);
+      }
+      if(d.windDirection_minTwoMin_rounded !== undefined && d.windDirection_maxTwoMin_rounded !== undefined){
+        setValue(p+'wd2', 
+          String(d.windDirection_minTwoMin_rounded).padStart(3,'0')+'-'+
+          String(d.windDirection_maxTwoMin_rounded).padStart(3,'0')
+        );
+      }
+
+      // RVR
+      const rvrKey = mode === '10min' ? 'pwd_rvr_avgTenMin' : 'pwd_rvr_avgOneMin';
+      setValue(p+'rvr', d[rvrKey] || '--');
+
+      // MOR
+      const morKey = mode === '10min' ? 'pwd_mor_avgTenMin' : 'pwd_mor_avgOneMin';
+      setValue(p+'mor', d[morKey] || '--');
+
+      // QNH
+      const qnh = getValueByMode(d, 'qnh', mode);
+      setValue(p+'qnh', qnh);
+
+      // QFE
+      const qfe = getValueByMode(d, 'qfe', mode);
+      setValue(p+'qfe', qfe);
+
+      // Temperature
+      const temp = getValueByMode(d, 'temperature', mode);
+      setValue(p+'temp', temp);
+
+      // Humidity
+      const hum = getValueByMode(d, 'humidity', mode);
+      setValue(p+'hum', hum);
+
+      // Dew Point
+      const dew = getValueByMode(d, 'dewPoint', mode);
+      setValue(p+'dew', dew);
+
+      // Min/Max WS 1-min
+      setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
+      setValue(p+'wsmax', d.windSpeed_maxOneMin_rounded || '--');
+
+      // Compass
+      compassDirs[rwy]=wd;
+      drawCompass(rwy, wd);
+    }
+
+    // ── MODE CHANGE ──
+    window.onModeChange = function(rwy, val){
+      modes[rwy]=val;
+      if(latestData[rwy]) renderPanel(rwy);
+    };
+
+    // ── FETCH DATA ──
+    function fetchData(){
+      fetch('https://api.ajayydv.shop/data')
+        .then(res => {
+          if(!res.ok) throw new Error('HTTP '+res.status);
+          return res.json();
+        })
+        .then(data => {
+          packetCount++;
+          document.getElementById('pkt-count').textContent = packetCount;
+          document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+          
+          if(data['10']) {
+            latestData['10'] = data['10'];
+            renderPanel('10');
+          }
+          if(data['28']) {
+            latestData['28'] = data['28'];
+            renderPanel('28');
+          }
+        })
+        .catch(err => {
+          console.error('Fetch error:', err);
+        });
+    }
+
+    // ── START AUTO REFRESH ──
+    function startAutoRefresh(){
+      if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+      autoRefreshInterval = setInterval(fetchData, 2000);
+    }
+
+    // ── INIT ──
+    window.addEventListener('load', ()=>{
+      resizeLayout();
+      window.addEventListener('resize', resizeLayout);
+      fetchData();
+      startAutoRefresh();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+    });
+  </script>
 </body>
 </html>
