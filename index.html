@@ -368,7 +368,7 @@
       font-family:'Inter',sans-serif;
       font-weight:700;
       font-size:clamp(12px,1.8vw,22px);
-      color:var(--val-cyan);
+      color:#00e676;
       background:var(--metar-bg);
       padding:2px 12px;
       border-radius:4px;
@@ -944,7 +944,6 @@
         <div class="stat"><span class="label">Min:</span> <span id="metaMin">—</span></div>
         <div class="stat"><span class="label">Max:</span> <span id="metaMax">—</span></div>
         <div class="stat"><span class="label">Avg:</span> <span id="metaAvg">—</span></div>
-        <div class="stat"><span class="label">Data points:</span> <span id="metaCount">—</span></div>
       </div>
     </div>
   </div>
@@ -1012,7 +1011,6 @@
     const metaMin = document.getElementById('metaMin');
     const metaMax = document.getElementById('metaMax');
     const metaAvg = document.getElementById('metaAvg');
-    const metaCount = document.getElementById('metaCount');
     const metarDisplay = document.getElementById('metar-display');
     const metarPopup = document.getElementById('metarPopup');
     const metarPopupBody = document.getElementById('metarPopupBody');
@@ -1695,7 +1693,6 @@
           metaMin.textContent = '—';
           metaMax.textContent = '—';
           metaAvg.textContent = '—';
-          metaCount.textContent = '0';
           isHistoryLoading = false;
           return;
         }
@@ -1704,14 +1701,14 @@
         const oldMsg = parent.querySelector('.no-data-msg');
         if (oldMsg) oldMsg.remove();
 
-        // Format labels based on time range
+        // Format labels based on time range — always include the UTC time so a
+        // 3-day (or longer) view doesn't collapse multiple points onto one date.
         const labels = bins.map(b => {
           const d2 = new Date(b.timestamp * 1000);
-          if (currentHours <= 24) {
-            return d2.toUTCString().split(' ')[4].slice(0, 5);
-          } else {
-            return d2.toUTCString().split(' ').slice(1, 4).join(' ');
-          }
+          const parts = d2.toUTCString().split(' '); // ["Sat,","20","Jun","2026","12:30:00","GMT"]
+          const dayMonth = `${parts[1]} ${parts[2]}`;
+          const hhmm = parts[4].slice(0, 5);
+          return currentHours <= 24 ? `${hhmm}Z` : `${dayMonth} ${hhmm}Z`;
         });
         const values = bins.map(b => b.value);
         const counts = bins.map(b => b.count);
@@ -1757,7 +1754,6 @@
         metaMin.textContent = minVal;
         metaMax.textContent = maxVal;
         metaAvg.textContent = avgVal;
-        metaCount.textContent = bins.length;
 
         const color = isDarkMode ? '#00e5ff' : '#1565c0';
 
@@ -1875,7 +1871,6 @@
       metaMin.textContent = '⏳';
       metaMax.textContent = '⏳';
       metaAvg.textContent = '⏳';
-      metaCount.textContent = '⏳';
 
       modal.classList.add('active');
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -1946,7 +1941,7 @@
 
     window.addEventListener('load', ()=>{
       document.body.classList.add('dark');
-      document.querySelector('[onclick="toggleTheme()"]').textContent = '🌞';
+      document.querySelector('[onclick="toggleTheme()"]').textContent = '☀';
       
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
