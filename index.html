@@ -5,42 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>VOGA-MOPA AWOS</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
+    /* ── CSS Variables & Reset ── */
     :root {
-      --bg: #07111c;
-      --bg2: #0b1825;
-      --bg3: #0f2030;
-      --border: #1a3050;
-      --hdr-bg: #1565c0;
-      --hdr2-bg: #0d47a1;
-      --hdr-txt: #ffffff;
-      --val-cyan: #00e5ff;
-      --val-red: #ef5350;
-      --val-white: #ffffff;
-      --lbl: #4a8aaa;
-      --sub: #2a6888;
-      --rwy-bg: #1565c0;
-      --rwy-txt: #ffffff;
-      --range-bg: #071015;
-      --range-val: #b0d0f0;
-      --top-bg: #030c14;
-      --top-txt: #ffffff;
-      --cfg-bg: #04090f;
-      --cfg-txt: #7ab0d8;
-      --brand: #ffffff;
-      --brand-acc: #00e5ff;
-      --compass-bg: #04090f;
-      --compass-ring: #1a4a7a;
-      --compass-tick: #4a8ac0;
-      --compass-n: #ff4444;
-      --compass-arr: #ff7700;
-      --shadow: 0 2px 12px rgba(0,0,0,0.5);
-      --panel-border: #1a3a5a;
-      --sev-orange: #ff9800;
-      --sev-red: #ff1744;
-      --metar-bg: #0a1628;
-    }
-    body.light {
       --bg: #ffffff;
       --bg2: #f0f4f8;
       --bg3: #e2eaf2;
@@ -73,6 +41,46 @@
       --sev-orange: #e65100;
       --sev-red: #c62828;
       --metar-bg: #e8f0f8;
+      --modal-overlay: rgba(0,0,0,0.65);
+      --modal-bg: #f0f4f8;
+      --modal-border: #90b8d8;
+    }
+    body.dark {
+      --bg: #07111c;
+      --bg2: #0b1825;
+      --bg3: #0f2030;
+      --border: #1a3050;
+      --hdr-bg: #1565c0;
+      --hdr2-bg: #0d47a1;
+      --hdr-txt: #ffffff;
+      --val-cyan: #00e5ff;
+      --val-red: #ef5350;
+      --val-white: #ffffff;
+      --lbl: #4a8aaa;
+      --sub: #2a6888;
+      --rwy-bg: #1565c0;
+      --rwy-txt: #ffffff;
+      --range-bg: #071015;
+      --range-val: #b0d0f0;
+      --top-bg: #030c14;
+      --top-txt: #ffffff;
+      --cfg-bg: #04090f;
+      --cfg-txt: #7ab0d8;
+      --brand: #ffffff;
+      --brand-acc: #00e5ff;
+      --compass-bg: #04090f;
+      --compass-ring: #1a4a7a;
+      --compass-tick: #4a8ac0;
+      --compass-n: #ff4444;
+      --compass-arr: #ff7700;
+      --shadow: 0 2px 12px rgba(0,0,0,0.5);
+      --panel-border: #1a3a5a;
+      --sev-orange: #ff9800;
+      --sev-red: #ff1744;
+      --metar-bg: #0a1628;
+      --modal-overlay: rgba(0,0,0,0.82);
+      --modal-bg: #0b1825;
+      --modal-border: #1a4a7a;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     html,body {
@@ -181,9 +189,36 @@
       background:var(--bg);
       transition:background 0.3s;
       min-height:30px;
+      cursor:pointer;
+      position:relative;
     }
     .wbox:last-child { border-bottom:none; }
     .wbox:hover { background:var(--bg2); }
+    .wbox .click-hint {
+      position:absolute; bottom:2px; right:6px;
+      font-size:10px;
+      color:var(--sub);
+      opacity:0;
+      transition:opacity 0.3s, transform 0.2s;
+      pointer-events:none;
+      letter-spacing:0.5px;
+      font-weight:600;
+      text-transform:uppercase;
+      font-family:'Inter',sans-serif;
+      background:rgba(0,0,0,0.6);
+      padding:3px 10px;
+      border-radius:12px;
+      transform:scale(0.9);
+      white-space:nowrap;
+      border:1px solid var(--border);
+    }
+    .wbox:hover .click-hint {
+      opacity:0.9;
+      transform:scale(1);
+    }
+    body.dark .wbox .click-hint {
+      background:rgba(255,255,255,0.1);
+    }
     .wlbl {
       font-size:clamp(9px,1.2vw,16px); color:var(--lbl); text-transform:uppercase;
       letter-spacing:0.3px; line-height:1.2; text-align:center;
@@ -194,6 +229,7 @@
       font-size:clamp(22px,4.5vw,56px); font-weight:900; line-height:1;
       letter-spacing:-0.5px; font-family:'Inter',sans-serif;
       transition: color 0.3s;
+      cursor:pointer;
     }
     .hw-green { color:#00e676 !important; }
     .hw-red   { color:#ff1744 !important; }
@@ -237,7 +273,7 @@
     .data-row {
       display:grid; flex-shrink:0;
       border-bottom:1px solid var(--border);
-      min-height:45px;
+      min-height:55px;
     }
     .data-row.c2 { grid-template-columns:1fr 1fr; }
     .data-row.c3 { grid-template-columns:1fr 1fr 1fr; }
@@ -246,9 +282,36 @@
       border-right:1px solid var(--border); overflow:hidden;
       transition:background 0.3s;
       min-height:0;
+      cursor:pointer;
+      position:relative;
     }
     .dc:last-child { border-right:none; }
     .dc:hover { background:var(--bg2); }
+    .dc .click-hint {
+      position:absolute; bottom:2px; right:6px;
+      font-size:10px;
+      color:var(--sub);
+      opacity:0;
+      transition:opacity 0.3s, transform 0.2s;
+      pointer-events:none;
+      letter-spacing:0.5px;
+      font-weight:600;
+      text-transform:uppercase;
+      font-family:'Inter',sans-serif;
+      background:rgba(0,0,0,0.6);
+      padding:3px 10px;
+      border-radius:12px;
+      transform:scale(0.9);
+      white-space:nowrap;
+      border:1px solid var(--border);
+    }
+    .dc:hover .click-hint {
+      opacity:0.9;
+      transform:scale(1);
+    }
+    body.dark .dc .click-hint {
+      background:rgba(255,255,255,0.1);
+    }
     .dch {
       background:var(--hdr-bg); color:var(--hdr-txt);
       font-size:clamp(12px,1.8vw,22px); font-weight:700;
@@ -259,12 +322,14 @@
     }
     .dcv {
       flex:1; display:flex; align-items:center; justify-content:center;
-      font-size:clamp(18px,3.8vw,44px); font-weight:900;
+      font-size:clamp(24px,4.5vw,52px);
+      font-weight:900;
       color:var(--val-white);
       font-family:'Inter',sans-serif;
       letter-spacing:-0.5px; min-height:0;
       transition: color 0.3s;
       gap:4px;
+      cursor:pointer;
     }
     #footer {
       background:var(--top-bg); border-top:2px solid var(--hdr-bg);
@@ -287,6 +352,7 @@
       justify-content:flex-end;
       min-width:0;
       padding:0 5px;
+      gap:8px;
     }
     #metar-display {
       font-family:'Inter',sans-serif;
@@ -305,15 +371,29 @@
       transition: opacity 0.4s ease;
       opacity: 1;
     }
-    #metar-display.fade {
-      opacity: 0.4;
+    #metar-display.fade { opacity:0.4; }
+    body.dark #metar-display {
+      text-shadow: 0 0 20px rgba(0,229,255,0.1);
     }
-    body.light #metar-display {
+    #metar-history-btn {
+      background:rgba(255,255,255,0.08);
+      border:1px solid var(--border);
+      color:var(--sub);
+      font-size:clamp(7px,0.8vw,10px);
+      padding:2px 8px;
+      border-radius:12px;
+      cursor:pointer;
+      font-family:'Inter',sans-serif;
+      font-weight:600;
+      transition: all 0.2s;
+      white-space:nowrap;
+      letter-spacing:0.3px;
+    }
+    #metar-history-btn:hover {
+      background:rgba(255,255,255,0.15);
       color:var(--val-cyan);
-      text-shadow: none;
     }
 
-    /* Mode Pills */
     .mode-pill {
       display:inline-block;
       font-family:'Inter',sans-serif;
@@ -327,12 +407,11 @@
     .mode-pill.pill-1min  { background:rgba(100,181,246,0.12); color:#64b5f6; border-color:#64b5f6; }
     .mode-pill.pill-2min  { background:rgba(129,212,250,0.12); color:#81d4fa; border-color:#81d4fa; }
     .mode-pill.pill-10min { background:rgba(174,213,129,0.12); color:#aed581; border-color:#aed581; }
-    body.light .mode-pill.pill-inst  { background:rgba(0,119,204,0.10); color:#0077cc; border-color:#0077cc; }
-    body.light .mode-pill.pill-1min  { background:rgba(21,101,192,0.10); color:#1565c0; border-color:#1565c0; }
-    body.light .mode-pill.pill-2min  { background:rgba(2,119,189,0.10); color:#0277bd; border-color:#0277bd; }
-    body.light .mode-pill.pill-10min { background:rgba(85,139,47,0.10); color:#558b2f; border-color:#558b2f; }
+    body.dark .mode-pill.pill-inst  { background:rgba(0,119,204,0.10); color:#0077cc; border-color:#0077cc; }
+    body.dark .mode-pill.pill-1min  { background:rgba(21,101,192,0.10); color:#1565c0; border-color:#1565c0; }
+    body.dark .mode-pill.pill-2min  { background:rgba(2,119,189,0.10); color:#0277bd; border-color:#0277bd; }
+    body.dark .mode-pill.pill-10min { background:rgba(85,139,47,0.10); color:#558b2f; border-color:#558b2f; }
 
-    /* Wind Component Badge */
     .wcomp-badge {
       display:inline-flex; align-items:center;
       font-family:'Inter',sans-serif; font-weight:800;
@@ -348,17 +427,16 @@
     .badge-crossR   { background:rgba(255,152,0,0.15); color:#ffb74d; border-color:#e65100; }
     .badge-crossL   { background:rgba(255,152,0,0.15); color:#ffb74d; border-color:#e65100; }
     .badge-zero     { background:rgba(255,255,255,0.07); color:#78909c; border-color:#37474f; }
-    body.light .badge-headwind { background:rgba(0,150,76,0.12); color:#00695c; border-color:#00695c; }
-    body.light .badge-tailwind { background:rgba(183,28,28,0.12); color:#b71c1c; border-color:#b71c1c; }
-    body.light .badge-crossR   { background:rgba(230,81,0,0.10);  color:#e65100; border-color:#e65100; }
-    body.light .badge-crossL   { background:rgba(230,81,0,0.10);  color:#e65100; border-color:#e65100; }
-    body.light .badge-zero     { background:rgba(0,0,0,0.05);     color:#546e7a; border-color:#90a4ae; }
+    body.dark .badge-headwind { background:rgba(0,150,76,0.12); color:#00695c; border-color:#00695c; }
+    body.dark .badge-tailwind { background:rgba(183,28,28,0.12); color:#b71c1c; border-color:#b71c1c; }
+    body.dark .badge-crossR   { background:rgba(230,81,0,0.10);  color:#e65100; border-color:#e65100; }
+    body.dark .badge-crossL   { background:rgba(230,81,0,0.10);  color:#e65100; border-color:#e65100; }
+    body.dark .badge-zero     { background:rgba(0,0,0,0.05);     color:#546e7a; border-color:#90a4ae; }
     @keyframes tailwind-pulse {
       0%,100% { box-shadow:0 0 0 0 rgba(255,23,68,0.5); }
       50%      { box-shadow:0 0 0 4px rgba(255,23,68,0); }
     }
 
-    /* Dew Point Spread - ONLY shows in fog conditions */
     .dew-spread {
       font-size:clamp(9px,1.1vw,13px); font-family:'Inter',sans-serif;
       margin-top:1px; padding:2px 5px; border-radius:3px;
@@ -366,9 +444,8 @@
     }
     .spread-fog    { color:#ff5252; background:rgba(239,83,80,0.18);
                      animation: tailwind-pulse 2s ease-in-out infinite; }
-    body.light .spread-fog     { color:#c62828; background:rgba(198,40,40,0.10); }
+    body.dark .spread-fog     { color:#c62828; background:rgba(198,40,40,0.10); }
 
-    /* Pressure Trend */
     .qnh-trend {
       font-size:clamp(14px,1.8vw,22px); font-weight:900;
       transition: color 0.3s;
@@ -376,9 +453,120 @@
     .trend-rise { color:#69f0ae; }
     .trend-fall { color:#ff5252; }
     .trend-flat { color:#90caf9; opacity:0.6; }
-    body.light .trend-rise { color:#2e7d32; }
-    body.light .trend-fall { color:#c62828; }
-    body.light .trend-flat { color:#546e7a; }
+    body.dark .trend-rise { color:#2e7d32; }
+    body.dark .trend-fall { color:#c62828; }
+    body.dark .trend-flat { color:#546e7a; }
+
+    /* ── HISTORY MODAL ── */
+    .modal-overlay {
+      position:fixed; top:0; left:0;
+      width:100vw; height:100vh;
+      background:var(--modal-overlay);
+      backdrop-filter:blur(4px);
+      display:none;
+      justify-content:center; align-items:center;
+      z-index:9999;
+      padding:20px;
+      animation:modalFadeIn 0.25s ease-out;
+    }
+    .modal-overlay.active { display:flex; }
+    @keyframes modalFadeIn {
+      0% { opacity:0; transform:scale(0.96); }
+      100% { opacity:1; transform:scale(1); }
+    }
+    .modal-box {
+      background:var(--modal-bg);
+      border:2px solid var(--modal-border);
+      border-radius:16px;
+      width:100%; max-width:960px; max-height:92vh;
+      display:flex; flex-direction:column;
+      box-shadow:0 20px 60px rgba(0,0,0,0.8);
+      padding:20px 24px 24px;
+      position:relative;
+    }
+    .modal-header {
+      display:flex; justify-content:space-between; align-items:center;
+      flex-shrink:0; padding-bottom:12px;
+      border-bottom:2px solid var(--border);
+      margin-bottom:16px;
+    }
+    .modal-header h2 {
+      font-family:'Orbitron',sans-serif;
+      font-size:clamp(16px,2.2vw,28px);
+      font-weight:700;
+      color:var(--val-cyan);
+      letter-spacing:0.5px;
+    }
+    .modal-header h2 small {
+      font-family:'Inter',sans-serif;
+      font-weight:400;
+      font-size:0.6em;
+      color:var(--sub);
+      margin-left:10px;
+    }
+    .modal-close {
+      background:none; border:none;
+      color:var(--val-white);
+      font-size:28px; cursor:pointer;
+      padding:0 8px;
+      opacity:0.5; transition:opacity 0.2s;
+      line-height:1;
+    }
+    .modal-close:hover { opacity:1; }
+    .modal-chart-wrap {
+      flex:1; min-height:240px;
+      position:relative;
+    }
+    .modal-chart-wrap canvas {
+      width:100% !important;
+      height:100% !important;
+    }
+    .modal-meta {
+      display:flex; justify-content:space-between;
+      flex-shrink:0; padding-top:12px;
+      border-top:1px solid var(--border);
+      margin-top:14px;
+      font-size:clamp(10px,1vw,14px);
+      color:var(--sub);
+      font-family:'Inter',sans-serif;
+      gap:12px; flex-wrap:wrap;
+    }
+    .modal-meta .stat {
+      display:flex; gap:6px; align-items:center;
+    }
+    .modal-meta .stat span {
+      font-weight:700;
+      color:var(--val-white);
+    }
+    .modal-meta .stat .label {
+      font-weight:400;
+      color:var(--sub);
+    }
+    .no-data-msg {
+      display:flex; align-items:center; justify-content:center;
+      height:100%;
+      font-size:clamp(16px,2vw,24px);
+      color:var(--sub);
+      font-family:'Inter',sans-serif;
+      font-weight:600; letter-spacing:0.5px;
+    }
+    .loading-msg {
+      display:flex; align-items:center; justify-content:center;
+      height:100%;
+      font-size:clamp(14px,1.8vw,20px);
+      color:var(--sub);
+      font-family:'Inter',sans-serif;
+    }
+    .spinner {
+      display:inline-block;
+      width:30px; height:30px;
+      border:3px solid rgba(255,255,255,0.1);
+      border-radius:50%;
+      border-top-color:var(--val-cyan);
+      animation:spin 0.8s ease-in-out infinite;
+      margin-right:12px;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
     /* Responsive */
     @media (max-width: 768px) {
@@ -390,21 +578,27 @@
       .wind-row { grid-template-columns:1fr 1fr minmax(50px,18vw); min-height:60px; }
       .compass-cell { min-height:60px; }
       .dch { font-size:clamp(10px,2.5vw,16px); }
-      .dcv { font-size:clamp(16px,4.5vw,32px); }
+      .dcv { font-size:clamp(20px,5vw,36px); }
       .wval { font-size:clamp(18px,5.5vw,36px); }
       #metar-display { font-size:clamp(10px,1.8vw,16px); }
       #footer { flex-wrap:wrap; justify-content:center; gap:4px; }
+      .modal-box { padding:14px 16px 18px; max-height:96vh; }
+      .modal-chart-wrap { min-height:180px; }
+      .dc .click-hint, .wbox .click-hint {
+        font-size:8px;
+        padding:2px 8px;
+      }
     }
     @media (max-width: 480px) {
       .wind-row { grid-template-columns:1fr 1fr minmax(40px,20vw); min-height:50px; }
       .compass-cell { min-height:50px; }
       .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
-      .dcv { font-size:clamp(14px,4vw,28px); }
+      .dcv { font-size:clamp(18px,5vw,30px); }
       .wval { font-size:clamp(16px,5vw,30px); }
       .range-row { min-height:18px; }
       .rl { font-size:clamp(7px,1.5vw,10px); }
       .rv { font-size:clamp(8px,1.8vw,14px); }
-      .data-row { min-height:35px; }
+      .data-row { min-height:45px; }
       .rwy-sel { font-size:7px; max-width:60px; padding:1px 3px; }
       .rwy-num { font-size:10px; min-width:28px; padding:1px 4px; }
       .stn-lbl { font-size:7px; }
@@ -415,36 +609,113 @@
       .mode-pill { font-size:7px; padding:1px 4px; }
       .wlbl { font-size:8px; }
       #metar-display { font-size:clamp(8px,1.5vw,12px); padding:1px 8px; }
+      #metar-history-btn { font-size:6px; padding:1px 5px; }
       #footer .dev { font-size:6px; }
+      .modal-box { padding:10px 12px 14px; }
+      .modal-chart-wrap { min-height:140px; }
+      .modal-header h2 { font-size:14px; }
+      .dc .click-hint, .wbox .click-hint {
+        font-size:7px;
+        padding:2px 6px;
+        bottom:1px;
+        right:4px;
+      }
     }
     @media (max-width: 360px) {
       .wind-row { grid-template-columns:1fr 1fr minmax(35px,22vw); min-height:45px; }
       .compass-cell { min-height:45px; }
       .wval { font-size:14px; }
-      .dcv { font-size:12px; }
+      .dcv { font-size:14px; }
       .dch { font-size:7px; }
       .rwy-sel { max-width:50px; font-size:6px; }
       #metar-display { font-size:7px; padding:1px 4px; }
     }
-    @media (orientation: landscape) and (max-height: 500px) {
+    @media (orientation: landscape) and (max-height:500px) {
       .wind-row { min-height:50px; }
       .compass-cell { min-height:50px; }
       .wval { font-size:clamp(16px,3vw,30px); }
       .dch { font-size:clamp(8px,1.2vw,14px); }
-      .dcv { font-size:clamp(14px,2.5vw,28px); }
-      .data-row { min-height:30px; }
+      .dcv { font-size:clamp(18px,3vw,32px); }
+      .data-row { min-height:40px; }
       .range-row { min-height:16px; }
       #metar-display { font-size:clamp(10px,1.5vw,16px); }
+      .modal-chart-wrap { min-height:120px; }
+    }
+
+    /* ── METAR Popup ── */
+    .metar-popup-overlay {
+      position:fixed; top:0; left:0;
+      width:100vw; height:100vh;
+      background:rgba(0,0,0,0.7);
+      backdrop-filter:blur(3px);
+      display:none;
+      justify-content:center; align-items:center;
+      z-index:10000;
+      padding:20px;
+    }
+    .metar-popup-overlay.active { display:flex; }
+    .metar-popup-box {
+      background:var(--modal-bg);
+      border:2px solid var(--modal-border);
+      border-radius:16px;
+      width:100%; max-width:800px; max-height:80vh;
+      display:flex; flex-direction:column;
+      box-shadow:0 20px 60px rgba(0,0,0,0.8);
+      padding:20px 24px;
+    }
+    .metar-popup-header {
+      display:flex; justify-content:space-between; align-items:center;
+      padding-bottom:12px;
+      border-bottom:2px solid var(--border);
+      margin-bottom:16px;
+      flex-shrink:0;
+    }
+    .metar-popup-header h3 {
+      font-family:'Orbitron',sans-serif;
+      font-size:clamp(14px,1.8vw,22px);
+      color:var(--val-cyan);
+    }
+    .metar-popup-close {
+      background:none; border:none;
+      color:var(--val-white);
+      font-size:28px; cursor:pointer;
+      opacity:0.5; transition:opacity 0.2s;
+      line-height:1;
+    }
+    .metar-popup-close:hover { opacity:1; }
+    .metar-popup-body {
+      flex:1; overflow-y:auto;
+      padding:4px 0;
+    }
+    .metar-popup-body .metar-line {
+      font-family:'Inter',sans-serif;
+      font-size:clamp(12px,1.2vw,16px);
+      padding:6px 10px;
+      border-bottom:1px solid var(--border);
+      color:var(--val-white);
+      letter-spacing:0.3px;
+      white-space:pre-wrap;
+      word-break:break-all;
+    }
+    .metar-popup-body .metar-line:nth-child(odd) {
+      background:rgba(255,255,255,0.03);
+    }
+    .metar-popup-body .no-data {
+      padding:20px;
+      text-align:center;
+      color:var(--sub);
+      font-size:clamp(14px,1.2vw,18px);
     }
   </style>
 </head>
 <body>
+  <!-- TOP BAR, RUNWAY BAR, MAIN PANELS (same as before) -->
   <div id="topbar">
     <div class="brand">VOGA-MOPA <span>AWOS</span></div>
     <div id="clock">—</div>
     <div class="top-btns">
       <div id="status">⬤ LIVE</div>
-      <button class="icon-btn" onclick="toggleTheme()">☀</button>
+      <button class="icon-btn" onclick="toggleTheme()">🌙</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
   </div>
@@ -476,25 +747,29 @@
       <div class="pb">
         <div class="wind-row">
           <div class="wind-col">
-            <div class="wbox">
+            <div class="wbox" data-param="windDirection" data-rwy="28">
               <div class="wlbl">WD (DEG)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill28-wd">INST</span></span></div>
               <div class="wval cyan" id="r28-wd">—</div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
-            <div class="wbox">
+            <div class="wbox" data-param="headwind" data-rwy="28">
               <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
               <div class="wval hw-green" id="r28-hw">—</div>
               <div id="badge28-hw"></div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
           </div>
           <div class="wind-col">
-            <div class="wbox">
+            <div class="wbox" data-param="windSpeed" data-rwy="28">
               <div class="wlbl">WS (KNOTS)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill28-ws">INST</span></span></div>
               <div class="wval cyan" id="r28-ws">—</div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
-            <div class="wbox">
+            <div class="wbox" data-param="crosswind" data-rwy="28">
               <div class="wlbl">CROSS WIND<br><span class="wsub">(KNOTS)</span></div>
               <div class="wval" id="r28-cw">—</div>
               <div id="badge28-cw"></div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
           </div>
           <div class="compass-cell"><canvas id="compass-28"></canvas></div>
@@ -504,18 +779,19 @@
           <div class="rr"><span class="rl">WD 2min</span><span class="rv" id="r28-wd2">—</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch">RVR</div><div class="dcv" id="r28-rvr">—</div></div>
-          <div class="dc"><div class="dch">MOR</div><div class="dcv" id="r28-mor">—</div></div>
+          <div class="dc" data-param="rvr" data-rwy="28"><div class="dch">RVR</div><div class="dcv" id="r28-rvr">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="mor" data-rwy="28"><div class="dch">MOR</div><div class="dcv" id="r28-mor">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—<span class="qnh-trend trend-flat" id="trend28-qnh">→</span></div></div>
-          <div class="dc"><div class="dch">QFE (hPa)</div><div class="dcv" id="r28-qfe">—</div></div>
+          <div class="dc" data-param="qnh" data-rwy="28"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—<span class="qnh-trend trend-flat" id="trend28-qnh">→</span></div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="qfe" data-rwy="28"><div class="dch">QFE (hPa)</div><div class="dcv" id="r28-qfe">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c3">
-          <div class="dc"><div class="dch">TEMP (°C)</div><div class="dcv" id="r28-temp">—</div></div>
-          <div class="dc"><div class="dch">HUM (%)</div><div class="dcv" id="r28-hum">—</div></div>
-          <div class="dc"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r28-dew">—</div><div id="spread28" style="text-align:center;padding-bottom:2px;min-height:18px;"></div></div>
+          <div class="dc" data-param="temperature" data-rwy="28"><div class="dch">TEMP (°C)</div><div class="dcv" id="r28-temp">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="humidity" data-rwy="28"><div class="dch">HUM (%)</div><div class="dcv" id="r28-hum">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="dewPoint" data-rwy="28"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r28-dew">—</div><div id="spread28" style="text-align:center;padding-bottom:2px;min-height:18px;"></div><span class="click-hint">📊 Click to see history</span></div>
         </div>
+        <!-- R28: MAX WS (1min) then MIN WS (1min) -->
         <div class="data-row c2">
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r28-wsmax">—</div></div>
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r28-wsmin">—</div></div>
@@ -527,25 +803,29 @@
       <div class="pb">
         <div class="wind-row">
           <div class="wind-col">
-            <div class="wbox">
+            <div class="wbox" data-param="windDirection" data-rwy="10">
               <div class="wlbl">WD (DEG)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill10-wd">INST</span></span></div>
               <div class="wval cyan" id="r10-wd">—</div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
-            <div class="wbox">
+            <div class="wbox" data-param="headwind" data-rwy="10">
               <div class="wlbl">HEAD WIND<br><span class="wsub">(KNOTS)</span></div>
               <div class="wval hw-green" id="r10-hw">—</div>
               <div id="badge10-hw"></div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
           </div>
           <div class="wind-col">
-            <div class="wbox">
+            <div class="wbox" data-param="windSpeed" data-rwy="10">
               <div class="wlbl">WS (KNOTS)<br><span class="wsub"><span class="mode-pill pill-inst" id="pill10-ws">INST</span></span></div>
               <div class="wval cyan" id="r10-ws">—</div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
-            <div class="wbox">
+            <div class="wbox" data-param="crosswind" data-rwy="10">
               <div class="wlbl">CROSS WIND<br><span class="wsub">(KNOTS)</span></div>
               <div class="wval" id="r10-cw">—</div>
               <div id="badge10-cw"></div>
+              <span class="click-hint">📊 Click to see history</span>
             </div>
           </div>
           <div class="compass-cell"><canvas id="compass-10"></canvas></div>
@@ -555,21 +835,22 @@
           <div class="rr"><span class="rl">WD 2min</span><span class="rv" id="r10-wd2">—</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch">RVR</div><div class="dcv" id="r10-rvr">—</div></div>
-          <div class="dc"><div class="dch">MOR</div><div class="dcv" id="r10-mor">—</div></div>
+          <div class="dc" data-param="rvr" data-rwy="10"><div class="dch">RVR</div><div class="dcv" id="r10-rvr">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="mor" data-rwy="10"><div class="dch">MOR</div><div class="dcv" id="r10-mor">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—<span class="qnh-trend trend-flat" id="trend10-qnh">→</span></div></div>
-          <div class="dc"><div class="dch">QFE (hPa)</div><div class="dcv" id="r10-qfe">—</div></div>
+          <div class="dc" data-param="qnh" data-rwy="10"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—<span class="qnh-trend trend-flat" id="trend10-qnh">→</span></div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="qfe" data-rwy="10"><div class="dch">QFE (hPa)</div><div class="dcv" id="r10-qfe">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c3">
-          <div class="dc"><div class="dch">TEMP (°C)</div><div class="dcv" id="r10-temp">—</div></div>
-          <div class="dc"><div class="dch">HUM (%)</div><div class="dcv" id="r10-hum">—</div></div>
-          <div class="dc"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r10-dew">—</div><div id="spread10" style="text-align:center;padding-bottom:2px;min-height:18px;"></div></div>
+          <div class="dc" data-param="temperature" data-rwy="10"><div class="dch">TEMP (°C)</div><div class="dcv" id="r10-temp">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="humidity" data-rwy="10"><div class="dch">HUM (%)</div><div class="dcv" id="r10-hum">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="dewPoint" data-rwy="10"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r10-dew">—</div><div id="spread10" style="text-align:center;padding-bottom:2px;min-height:18px;"></div><span class="click-hint">📊 Click to see history</span></div>
         </div>
+        <!-- R10: MAX WS (1min) then MIN WS (1min) - same as R28 -->
         <div class="data-row c2">
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r10-wsmin">—</div></div>
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r10-wsmax">—</div></div>
+          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r10-wsmin">—</div></div>
         </div>
       </div>
     </div>
@@ -577,21 +858,90 @@
   <div id="footer">
     <div class="dev">DEVELOPER: AJAY (GOA)</div>
     <div id="metar-container">
-      <div id="metar-display">⏳ LOADING METAR...</div>
+      <div id="metar-display"></div>
+      <button id="metar-history-btn" onclick="openMetarPopup()">📜 METAR HISTORY</button>
+    </div>
+  </div>
+
+  <!-- ─── HISTORY MODAL ─── -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="modalTitle">Loading... <small>Runway -- · 6‑hour trend</small></h2>
+        <button class="modal-close" onclick="closeHistory()">&times;</button>
+      </div>
+      <div class="modal-chart-wrap" id="chartContainer">
+        <div class="loading-msg">
+          <span class="spinner"></span> Loading history data...
+        </div>
+        <canvas id="historyChart" style="display:none;"></canvas>
+      </div>
+      <div class="modal-meta" id="modalMeta">
+        <div class="stat"><span class="label">Current:</span> <span id="metaCurrent">—</span></div>
+        <div class="stat"><span class="label">Min (6h):</span> <span id="metaMin">—</span></div>
+        <div class="stat"><span class="label">Max (6h):</span> <span id="metaMax">—</span></div>
+        <div class="stat"><span class="label">Avg (6h):</span> <span id="metaAvg">—</span></div>
+        <div class="stat"><span class="label">Data points:</span> <span id="metaCount">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── METAR POPUP ─── -->
+  <div class="metar-popup-overlay" id="metarPopup">
+    <div class="metar-popup-box">
+      <div class="metar-popup-header">
+        <h3>📜 METAR History (Last 6 Hours)</h3>
+        <button class="metar-popup-close" onclick="closeMetarPopup()">&times;</button>
+      </div>
+      <div class="metar-popup-body" id="metarPopupBody">
+        <div class="loading-msg" style="height:auto;padding:20px;">
+          <span class="spinner"></span> Loading METAR history...
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    // ── STORED DATA ──
+    // ═══════════════════════════════════════════════════════════════
+    //  CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════
+    const API_BASE = 'https://www.ajayydv.shop';
+    const DATA_ENDPOINT = '/data';
+    const POLL_INTERVAL_MS = 1000;
+    const METAR_PROXY = 'https://api.allorigins.win/raw?url=';
+    const METAR_URL = 'https://aviationweather.gov/api/data/metar?ids=VOGA&hours=0&sep=true';
+    const METAR_HISTORY_URL = 'https://aviationweather.gov/api/data/metar?ids=VOGA&hours=6&sep=true';
+
+    // ── state ──
     const latestData = { '28': null, '10': null };
     const modes = { '28': 'instant', '10': 'instant' };
     const compassDirs = { '28': null, '10': null };
-    let isDark = true;
+    let isDark = false;
     let autoRefreshInterval = null;
     let metarInterval = null;
     let isFirstMetarFetch = true;
+    let chartInstance = null;
+    let modalParam = null;
+    let modalRwy = null;
+    let isHistoryLoading = false;
 
-    // ── CLOCK ──
+    // ── DOM refs ──
+    const modal = document.getElementById('historyModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalCanvas = document.getElementById('historyChart');
+    const chartContainer = document.getElementById('chartContainer');
+    const metaCurrent = document.getElementById('metaCurrent');
+    const metaMin = document.getElementById('metaMin');
+    const metaMax = document.getElementById('metaMax');
+    const metaAvg = document.getElementById('metaAvg');
+    const metaCount = document.getElementById('metaCount');
+    const metarDisplay = document.getElementById('metar-display');
+    const metarPopup = document.getElementById('metarPopup');
+    const metarPopupBody = document.getElementById('metarPopupBody');
+
+    // ═══════════════════════════════════════════════════════════════
+    //  CLOCK
+    // ═══════════════════════════════════════════════════════════════
     (function(){
       const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -604,12 +954,17 @@
       tick(); setInterval(tick,1000);
     })();
 
-    // ── THEME ──
+    // ═══════════════════════════════════════════════════════════════
+    //  THEME
+    // ═══════════════════════════════════════════════════════════════
     window.toggleTheme = function(){
       isDark = !isDark;
-      document.body.classList.toggle('light', !isDark);
+      document.body.classList.toggle('dark', isDark);
       document.querySelector('[onclick="toggleTheme()"]').textContent = isDark ? '☀' : '🌙';
       ['28','10'].forEach(r => drawCompass(r, compassDirs[r]));
+      if(modal.classList.contains('active') && modalParam){
+        renderHistoryChart(modalParam, modalRwy);
+      }
     };
 
     // ── FULLSCREEN ──
@@ -629,23 +984,11 @@
       if(!document.fullscreenElement && isFS){ isFS=false; document.getElementById('fullscreen-btn').textContent='⛶'; }
     });
 
-    // ── FETCH METAR with CORS PROXY ──
+    // ═══════════════════════════════════════════════════════════════
+    //  METAR
+    // ═══════════════════════════════════════════════════════════════
     function fetchMETAR(){
-      const metarDisplay = document.getElementById('metar-display');
-      
-      // Only show fetching text on first load
-      if(isFirstMetarFetch){
-        metarDisplay.textContent = '⏳ LOADING METAR...';
-        metarDisplay.style.opacity = '1';
-        isFirstMetarFetch = false;
-      } else {
-        // Smooth fade for background updates
-        metarDisplay.classList.add('fade');
-      }
-      
-      // Use CORS proxy to bypass CORS restrictions
-      const url = 'https://api.allorigins.win/raw?url=' + 
-        encodeURIComponent('https://aviationweather.gov/api/data/metar?ids=VOGA&hours=0&sep=true');
+      const url = METAR_PROXY + encodeURIComponent(METAR_URL);
       
       fetch(url)
         .then(res => {
@@ -653,29 +996,68 @@
           return res.text();
         })
         .then(data => {
-          // Check if we got valid METAR data
           if(data && data.trim().length > 0 && data.includes('VOGA')){
-            const clean = data.trim().replace(/\s+/g, ' ');
-            metarDisplay.textContent = clean;
+            metarDisplay.textContent = data.trim().replace(/\s+/g, ' ');
             metarDisplay.style.color = '';
+            metarDisplay.style.opacity = '1';
           } else {
-            metarDisplay.textContent = '⚠ METAR UNAVAILABLE';
-            metarDisplay.style.color = '#ff5252';
+            metarDisplay.textContent = '';
+            metarDisplay.style.color = '';
           }
-          // Fade back in
           metarDisplay.classList.remove('fade');
-          metarDisplay.style.opacity = '1';
         })
         .catch(err => {
           console.error('METAR fetch error:', err);
-          metarDisplay.textContent = '⚠ METAR ERROR';
-          metarDisplay.style.color = '#ff5252';
+          metarDisplay.textContent = '';
+          metarDisplay.style.color = '';
           metarDisplay.classList.remove('fade');
-          metarDisplay.style.opacity = '1';
         });
     }
 
-    // ── COMPASS ──
+    // ═══════════════════════════════════════════════════════════════
+    //  METAR HISTORY POPUP
+    // ═══════════════════════════════════════════════════════════════
+    window.openMetarPopup = function(){
+      metarPopup.classList.add('active');
+      metarPopupBody.innerHTML = `<div class="loading-msg" style="height:auto;padding:20px;"><span class="spinner"></span> Loading METAR history...</div>`;
+      
+      const url = METAR_PROXY + encodeURIComponent(METAR_HISTORY_URL);
+      fetch(url)
+        .then(res => {
+          if(!res.ok) throw new Error('HTTP '+res.status);
+          return res.text();
+        })
+        .then(data => {
+          if(data && data.trim().length > 0 && data.includes('VOGA')){
+            const lines = data.trim().split('\n').filter(line => line.includes('VOGA'));
+            if(lines.length > 0){
+              metarPopupBody.innerHTML = lines.map(line => 
+                `<div class="metar-line">${line.trim()}</div>`
+              ).join('');
+            } else {
+              metarPopupBody.innerHTML = `<div class="no-data">No METAR history available</div>`;
+            }
+          } else {
+            metarPopupBody.innerHTML = `<div class="no-data">No METAR history available</div>`;
+          }
+        })
+        .catch(err => {
+          console.error('METAR history fetch error:', err);
+          metarPopupBody.innerHTML = `<div class="no-data">Error loading METAR history</div>`;
+        });
+    };
+
+    window.closeMetarPopup = function(){
+      metarPopup.classList.remove('active');
+    };
+
+    metarPopup.addEventListener('click', function(e) {
+      if (e.target === this) closeMetarPopup();
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    //  COMPASS
+    // ═══════════════════════════════════════════════════════════════
     function drawCompass(rwy, windDeg){
       const canvas = document.getElementById('compass-'+rwy);
       if(!canvas) return;
@@ -686,19 +1068,19 @@
       const W=canvas.width, H=canvas.height;
       const cx=W/2, cy=H/2, r=Math.min(W,H)*0.44;
       if(r<4) return;
-      const isLight = document.body.classList.contains('light');
+      const isDarkMode = document.body.classList.contains('dark');
       ctx.clearRect(0,0,W,H);
-      ctx.fillStyle = isLight ? '#e8f0f8' : '#04090f';
+      ctx.fillStyle = isDarkMode ? '#04090f' : '#e8f0f8';
       ctx.fillRect(0,0,W,H);
       
       const grad = ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
-      grad.addColorStop(0, isLight?'#1976d2':'#1565c0');
-      grad.addColorStop(1, isLight?'#42a5f5':'#0d3a80');
+      grad.addColorStop(0, isDarkMode ? '#1565c0' : '#1976d2');
+      grad.addColorStop(1, isDarkMode ? '#0d3a80' : '#42a5f5');
       ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
       ctx.strokeStyle=grad; ctx.lineWidth=2.5; ctx.stroke();
 
       ctx.beginPath(); ctx.arc(cx,cy,r-1,0,Math.PI*2);
-      ctx.fillStyle = isLight?'rgba(21,101,192,0.06)':'rgba(21,101,192,0.08)';
+      ctx.fillStyle = isDarkMode ? 'rgba(21,101,192,0.08)' : 'rgba(21,101,192,0.06)';
       ctx.fill();
 
       for(let i=0;i<36;i++){
@@ -708,13 +1090,13 @@
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*inner, cy+Math.sin(a)*inner);
         ctx.lineTo(cx+Math.cos(a)*(r-1), cy+Math.sin(a)*(r-1));
-        ctx.strokeStyle=isMaj?(isLight?'#1565c0':'#64b5f6'):(isLight?'#90b8d8':'#1a3a70');
+        ctx.strokeStyle=isMaj?(isDarkMode?'#64b5f6':'#1565c0'):(isDarkMode?'#1a3a70':'#90b8d8');
         ctx.lineWidth=isMaj?2:1; ctx.stroke();
       }
 
       const fs=Math.max(10,Math.round(r*0.3));
-      [['N',0,isLight?'#d32f2f':'#ff4444'],['E',90,isLight?'#1565c0':'#64b5f6'],
-       ['S',180,isLight?'#1565c0':'#64b5f6'],['W',270,isLight?'#1565c0':'#64b5f6']].forEach(([c,deg,col])=>{
+      [['N',0,isDarkMode?'#ff4444':'#d32f2f'],['E',90,isDarkMode?'#64b5f6':'#1565c0'],
+       ['S',180,isDarkMode?'#64b5f6':'#1565c0'],['W',270,isDarkMode?'#64b5f6':'#1565c0']].forEach(([c,deg,col])=>{
         const a=(deg-90)*Math.PI/180;
         ctx.font=`900 ${fs}px Orbitron,Arial`;
         ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -723,28 +1105,30 @@
       });
 
       ctx.beginPath(); ctx.arc(cx,cy,3.5,0,Math.PI*2);
-      ctx.fillStyle=isLight?'#ff6600':'#ff7700'; ctx.fill();
+      ctx.fillStyle=isDarkMode?'#ff7700':'#ff6600'; ctx.fill();
 
       if(windDeg!==null && !isNaN(windDeg)){
         const a=(windDeg-90)*Math.PI/180;
         const len=r*0.7, tail=r*0.22;
-        ctx.shadowColor=isLight?'rgba(255,80,0,0.3)':'rgba(255,119,0,0.5)';
+        ctx.shadowColor=isDarkMode?'rgba(255,119,0,0.5)':'rgba(255,80,0,0.3)';
         ctx.shadowBlur=10;
         ctx.beginPath();
         ctx.moveTo(cx-Math.cos(a)*tail, cy-Math.sin(a)*tail);
         ctx.lineTo(cx+Math.cos(a)*len,  cy+Math.sin(a)*len);
-        ctx.strokeStyle=isLight?'#e65100':'#ff7700'; ctx.lineWidth=3.5; ctx.stroke();
+        ctx.strokeStyle=isDarkMode?'#ff7700':'#e65100'; ctx.lineWidth=3.5; ctx.stroke();
         ctx.shadowBlur=0; ctx.shadowColor='transparent';
         const hs=r*0.18;
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*len, cy+Math.sin(a)*len);
         ctx.lineTo(cx+Math.cos(a)*len+Math.cos(a+2.7)*hs, cy+Math.sin(a)*len+Math.sin(a+2.7)*hs);
         ctx.lineTo(cx+Math.cos(a)*len+Math.cos(a-2.7)*hs, cy+Math.sin(a)*len+Math.sin(a-2.7)*hs);
-        ctx.closePath(); ctx.fillStyle=isLight?'#e65100':'#ff7700'; ctx.fill();
+        ctx.closePath(); ctx.fillStyle=isDarkMode?'#ff7700':'#e65100'; ctx.fill();
       }
     }
 
-    // ── RESIZE ──
+    // ═══════════════════════════════════════════════════════════════
+    //  RESIZE
+    // ═══════════════════════════════════════════════════════════════
     function resizeLayout(){
       document.querySelectorAll('.panel').forEach(panel=>{
         const pb=panel.querySelector('.pb');
@@ -759,7 +1143,7 @@
         const remaining=totalH-windH-rangeH;
         const perData=Math.floor(remaining/dataRows.length);
         if(windRow) windRow.style.height=Math.max(windH, 70)+'px';
-        dataRows.forEach(r=>r.style.height=Math.max(perData, 45)+'px');
+        dataRows.forEach(r=>r.style.height=Math.max(perData, 55)+'px');
       });
       ['28','10'].forEach(rwy=>{
         const cell=document.getElementById('compass-'+rwy)?.parentElement;
@@ -767,7 +1151,9 @@
       });
     }
 
-    // ── SET VALUE ──
+    // ═══════════════════════════════════════════════════════════════
+    //  VALUE HELPERS
+    // ═══════════════════════════════════════════════════════════════
     function setValue(id, newVal){
       const el = document.getElementById(id);
       if(!el) return;
@@ -777,7 +1163,6 @@
       }
     }
 
-    // ── SEVERITY ──
     function parseLeadingNumber(val){
       if(val === null || val === undefined) return null;
       if(typeof val === 'number') return val;
@@ -822,7 +1207,6 @@
       if(sevClass) el.classList.add(sevClass);
     }
 
-    // ── GET VALUE BY MODE ──
     function getValueByMode(data, field, mode){
       if(!data) return null;
       const suffixMap = {
@@ -859,7 +1243,6 @@
       return null;
     }
 
-    // ── HEAD/CROSS WIND ──
     function getHeadCrossWind(data, mode){
       if(!data) return { hw: '--', cw: '--' };
       const suffixMap = {
@@ -880,7 +1263,6 @@
       return { hw: hw || '--', cw: cw || '--' };
     }
 
-    // ── WIND BADGE ──
     function renderWindBadge(containerId, raw, type){
       const el = document.getElementById(containerId);
       if(!el) return;
@@ -900,17 +1282,13 @@
       el.innerHTML = `<span class="wcomp-badge ${cls}">${icon}</span>`;
     }
 
-    // ── DEW SPREAD (ONLY FOG) ──
     function renderDewSpread(containerId, temp, dew){
       const el = document.getElementById(containerId);
       if(!el) return;
       const t = parseFloat(temp), d = parseFloat(dew);
       if(isNaN(t) || isNaN(d)){ el.innerHTML=''; return; }
       const spread = Math.round((t - d) * 10) / 10;
-      
-      // Fog condition: spread <= 2°C, temp < 25°C
       const isFoggy = spread <= 2 && t < 25;
-      
       if(isFoggy){
         el.innerHTML = `<span class="dew-spread spread-fog">⚠ FOG RISK (${spread}°C)</span>`;
       } else {
@@ -918,7 +1296,6 @@
       }
     }
 
-    // ── PRESSURE TREND ──
     function renderPressureTrend(spanId, instant, tenMin){
       const el = document.getElementById(spanId);
       if(!el) return;
@@ -934,7 +1311,9 @@
       }
     }
 
-    // ── RENDER PANEL ──
+    // ═══════════════════════════════════════════════════════════════
+    //  RENDER PANEL
+    // ═══════════════════════════════════════════════════════════════
     function renderPanel(rwy){
       const d=latestData[rwy];
       if(!d) return;
@@ -1002,31 +1381,339 @@
       setValueWithSeverity(p+'temp', temp, 'temperature');
 
       const hum = getValueByMode(d, 'humidity', mode);
-      setValueWithSeverity(p+'hum', hum, 'humidity');
+      setValue(p+'hum', hum);
+      const humEl = document.getElementById(p+'hum');
+      if(humEl){
+        humEl.classList.remove('sev-orange', 'sev-red');
+        const hNum = parseLeadingNumber(hum);
+        if(hNum !== null && !isNaN(hNum)){
+          if(hNum > 95) humEl.classList.add('sev-red');
+          else if(hNum >= 85) humEl.classList.add('sev-orange');
+        }
+      }
 
       const dew = getValueByMode(d, 'dewPoint', mode);
       setValue(p+'dew', dew);
 
       renderDewSpread('spread'+rwy, temp, dew);
-
       renderPressureTrend('trend'+rwy+'-qnh', d.qnh_instant_rounded, d.qnh_avgTenMin_rounded);
 
-      setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
+      // BOTH runways: MAX then MIN
       setValue(p+'wsmax', d.windSpeed_maxOneMin_rounded || '--');
+      setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
 
       compassDirs[rwy]=wd;
       drawCompass(rwy, wd);
     }
 
-    // ── MODE CHANGE ──
+    // ═══════════════════════════════════════════════════════════════
+    //  MODE CHANGE
+    // ═══════════════════════════════════════════════════════════════
     window.onModeChange = function(rwy, val){
       modes[rwy]=val;
       if(latestData[rwy]) renderPanel(rwy);
     };
 
-    // ── FETCH DATA ──
+    // ═══════════════════════════════════════════════════════════════
+    //  HISTORY FROM BACKEND - COMPLETE FIX FOR RVR & MOR
+    // ═══════════════════════════════════════════════════════════════
+    async function fetchHistoryFromBackend(rwy, param) {
+      // Try multiple possible field names for RVR and MOR
+      let possibleParams = [param];
+      
+      // For RVR, try different variations
+      if (param === 'rvr') {
+        possibleParams = ['pwd_rvr', 'rvr', 'pwd_rvr_avgOneMin', 'pwd_rvr_avgTenMin'];
+      }
+      // For MOR, try different variations
+      else if (param === 'mor') {
+        possibleParams = ['pwd_mor', 'mor', 'pwd_mor_avgOneMin', 'pwd_mor_avgTenMin'];
+      }
+      // For other params, use as-is
+      
+      // Try each possible parameter name
+      for (const backendParam of possibleParams) {
+        const url = `${API_BASE}/history/${rwy}/${backendParam}?hours=6&bin=600`;
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.data && data.data.length > 0) {
+              console.log(`✅ Found history for ${param} using field: ${backendParam}`);
+              return data.data;
+            }
+          }
+        } catch (err) {
+          // Continue to next try
+        }
+      }
+      
+      // If all attempts fail, return empty array
+      console.warn(`❌ No history found for ${param} on runway ${rwy}`);
+      return [];
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  HISTORY CHART - UTC TIME
+    // ═══════════════════════════════════════════════════════════════
+    async function renderHistoryChart(param, rwy) {
+      if (!param || !rwy || isHistoryLoading) return;
+      isHistoryLoading = true;
+
+      const loadingMsg = chartContainer.querySelector('.loading-msg');
+      const canvas = modalCanvas;
+      if (loadingMsg) loadingMsg.style.display = 'flex';
+      canvas.style.display = 'none';
+
+      try {
+        const bins = await fetchHistoryFromBackend(rwy, param);
+        const ctx = canvas.getContext('2d');
+
+        if (chartInstance) {
+          chartInstance.destroy();
+          chartInstance = null;
+        }
+
+        if (loadingMsg) loadingMsg.style.display = 'none';
+        canvas.style.display = 'block';
+
+        const isDarkMode = document.body.classList.contains('dark');
+        const textColor = isDarkMode ? '#e0e8f0' : '#1a2a3a';
+        const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+
+        if (bins.length === 0) {
+          const parent = canvas.parentElement;
+          let noDataMsg = parent.querySelector('.no-data-msg');
+          if (!noDataMsg) {
+            noDataMsg = document.createElement('div');
+            noDataMsg.className = 'no-data-msg';
+            parent.appendChild(noDataMsg);
+          }
+          noDataMsg.textContent = `📊 Not available for ${param.toUpperCase()}.`;
+          noDataMsg.style.display = 'flex';
+
+          chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: ['No data'],
+              datasets: [{ label: param, data: [null], borderColor: '#666', pointRadius: 0 }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { enabled: false } },
+              scales: { x: { display: false }, y: { display: false } }
+            }
+          });
+
+          metaCurrent.textContent = '—';
+          metaMin.textContent = '—';
+          metaMax.textContent = '—';
+          metaAvg.textContent = '—';
+          metaCount.textContent = '0';
+          isHistoryLoading = false;
+          return;
+        }
+
+        const parent = canvas.parentElement;
+        const oldMsg = parent.querySelector('.no-data-msg');
+        if (oldMsg) oldMsg.remove();
+
+        // UTC time labels
+        const labels = bins.map(b => {
+          const d = new Date(b.timestamp * 1000);
+          return d.toUTCString().split(' ')[4].slice(0, 5);
+        });
+        const values = bins.map(b => b.value);
+        const counts = bins.map(b => b.count);
+
+        const unitMap = {
+          'windDirection': '°', 'windSpeed': 'kt', 'headwind': 'kt', 'crosswind': 'kt',
+          'rvr': 'm', 'mor': 'm', 'qnh': 'hPa', 'qfe': 'hPa',
+          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C'
+        };
+        const unit = unitMap[param] || '';
+
+        const labelMap = {
+          'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
+          'headwind': 'Head Wind', 'crosswind': 'Cross Wind',
+          'rvr': 'RVR', 'mor': 'MOR', 'qnh': 'QNH', 'qfe': 'QFE',
+          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
+        };
+        const displayName = labelMap[param] || param;
+
+        const d = latestData[rwy];
+        let currentVal = '—';
+        if (d) {
+          const fieldMap = {
+            'windDirection': 'windDirection_instant_rounded',
+            'windSpeed': 'windSpeed_instant_rounded',
+            'headwind': 'headwind_instant',
+            'crosswind': 'crosswind_instant',
+            'rvr': 'pwd_rvr_avgOneMin',
+            'mor': 'pwd_mor_avgOneMin',
+            'qnh': 'qnh_instant_rounded',
+            'qfe': 'qfe_instant_rounded',
+            'temperature': 'temperature_instant_rounded',
+            'humidity': 'humidity_instant_rounded',
+            'dewPoint': 'dewPoint_instant_rounded'
+          };
+          const key = fieldMap[param];
+          if (key && d[key] !== undefined) {
+            const raw = d[key];
+            const num = parseLeadingNumber(raw);
+            if (num !== null && !isNaN(num)) currentVal = num + (unit ? ' ' + unit : '');
+            else currentVal = raw;
+          }
+        }
+
+        const minVal = Math.min(...values);
+        const maxVal = Math.max(...values);
+        const avgVal = values.reduce((a, b) => a + b, 0) / values.length;
+
+        metaCurrent.textContent = currentVal;
+        metaMin.textContent = (minVal !== undefined && !isNaN(minVal)) ? minVal + (unit ? ' ' + unit : '') : '—';
+        metaMax.textContent = (maxVal !== undefined && !isNaN(maxVal)) ? maxVal + (unit ? ' ' + unit : '') : '—';
+        metaAvg.textContent = (avgVal !== undefined && !isNaN(avgVal)) ? Math.round(avgVal * 10) / 10 + (unit ? ' ' + unit : '') : '—';
+        metaCount.textContent = bins.length;
+
+        const color = isDarkMode ? '#00e5ff' : '#1565c0';
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: displayName,
+              data: values,
+              borderColor: color,
+              backgroundColor: color + '33',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              pointBackgroundColor: color,
+              pointBorderColor: isDarkMode ? '#07111c' : '#ffffff',
+              pointBorderWidth: 1.5,
+              borderWidth: 2.5,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: textColor,
+                  font: { family: 'Inter', weight: '600', size: 13 }
+                }
+              },
+              tooltip: {
+                backgroundColor: isDarkMode ? 'rgba(7,17,28,0.92)' : 'rgba(255,255,255,0.92)',
+                titleColor: textColor,
+                bodyColor: textColor,
+                borderColor: gridColor,
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function(context) {
+                    const idx = context.dataIndex;
+                    const val = context.parsed.y;
+                    const count = counts[idx] || 0;
+                    return `${displayName}: ${val} ${unit}  (${count} samples)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: gridColor, drawBorder: false },
+                ticks: { color: textColor, font: { family: 'Inter', size: 10 } },
+                title: { display: true, text: 'Time (UTC - last 6 hours)', color: textColor,
+                font: { family: 'Inter', size: 11 } }
+              },
+              y: {
+                grid: { color: gridColor, drawBorder: false },
+                ticks: { color: textColor, font: { family: 'Inter', size: 10 } },
+                title: { display: true, text: unit ? unit : '', color: textColor,
+                font: { family: 'Inter', size: 11 } }
+              }
+            },
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error('Chart rendering error:', err);
+        const loadingMsg = chartContainer.querySelector('.loading-msg');
+        if (loadingMsg) {
+          loadingMsg.innerHTML = '❌ Error loading history: ' + err.message;
+          loadingMsg.style.display = 'flex';
+        }
+      }
+
+      isHistoryLoading = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  MODAL CONTROLS
+    // ═══════════════════════════════════════════════════════════════
+    async function openHistory(param, rwy) {
+      if (isHistoryLoading) return;
+      modalParam = param;
+      modalRwy = rwy;
+
+      const labelMap = {
+        'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
+        'headwind': 'Head Wind', 'crosswind': 'Cross Wind',
+        'rvr': 'RVR', 'mor': 'MOR', 'qnh': 'QNH', 'qfe': 'QFE',
+        'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
+      };
+      const displayName = labelMap[param] || param;
+      modalTitle.innerHTML =
+        `${displayName} <small>Runway ${rwy} · 6‑hour trend (10‑min avg) · Persistent Storage</small>`;
+
+      metaCurrent.textContent = '⏳';
+      metaMin.textContent = '⏳';
+      metaMax.textContent = '⏳';
+      metaAvg.textContent = '⏳';
+      metaCount.textContent = '⏳';
+
+      modal.classList.add('active');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await renderHistoryChart(param, rwy);
+    }
+
+    window.closeHistory = function() {
+      modal.classList.remove('active');
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+      modalParam = null;
+      modalRwy = null;
+      isHistoryLoading = false;
+    };
+
+    function setupClickHandlers() {
+      document.querySelectorAll('.dc[data-param], .wbox[data-param]').forEach(el => {
+        el.addEventListener('click', function(e) {
+          const param = this.dataset.param;
+          const rwy = this.dataset.rwy;
+          if (param && rwy) {
+            openHistory(param, rwy);
+          }
+        });
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FETCH DATA
+    // ═══════════════════════════════════════════════════════════════
     function fetchData(){
-      fetch('https://api.ajayydv.shop/data')
+      fetch(`${API_BASE}${DATA_ENDPOINT}`)
         .then(res => {
           if(!res.ok) throw new Error('HTTP '+res.status);
           return res.json();
@@ -1044,29 +1731,52 @@
         })
         .catch(err => {
           console.error('Fetch error:', err);
+          document.getElementById('status').textContent = '⚠ OFFLINE';
+          document.getElementById('status').style.borderColor = '#ff4444';
+          document.getElementById('status').style.color = '#ff4444';
         });
     }
 
-    // ── START ──
+    // ═══════════════════════════════════════════════════════════════
+    //  START
+    // ═══════════════════════════════════════════════════════════════
     function startAutoRefresh(){
       if(autoRefreshInterval) clearInterval(autoRefreshInterval);
-      autoRefreshInterval = setInterval(fetchData, 2000);
+      autoRefreshInterval = setInterval(fetchData, POLL_INTERVAL_MS);
       if(metarInterval) clearInterval(metarInterval);
-      metarInterval = setInterval(fetchMETAR, 120000); // 2 min
-      // Initial fetch with small delay
+      metarInterval = setInterval(fetchMETAR, 120000);
       setTimeout(fetchMETAR, 500);
     }
 
     window.addEventListener('load', ()=>{
+      document.body.classList.remove('dark');
+      document.querySelector('[onclick="toggleTheme()"]').textContent = '🌙';
+      
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
+      setupClickHandlers();
       fetchData();
       startAutoRefresh();
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeHistory();
+      });
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) closeHistory();
+      });
+
+      document.getElementById('status').textContent = '⬤ LIVE';
+      document.getElementById('status').style.borderColor = '#00cc66';
+      document.getElementById('status').style.color = '#00ff88';
     });
 
     window.addEventListener('beforeunload', () => {
       if(autoRefreshInterval) clearInterval(autoRefreshInterval);
       if(metarInterval) clearInterval(metarInterval);
+      if(chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
     });
   </script>
 </body>
