@@ -992,7 +992,7 @@
     const latestData = { '28': null, '10': null };
     const modes = { '28': 'instant', '10': 'instant' };
     const compassDirs = { '28': null, '10': null };
-    let isDark = false;
+    let isDark = true;
     let autoRefreshInterval = null;
     let metarInterval = null;
     let isFirstMetarFetch = true;
@@ -1945,8 +1945,8 @@
     }
 
     window.addEventListener('load', ()=>{
-      document.body.classList.remove('dark');
-      document.querySelector('[onclick="toggleTheme()"]').textContent = '🌙';
+      document.body.classList.add('dark');
+      document.querySelector('[onclick="toggleTheme()"]').textContent = '🌞';
       
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
