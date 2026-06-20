@@ -189,8 +189,8 @@
       background:var(--bg);
       transition:background 0.3s;
       min-height:30px;
-      cursor:pointer;
       position:relative;
+      cursor:pointer;
     }
     .wbox:last-child { border-bottom:none; }
     .wbox:hover { background:var(--bg2); }
@@ -219,6 +219,12 @@
     body.dark .wbox .click-hint {
       background:rgba(255,255,255,0.1);
     }
+    .wbox.no-history {
+      cursor:default;
+    }
+    .wbox.no-history .click-hint {
+      display:none !important;
+    }
     .wlbl {
       font-size:clamp(9px,1.2vw,16px); color:var(--lbl); text-transform:uppercase;
       letter-spacing:0.3px; line-height:1.2; text-align:center;
@@ -229,7 +235,6 @@
       font-size:clamp(22px,4.5vw,56px); font-weight:900; line-height:1;
       letter-spacing:-0.5px; font-family:'Inter',sans-serif;
       transition: color 0.3s;
-      cursor:pointer;
     }
     .hw-green { color:#00e676 !important; }
     .hw-red   { color:#ff1744 !important; }
@@ -312,6 +317,12 @@
     body.dark .dc .click-hint {
       background:rgba(255,255,255,0.1);
     }
+    .dc.no-history {
+      cursor:default;
+    }
+    .dc.no-history .click-hint {
+      display:none !important;
+    }
     .dch {
       background:var(--hdr-bg); color:var(--hdr-txt);
       font-size:clamp(12px,1.8vw,22px); font-weight:700;
@@ -329,7 +340,6 @@
       letter-spacing:-0.5px; min-height:0;
       transition: color 0.3s;
       gap:4px;
-      cursor:pointer;
     }
     #footer {
       background:var(--top-bg); border-top:2px solid var(--hdr-bg);
@@ -489,6 +499,8 @@
       flex-shrink:0; padding-bottom:12px;
       border-bottom:2px solid var(--border);
       margin-bottom:16px;
+      flex-wrap:wrap;
+      gap:8px;
     }
     .modal-header h2 {
       font-family:'Orbitron',sans-serif;
@@ -545,10 +557,17 @@
     .no-data-msg {
       display:flex; align-items:center; justify-content:center;
       height:100%;
-      font-size:clamp(16px,2vw,24px);
+      width:100%;
+      font-size:clamp(20px,2.5vw,32px);
       color:var(--sub);
       font-family:'Inter',sans-serif;
-      font-weight:600; letter-spacing:0.5px;
+      font-weight:600;
+      letter-spacing:0.5px;
+      text-align:center;
+      padding:20px;
+      position:absolute;
+      top:0;
+      left:0;
     }
     .loading-msg {
       display:flex; align-items:center; justify-content:center;
@@ -567,6 +586,39 @@
       margin-right:12px;
     }
     @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* History Time Range Buttons */
+    .range-buttons {
+      display:flex;
+      gap:4px;
+      flex-wrap:wrap;
+    }
+    .range-btn {
+      background:rgba(255,255,255,0.05);
+      border:1px solid var(--border);
+      color:var(--sub);
+      font-size:clamp(7px,0.8vw,11px);
+      padding:2px 8px;
+      border-radius:10px;
+      cursor:pointer;
+      font-family:'Inter',sans-serif;
+      font-weight:600;
+      transition: all 0.2s;
+      white-space:nowrap;
+    }
+    .range-btn:hover {
+      background:rgba(255,255,255,0.12);
+      color:var(--val-cyan);
+    }
+    .range-btn.active {
+      background:var(--hdr-bg);
+      color:#fff;
+      border-color:var(--hdr-bg);
+    }
+    body.dark .range-btn.active {
+      background:var(--hdr-bg);
+      color:#fff;
+    }
 
     /* Responsive */
     @media (max-width: 768px) {
@@ -588,6 +640,9 @@
         font-size:8px;
         padding:2px 8px;
       }
+      .no-data-msg { font-size:clamp(18px,3vw,24px); }
+      .range-buttons { gap:3px; }
+      .range-btn { font-size:6px; padding:1px 6px; }
     }
     @media (max-width: 480px) {
       .wind-row { grid-template-columns:1fr 1fr minmax(40px,20vw); min-height:50px; }
@@ -620,6 +675,11 @@
         bottom:1px;
         right:4px;
       }
+      .no-data-msg { font-size:clamp(16px,2.5vw,20px); }
+      .range-buttons { gap:2px; }
+      .range-btn { font-size:5px; padding:1px 4px; }
+      .modal-header { flex-direction:column; align-items:stretch; }
+      .modal-header h2 small { display:block; margin-left:0; }
     }
     @media (max-width: 360px) {
       .wind-row { grid-template-columns:1fr 1fr minmax(35px,22vw); min-height:45px; }
@@ -709,7 +769,7 @@
   </style>
 </head>
 <body>
-  <!-- TOP BAR, RUNWAY BAR, MAIN PANELS (same as before) -->
+  <!-- TOP BAR, RUNWAY BAR, MAIN PANELS -->
   <div id="topbar">
     <div class="brand">VOGA-MOPA <span>DCWIS</span></div>
     <div id="clock">—</div>
@@ -791,7 +851,6 @@
           <div class="dc" data-param="humidity" data-rwy="28"><div class="dch">HUM (%)</div><div class="dcv" id="r28-hum">—</div><span class="click-hint">📊 Click to see history</span></div>
           <div class="dc" data-param="dewPoint" data-rwy="28"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r28-dew">—</div><div id="spread28" style="text-align:center;padding-bottom:2px;min-height:18px;"></div><span class="click-hint">📊 Click to see history</span></div>
         </div>
-        <!-- R28: MAX WS (1min) then MIN WS (1min) -->
         <div class="data-row c2">
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r28-wsmax">—</div></div>
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r28-wsmin">—</div></div>
@@ -847,7 +906,6 @@
           <div class="dc" data-param="humidity" data-rwy="10"><div class="dch">HUM (%)</div><div class="dcv" id="r10-hum">—</div><span class="click-hint">📊 Click to see history</span></div>
           <div class="dc" data-param="dewPoint" data-rwy="10"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r10-dew">—</div><div id="spread10" style="text-align:center;padding-bottom:2px;min-height:18px;"></div><span class="click-hint">📊 Click to see history</span></div>
         </div>
-        <!-- R10: MAX WS (1min) then MIN WS (1min) - same as R28 -->
         <div class="data-row c2">
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r10-wsmax">—</div></div>
           <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r10-wsmin">—</div></div>
@@ -867,7 +925,12 @@
   <div class="modal-overlay" id="historyModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h2 id="modalTitle">Loading... <small>Runway -- · 6‑hour trend</small></h2>
+        <h2 id="modalTitle">Loading... <small>Runway -- · Trend</small></h2>
+        <div class="range-buttons" id="rangeButtons">
+          <button class="range-btn active" data-hours="6" data-bin="600" onclick="changeTimeRange(6, 600, this)">6H (10m)</button>
+          <button class="range-btn" data-hours="24" data-bin="1800" onclick="changeTimeRange(24, 1800, this)">24H (30m)</button>
+          <button class="range-btn" data-hours="72" data-bin="3600" onclick="changeTimeRange(72, 3600, this)">3D (1H)</button>
+        </div>
         <button class="modal-close" onclick="closeHistory()">&times;</button>
       </div>
       <div class="modal-chart-wrap" id="chartContainer">
@@ -878,9 +941,9 @@
       </div>
       <div class="modal-meta" id="modalMeta">
         <div class="stat"><span class="label">Current:</span> <span id="metaCurrent">—</span></div>
-        <div class="stat"><span class="label">Min (6h):</span> <span id="metaMin">—</span></div>
-        <div class="stat"><span class="label">Max (6h):</span> <span id="metaMax">—</span></div>
-        <div class="stat"><span class="label">Avg (6h):</span> <span id="metaAvg">—</span></div>
+        <div class="stat"><span class="label">Min:</span> <span id="metaMin">—</span></div>
+        <div class="stat"><span class="label">Max:</span> <span id="metaMax">—</span></div>
+        <div class="stat"><span class="label">Avg:</span> <span id="metaAvg">—</span></div>
         <div class="stat"><span class="label">Data points:</span> <span id="metaCount">—</span></div>
       </div>
     </div>
@@ -924,6 +987,8 @@
     let modalParam = null;
     let modalRwy = null;
     let isHistoryLoading = false;
+    let currentHours = 6;
+    let currentBin = 600;
 
     // ── DOM refs ──
     const modal = document.getElementById('historyModal');
@@ -938,6 +1003,21 @@
     const metarDisplay = document.getElementById('metar-display');
     const metarPopup = document.getElementById('metarPopup');
     const metarPopupBody = document.getElementById('metarPopupBody');
+
+    // ═══════════════════════════════════════════════════════════════
+    //  TIME RANGE CHANGE
+    // ═══════════════════════════════════════════════════════════════
+    window.changeTimeRange = function(hours, bin, btn) {
+      currentHours = hours;
+      currentBin = bin;
+      
+      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      
+      if (modalParam && modalRwy) {
+        renderHistoryChart(modalParam, modalRwy);
+      }
+    };
 
     // ═══════════════════════════════════════════════════════════════
     //  CLOCK
@@ -1398,7 +1478,7 @@
       renderDewSpread('spread'+rwy, temp, dew);
       renderPressureTrend('trend'+rwy+'-qnh', d.qnh_instant_rounded, d.qnh_avgTenMin_rounded);
 
-      // BOTH runways: MAX then MIN
+      // MAX and MIN WS (1min) - use stored instantaneous values directly
       setValue(p+'wsmax', d.windSpeed_maxOneMin_rounded || '--');
       setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
 
@@ -1415,42 +1495,41 @@
     };
 
     // ═══════════════════════════════════════════════════════════════
-    //  HISTORY FROM BACKEND - COMPLETE FIX FOR RVR & MOR
+    //  HISTORY FROM BACKEND - MATCHES YOUR BACKEND
     // ═══════════════════════════════════════════════════════════════
-    async function fetchHistoryFromBackend(rwy, param) {
-      // Try multiple possible field names for RVR and MOR
-      let possibleParams = [param];
+    async function fetchHistoryFromBackend(rwy, param, hours, bin) {
+      const h = hours || currentHours;
+      const b = bin || currentBin;
       
-      // For RVR, try different variations
-      if (param === 'rvr') {
-        possibleParams = ['pwd_rvr', 'rvr', 'pwd_rvr_avgOneMin', 'pwd_rvr_avgTenMin'];
-      }
-      // For MOR, try different variations
-      else if (param === 'mor') {
-        possibleParams = ['pwd_mor', 'mor', 'pwd_mor_avgOneMin', 'pwd_mor_avgTenMin'];
-      }
-      // For other params, use as-is
+      // Map frontend param to backend column name
+      const paramMap = {
+        'windDirection': 'windDirection',
+        'windSpeed': 'windSpeed',
+        'headwind': 'headwind',
+        'crosswind': 'crosswind',
+        'temperature': 'temperature',
+        'humidity': 'humidity',
+        'dewPoint': 'dewPoint',
+        'qnh': 'qnh',
+        'qfe': 'qfe',
+        'rvr': 'rvr',
+        'mor': 'mor'
+      };
       
-      // Try each possible parameter name
-      for (const backendParam of possibleParams) {
-        const url = `${API_BASE}/history/${rwy}/${backendParam}?hours=6&bin=600`;
-        try {
-          const response = await fetch(url);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.data && data.data.length > 0) {
-              console.log(`✅ Found history for ${param} using field: ${backendParam}`);
-              return data.data;
-            }
-          }
-        } catch (err) {
-          // Continue to next try
+      const backendParam = paramMap[param] || param;
+      const url = `${API_BASE}/history/${rwy}/${backendParam}?hours=${h}&bin=${b}`;
+      
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          return data.data || [];
         }
+        return [];
+      } catch (err) {
+        console.error('History fetch error:', err);
+        return [];
       }
-      
-      // If all attempts fail, return empty array
-      console.warn(`❌ No history found for ${param} on runway ${rwy}`);
-      return [];
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1466,7 +1545,7 @@
       canvas.style.display = 'none';
 
       try {
-        const bins = await fetchHistoryFromBackend(rwy, param);
+        const bins = await fetchHistoryFromBackend(rwy, param, currentHours, currentBin);
         const ctx = canvas.getContext('2d');
 
         if (chartInstance) {
@@ -1481,67 +1560,37 @@
         const textColor = isDarkMode ? '#e0e8f0' : '#1a2a3a';
         const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
 
-        if (bins.length === 0) {
-          const parent = canvas.parentElement;
-          let noDataMsg = parent.querySelector('.no-data-msg');
-          if (!noDataMsg) {
-            noDataMsg = document.createElement('div');
-            noDataMsg.className = 'no-data-msg';
-            parent.appendChild(noDataMsg);
-          }
-          noDataMsg.textContent = `📊 Not available for ${param.toUpperCase()}.`;
-          noDataMsg.style.display = 'flex';
-
-          chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: ['No data'],
-              datasets: [{ label: param, data: [null], borderColor: '#666', pointRadius: 0 }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false }, tooltip: { enabled: false } },
-              scales: { x: { display: false }, y: { display: false } }
-            }
-          });
-
-          metaCurrent.textContent = '—';
-          metaMin.textContent = '—';
-          metaMax.textContent = '—';
-          metaAvg.textContent = '—';
-          metaCount.textContent = '0';
-          isHistoryLoading = false;
-          return;
-        }
-
-        const parent = canvas.parentElement;
-        const oldMsg = parent.querySelector('.no-data-msg');
-        if (oldMsg) oldMsg.remove();
-
-        // UTC time labels
-        const labels = bins.map(b => {
-          const d = new Date(b.timestamp * 1000);
-          return d.toUTCString().split(' ')[4].slice(0, 5);
-        });
-        const values = bins.map(b => b.value);
-        const counts = bins.map(b => b.count);
+        const labelMap = {
+          'windDirection': 'Wind Direction',
+          'windSpeed': 'Wind Speed',
+          'headwind': 'Head Wind',
+          'crosswind': 'Cross Wind',
+          'rvr': 'RVR',
+          'mor': 'MOR',
+          'qnh': 'QNH',
+          'qfe': 'QFE',
+          'temperature': 'Temperature',
+          'humidity': 'Humidity',
+          'dewPoint': 'Dew Point'
+        };
+        const displayName = labelMap[param] || param.toUpperCase();
 
         const unitMap = {
-          'windDirection': '°', 'windSpeed': 'kt', 'headwind': 'kt', 'crosswind': 'kt',
-          'rvr': 'm', 'mor': 'm', 'qnh': 'hPa', 'qfe': 'hPa',
-          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C'
+          'windDirection': '°',
+          'windSpeed': 'kt',
+          'headwind': 'kt',
+          'crosswind': 'kt',
+          'rvr': 'm',
+          'mor': 'm',
+          'qnh': 'hPa',
+          'qfe': 'hPa',
+          'temperature': '°C',
+          'humidity': '%',
+          'dewPoint': '°C'
         };
         const unit = unitMap[param] || '';
 
-        const labelMap = {
-          'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
-          'headwind': 'Head Wind', 'crosswind': 'Cross Wind',
-          'rvr': 'RVR', 'mor': 'MOR', 'qnh': 'QNH', 'qfe': 'QFE',
-          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
-        };
-        const displayName = labelMap[param] || param;
-
+        // Get current value from latest data
         const d = latestData[rwy];
         let currentVal = '—';
         if (d) {
@@ -1562,19 +1611,105 @@
           if (key && d[key] !== undefined) {
             const raw = d[key];
             const num = parseLeadingNumber(raw);
-            if (num !== null && !isNaN(num)) currentVal = num + (unit ? ' ' + unit : '');
-            else currentVal = raw;
+            if (num !== null && !isNaN(num)) {
+              currentVal = num + (unit ? ' ' + unit : '');
+            } else {
+              currentVal = raw;
+            }
           }
         }
 
-        const minVal = Math.min(...values);
-        const maxVal = Math.max(...values);
-        const avgVal = values.reduce((a, b) => a + b, 0) / values.length;
+        if (bins.length === 0) {
+          const parent = canvas.parentElement;
+          let noDataMsg = parent.querySelector('.no-data-msg');
+          if (!noDataMsg) {
+            noDataMsg = document.createElement('div');
+            noDataMsg.className = 'no-data-msg';
+            parent.appendChild(noDataMsg);
+          }
+          noDataMsg.textContent = `📊 History Not Available for "${displayName}"`;
+          noDataMsg.style.display = 'flex';
+
+          chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: ['No data'],
+              datasets: [{ label: param, data: [null], borderColor: '#666', pointRadius: 0 }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { enabled: false } },
+              scales: { x: { display: false }, y: { display: false } }
+            }
+          });
+
+          metaCurrent.textContent = currentVal;
+          metaMin.textContent = '—';
+          metaMax.textContent = '—';
+          metaAvg.textContent = '—';
+          metaCount.textContent = '0';
+          isHistoryLoading = false;
+          return;
+        }
+
+        const parent = canvas.parentElement;
+        const oldMsg = parent.querySelector('.no-data-msg');
+        if (oldMsg) oldMsg.remove();
+
+        // Format labels based on time range
+        const labels = bins.map(b => {
+          const d2 = new Date(b.timestamp * 1000);
+          if (currentHours <= 24) {
+            return d2.toUTCString().split(' ')[4].slice(0, 5);
+          } else {
+            return d2.toUTCString().split(' ').slice(1, 4).join(' ');
+          }
+        });
+        const values = bins.map(b => b.value);
+        const counts = bins.map(b => b.count);
+
+        // ─── CALCULATE MIN, MAX, AVG ───
+        let minVal = '—';
+        let maxVal = '—';
+        let avgVal = '—';
+
+        // For Wind Speed: use stored MIN/MAX from database
+        if (param === 'windSpeed' && d) {
+          const storedMin = d.windSpeed_minOneMin_rounded;
+          const storedMax = d.windSpeed_maxOneMin_rounded;
+          if (storedMin !== undefined && storedMin !== null && storedMin !== '--') {
+            minVal = storedMin + (unit ? ' ' + unit : '');
+          }
+          if (storedMax !== undefined && storedMax !== null && storedMax !== '--') {
+            maxVal = storedMax + (unit ? ' ' + unit : '');
+          }
+          // Average from binned data
+          if (values.length > 0) {
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            avgVal = Math.round(avg * 10) / 10 + (unit ? ' ' + unit : '');
+          }
+        } 
+        // For all other parameters: use binned data
+        else {
+          if (values.length > 0) {
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            minVal = Math.round(min * 10) / 10 + (unit ? ' ' + unit : '');
+            maxVal = Math.round(max * 10) / 10 + (unit ? ' ' + unit : '');
+            avgVal = Math.round(avg * 10) / 10 + (unit ? ' ' + unit : '');
+          }
+        }
+
+        const binText = currentBin === 600 ? '10-min' : 
+                        currentBin === 1800 ? '30-min' :
+                        currentBin === 3600 ? '1-hour' : '3-hour';
 
         metaCurrent.textContent = currentVal;
-        metaMin.textContent = (minVal !== undefined && !isNaN(minVal)) ? minVal + (unit ? ' ' + unit : '') : '—';
-        metaMax.textContent = (maxVal !== undefined && !isNaN(maxVal)) ? maxVal + (unit ? ' ' + unit : '') : '—';
-        metaAvg.textContent = (avgVal !== undefined && !isNaN(avgVal)) ? Math.round(avgVal * 10) / 10 + (unit ? ' ' + unit : '') : '—';
+        metaMin.textContent = minVal;
+        metaMax.textContent = maxVal;
+        metaAvg.textContent = avgVal;
         metaCount.textContent = bins.length;
 
         const color = isDarkMode ? '#00e5ff' : '#1565c0';
@@ -1627,9 +1762,18 @@
             scales: {
               x: {
                 grid: { color: gridColor, drawBorder: false },
-                ticks: { color: textColor, font: { family: 'Inter', size: 10 } },
-                title: { display: true, text: 'Time (UTC - last 6 hours)', color: textColor,
-                font: { family: 'Inter', size: 11 } }
+                ticks: { 
+                  color: textColor, 
+                  font: { family: 'Inter', size: 10 },
+                  maxTicksLimit: 20,
+                  autoSkip: true
+                },
+                title: { 
+                  display: true, 
+                  text: `Time (UTC - last ${currentHours} hours, ${binText} bins)`, 
+                  color: textColor,
+                  font: { family: 'Inter', size: 11 } 
+                }
               },
               y: {
                 grid: { color: gridColor, drawBorder: false },
@@ -1672,8 +1816,13 @@
         'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
       };
       const displayName = labelMap[param] || param;
+      
+      const binText = currentBin === 600 ? '10-min' : 
+                      currentBin === 1800 ? '30-min' :
+                      currentBin === 3600 ? '1-hour' : '3-hour';
+      
       modalTitle.innerHTML =
-        `${displayName} <small>Runway ${rwy} · 6‑hour trend (10‑min avg)</small>`;
+        `${displayName} <small>Runway ${rwy} · ${currentHours}H trend (${binText} bins)</small>`;
 
       metaCurrent.textContent = '⏳';
       metaMin.textContent = '⏳';
