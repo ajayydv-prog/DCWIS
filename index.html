@@ -112,7 +112,7 @@
       flex:1; text-align:center;
       font-family:'Inter',sans-serif;
       font-weight:600;
-      font-size:clamp(8px,1.2vw,16px); color:#90caf9; letter-spacing:1px;
+      font-size:clamp(11px,1.7vw,22px); color:#90caf9; letter-spacing:1px;
     }
     .top-btns { display:flex; align-items:center; gap:6px; }
     #status {
@@ -175,7 +175,7 @@
     .panel:last-child { border-right:none; }
     .pb { flex:1; display:flex; flex-direction:column; min-height:0; }
     .wind-row {
-      display:grid; grid-template-columns:1fr 1fr minmax(50px,11vw);
+      display:grid; grid-template-columns:0.82fr 0.82fr minmax(80px,17vw);
       flex-shrink:0; border-bottom:2px solid var(--border);
       min-height:70px;
     }
@@ -369,21 +369,22 @@
       font-weight:700;
       font-size:clamp(12px,1.8vw,22px);
       color:#00e676;
-      background:var(--metar-bg);
+      background:#0a1628;
       padding:2px 12px;
       border-radius:4px;
-      border:1px solid var(--border);
+      border:1px solid rgba(0,230,118,0.35);
       letter-spacing:0.5px;
       white-space:nowrap;
       overflow-x:auto;
       max-width:100%;
-      text-shadow: 0 0 20px rgba(0,229,255,0.1);
+      text-shadow: 0 0 10px rgba(0,230,118,0.5);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.35);
       transition: opacity 0.4s ease;
       opacity: 1;
     }
     #metar-display.fade { opacity:0.4; }
     body.dark #metar-display {
-      text-shadow: 0 0 20px rgba(0,229,255,0.1);
+      text-shadow: 0 0 10px rgba(0,230,118,0.5);
     }
     #metar-history-btn {
       background:rgba(255,255,255,0.08);
@@ -626,8 +627,8 @@
       .panel { border-right:none; border-bottom:2px solid var(--panel-border); }
       .panel:last-child { border-bottom:none; }
       .brand { font-size:clamp(10px,3vw,16px); }
-      #clock { font-size:clamp(7px,2vw,12px); }
-      .wind-row { grid-template-columns:1fr 1fr minmax(50px,18vw); min-height:60px; }
+      #clock { font-size:clamp(10px,2.6vw,17px); }
+      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(70px,24vw); min-height:60px; }
       .compass-cell { min-height:60px; }
       .dch { font-size:clamp(10px,2.5vw,16px); }
       .dcv { font-size:clamp(20px,5vw,36px); }
@@ -645,7 +646,7 @@
       .range-btn { font-size:6px; padding:1px 6px; }
     }
     @media (max-width: 480px) {
-      .wind-row { grid-template-columns:1fr 1fr minmax(40px,20vw); min-height:50px; }
+      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(55px,26vw); min-height:50px; }
       .compass-cell { min-height:50px; }
       .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
       .dcv { font-size:clamp(18px,5vw,30px); }
@@ -682,7 +683,7 @@
       .modal-header h2 small { display:block; margin-left:0; }
     }
     @media (max-width: 360px) {
-      .wind-row { grid-template-columns:1fr 1fr minmax(35px,22vw); min-height:45px; }
+      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(48px,28vw); min-height:45px; }
       .compass-cell { min-height:45px; }
       .wval { font-size:14px; }
       .dcv { font-size:14px; }
@@ -914,7 +915,7 @@
     </div>
   </div>
   <div id="footer">
-    <div class="dev">DEVELOPER: AJAY (GOA)</div>
+    <div class="dev">DEVELOPED BY: AJAY (GOA)</div>
     <div id="metar-container">
       <div id="metar-display"></div>
       <button id="metar-history-btn" onclick="openMetarPopup()">📜 METAR HISTORY</button>
@@ -1191,7 +1192,7 @@
       canvas.height = parent.clientHeight || 90;
       const ctx = canvas.getContext('2d');
       const W=canvas.width, H=canvas.height;
-      const cx=W/2, cy=H/2, r=Math.min(W,H)*0.44;
+      const cx=W/2, cy=H/2, r=Math.min(W,H)*0.38;
       if(r<4) return;
       const isDarkMode = document.body.classList.contains('dark');
       ctx.clearRect(0,0,W,H);
@@ -1208,6 +1209,31 @@
       ctx.fillStyle = isDarkMode ? 'rgba(21,101,192,0.08)' : 'rgba(21,101,192,0.06)';
       ctx.fill();
 
+      // Runway centerline strip (RWY 28/10 — 280°/100° axis), drawn like a real
+      // runway: grey asphalt bar through the center with a dashed centerline.
+      (function drawRunwayStrip(){
+        const angA = (280-90)*Math.PI/180; // 100° end is automatically the opposite, since 280-180=100
+        const stripLen = r*0.60, stripW = Math.max(2.5, r*0.11);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angA);
+        ctx.fillStyle = isDarkMode ? 'rgba(176,190,197,0.30)' : 'rgba(69,90,100,0.28)';
+        ctx.fillRect(-stripLen, -stripW/2, stripLen*2, stripW);
+        ctx.strokeStyle = isDarkMode ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+        ctx.beginPath(); ctx.moveTo(-stripLen,0); ctx.lineTo(stripLen,0); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+        // runway end designators
+        const lblCol = isDarkMode ? 'rgba(176,190,197,0.9)' : 'rgba(69,90,100,0.9)';
+        const lblFs = Math.max(6, Math.round(r*0.14));
+        ctx.font = `700 ${lblFs}px Inter,Arial`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle = lblCol;
+        ctx.fillText('10', cx+Math.cos(angA)*stripLen*0.62, cy+Math.sin(angA)*stripLen*0.62);
+        ctx.fillText('28', cx-Math.cos(angA)*stripLen*0.62, cy-Math.sin(angA)*stripLen*0.62);
+      })();
+
       for(let i=0;i<36;i++){
         const a=(i*10-90)*Math.PI/180;
         const isMaj=i%9===0;
@@ -1219,14 +1245,21 @@
         ctx.lineWidth=isMaj?2:1; ctx.stroke();
       }
 
-      const fs=Math.max(10,Math.round(r*0.3));
-      [['N',0,isDarkMode?'#ff4444':'#d32f2f'],['E',90,isDarkMode?'#64b5f6':'#1565c0'],
-       ['S',180,isDarkMode?'#64b5f6':'#1565c0'],['W',270,isDarkMode?'#64b5f6':'#1565c0']].forEach(([c,deg,col])=>{
+      const fs=Math.max(8,Math.round(r*0.22));
+      const fsInter=Math.max(7,Math.round(r*0.16));
+      [['N',0,isDarkMode?'#ff4444':'#d32f2f',fs],
+       ['NE',45,isDarkMode?'#90caf9':'#1976d2',fsInter],
+       ['E',90,isDarkMode?'#64b5f6':'#1565c0',fs],
+       ['SE',135,isDarkMode?'#90caf9':'#1976d2',fsInter],
+       ['S',180,isDarkMode?'#64b5f6':'#1565c0',fs],
+       ['SW',225,isDarkMode?'#90caf9':'#1976d2',fsInter],
+       ['W',270,isDarkMode?'#64b5f6':'#1565c0',fs],
+       ['NW',315,isDarkMode?'#90caf9':'#1976d2',fsInter]].forEach(([c,deg,col,size])=>{
         const a=(deg-90)*Math.PI/180;
-        ctx.font=`900 ${fs}px Orbitron,Arial`;
+        ctx.font=`900 ${size}px Orbitron,Arial`;
         ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillStyle=col;
-        ctx.fillText(c, cx+Math.cos(a)*r*0.54, cy+Math.sin(a)*r*0.54);
+        ctx.fillText(c, cx+Math.cos(a)*r*1.14, cy+Math.sin(a)*r*1.14);
       });
 
       ctx.beginPath(); ctx.arc(cx,cy,3.5,0,Math.PI*2);
