@@ -155,7 +155,7 @@
       margin-left:auto;
     }
     .rwy-wrap { display:flex; align-items:center; gap:5px; }
-    .rwy-txt { font-size:clamp(8px,1vw,12px); color:var(--sub); font-weight:600; }
+    .rwy-txt { font-size:clamp(8px,1vw,12px); color:var(--sub); font-weight:300; }
     .rwy-num {
       background:var(--rwy-bg); color:var(--rwy-txt);
       font-family:'Orbitron',sans-serif; font-weight:400;
@@ -783,7 +783,6 @@
   </div>
   <div id="rwybar">
     <div class="rwybar-half">
-      <span class="stn-lbl">RWY</span>
       <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">28</div></div>
       <select class="rwy-sel" id="mode-28" onchange="onModeChange('28',this.value)">
         <option value="instant" selected>Inst</option>
@@ -793,7 +792,6 @@
       </select>
     </div>
     <div class="rwybar-half">
-      <span class="stn-lbl">RWY</span>
       <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">10</div></div>
       <select class="rwy-sel" id="mode-10" onchange="onModeChange('10',this.value)">
         <option value="instant" selected>Inst</option>
