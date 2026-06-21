@@ -112,7 +112,7 @@
       flex:1; text-align:center;
       font-family:'Inter',sans-serif;
       font-weight:600;
-      font-size:clamp(11px,1.7vw,22px); color:#90caf9; letter-spacing:1px;
+      font-size:clamp(11px,1.7vw,22px); color:var(--brand); letter-spacing:1px;
     }
     .top-btns { display:flex; align-items:center; gap:6px; }
     #status {
@@ -149,16 +149,17 @@
     .rwy-sel {
       background:var(--bg); border:1px solid var(--border);
       color:var(--val-white);
-      font-size:clamp(8px,1vw,12px); padding:1px 4px; border-radius:4px;
-      font-family:'Inter',sans-serif; font-weight:600; cursor:pointer;
+      font-size:clamp(9px,1.15vw,14px); padding:1px 4px; border-radius:4px;
+      font-family:'Inter',sans-serif; font-weight:400; cursor:pointer;
       max-width:80px;
+      margin-left:auto;
     }
-    .rwy-wrap { margin-left:auto; display:flex; align-items:center; gap:5px; }
+    .rwy-wrap { display:flex; align-items:center; gap:5px; }
     .rwy-txt { font-size:clamp(8px,1vw,12px); color:var(--sub); font-weight:600; }
     .rwy-num {
       background:var(--rwy-bg); color:var(--rwy-txt);
-      font-family:'Orbitron',sans-serif; font-weight:900;
-      font-size:clamp(12px,2vw,22px); padding:1px clamp(6px,1.5vw,18px); border-radius:4px;
+      font-family:'Orbitron',sans-serif; font-weight:400;
+      font-size:clamp(14px,2.3vw,25px); padding:1px clamp(6px,1.5vw,18px); border-radius:4px;
       min-width:36px; text-align:center; letter-spacing:2px;
       box-shadow: 0 2px 6px rgba(21,101,192,0.4);
     }
@@ -226,7 +227,7 @@
       display:none !important;
     }
     .wlbl {
-      font-size:clamp(9px,1.2vw,16px); color:var(--lbl); text-transform:uppercase;
+      font-size:clamp(10px,1.35vw,18px); color:var(--val-white); text-transform:uppercase;
       letter-spacing:0.3px; line-height:1.2; text-align:center;
       font-weight:700;
     }
@@ -251,7 +252,7 @@
     }
     .compass-cell canvas { display:block; width:100%; height:100%; }
     .range-row {
-      display:grid; grid-template-columns:1fr 1fr;
+      display:grid; grid-template-columns:42% 58%;
       border-bottom:2px solid var(--border);
       min-height:clamp(22px,2.8vh,34px); flex-shrink:0;
       background:var(--range-bg); transition:background 0.3s;
@@ -280,8 +281,8 @@
       border-bottom:1px solid var(--border);
       min-height:55px;
     }
-    .data-row.c2 { grid-template-columns:1fr 1fr; }
-    .data-row.c3 { grid-template-columns:1fr 1fr 1fr; }
+    .data-row.c2 { grid-template-columns:42% 58%; }
+    .data-row.c3 { grid-template-columns:42% 29% 29%; }
     .dc {
       display:flex; flex-direction:column;
       border-right:1px solid var(--border); overflow:hidden;
@@ -655,15 +656,15 @@
       .rl { font-size:clamp(7px,1.5vw,10px); }
       .rv { font-size:clamp(8px,1.8vw,14px); }
       .data-row { min-height:45px; }
-      .rwy-sel { font-size:7px; max-width:60px; padding:1px 3px; }
-      .rwy-num { font-size:10px; min-width:28px; padding:1px 4px; }
+      .rwy-sel { font-size:8px; max-width:60px; padding:1px 3px; }
+      .rwy-num { font-size:11px; min-width:28px; padding:1px 4px; }
       .stn-lbl { font-size:7px; }
       #status { font-size:7px; padding:1px 4px; }
       .icon-btn { font-size:10px; padding:1px 5px; }
       .top-btns { gap:4px; }
       .wcomp-badge { font-size:7px; padding:0 3px; }
       .mode-pill { font-size:7px; padding:1px 4px; }
-      .wlbl { font-size:8px; }
+      .wlbl { font-size:9px; }
       #metar-display { font-size:clamp(8px,1.5vw,12px); padding:1px 8px; }
       #metar-history-btn { font-size:6px; padding:1px 5px; }
       #footer .dev { font-size:6px; }
@@ -783,23 +784,23 @@
   <div id="rwybar">
     <div class="rwybar-half">
       <span class="stn-lbl">RWY</span>
+      <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">28</div></div>
       <select class="rwy-sel" id="mode-28" onchange="onModeChange('28',this.value)">
         <option value="instant" selected>Inst</option>
         <option value="1min">1Min</option>
         <option value="2min">2Min</option>
         <option value="10min">10Min</option>
       </select>
-      <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">28</div></div>
     </div>
     <div class="rwybar-half">
       <span class="stn-lbl">RWY</span>
+      <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">10</div></div>
       <select class="rwy-sel" id="mode-10" onchange="onModeChange('10',this.value)">
         <option value="instant" selected>Inst</option>
         <option value="1min">1Min</option>
         <option value="2min">2Min</option>
         <option value="10min">10Min</option>
       </select>
-      <div class="rwy-wrap"><span class="rwy-txt">Runway</span><div class="rwy-num">10</div></div>
     </div>
   </div>
   <div id="main">
