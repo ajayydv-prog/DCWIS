@@ -1093,6 +1093,16 @@
       rvr:       { limit: 550, direction: 'below', useAbs: false, label: 'CAT I RVR min (550m)' }
     };
 
+    // These sensors have a fixed reporting ceiling (RVR caps out at 'P2000',
+    // MOR's instrument range tops out at 5320m) — pinning the y-axis to that
+    // known physical range keeps the chart's scale consistent and readable
+    // across runs, instead of auto-scaling to whatever happened to be in
+    // the current window.
+    const Y_AXIS_LIMITS = {
+      rvr: { min: 0, max: 2000 },
+      mor: { min: 0, max: 5320 }
+    };
+
     // Chart.js' time scale formats ticks/tooltips using the BROWSER's local
     // timezone — there's no simple "force UTC" switch with the date-fns
     // adapter. Since this dashboard's x-axis is explicitly labelled "Time
@@ -1944,8 +1954,6 @@
         // This is what makes a sensor/relay outage show up as an actual visual
         // gap in the line instead of silently compressing the timeline.
         const points = bins.map(b => ({ x: toUtcDisplayMs(b.timestamp), y: b.value }));
-        const minPoints = bins.map(b => ({ x: toUtcDisplayMs(b.timestamp), y: (b.min !== undefined && b.min !== null) ? b.min : b.value }));
-        const maxPoints = bins.map(b => ({ x: toUtcDisplayMs(b.timestamp), y: (b.max !== undefined && b.max !== null) ? b.max : b.value }));
         const counts = bins.map(b => b.count || 1);
         const values = bins.map(b => b.value);
 
@@ -1995,19 +2003,12 @@
         const color = isDarkMode ? '#00e5ff' : '#1565c0';
         const thresholdCfg = THRESHOLDS[param];
 
+        // Just the clean value line + points — no shaded min/max band. The
+        // band looked nice but its translucent fill was hiding real spikes
+        // in the trace; a plain line shows gusts/dips far more clearly.
+        // Min/Max numbers above the chart are still computed from the bins
+        // regardless (see minVal/maxVal above).
         const datasets = [];
-        if (!isCircular) {
-          // Min/Max band: two invisible lines, the "max" one fills down to the
-          // "min" one right below it in the datasets array (fill:'-1').
-          datasets.push({
-            label: 'Min', data: minPoints, borderWidth: 0, pointRadius: 0,
-            fill: false, tension: 0.25, order: 3
-          });
-          datasets.push({
-            label: 'Max', data: maxPoints, borderWidth: 0, pointRadius: 0,
-            fill: '-1', backgroundColor: color + '22', tension: 0.25, order: 2
-          });
-        }
         datasets.push({
           label: displayName,
           data: points,
@@ -2139,6 +2140,8 @@
                 }
               },
               y: {
+                min: Y_AXIS_LIMITS[param] ? Y_AXIS_LIMITS[param].min : undefined,
+                max: Y_AXIS_LIMITS[param] ? Y_AXIS_LIMITS[param].max : undefined,
                 grid: { color: gridColor, drawBorder: false },
                 ticks: { color: textColor, font: { family: 'Inter', size: 10 } },
                 title: { display: true, text: unit ? unit : '', color: textColor,
