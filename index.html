@@ -863,6 +863,15 @@
     }
 
     /* Archive popup */
+    #ArchiveModalBox {
+      overflow: hidden; /* keep the rounded corners clean; content scrolls inside */
+    }
+    #ArchiveContent {
+      flex: 1;
+      min-height: 0;     /* required so a flex child can actually scroll instead of growing past its box */
+      overflow-y: auto;
+      padding-right: 4px;
+    }
     .Archive-year-group { margin-bottom:16px; }
     .Archive-year-label {
       font-size:clamp(12px,1.3vw,16px); font-weight:800;
