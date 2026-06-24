@@ -6,10 +6,7 @@
   <title>VOGA-MOPA DCWIS</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- Time scale adapter: lets the history chart use real UTC timestamps on the x-axis
-       instead of equally-spaced text labels, so sensor outages show up as a visible gap. -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <!-- Zoom/pan plugin (needs Hammer.js for touch/pinch) -->
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
@@ -481,9 +478,6 @@
       letter-spacing:0.2px; font-weight:700;
       white-space:nowrap;
     }
-    /* Anchored to the corner of the card via position:absolute, so showing
-       or hiding the badge NEVER changes the height/position of the .dcv
-       value above it — only the badge itself appears/disappears. */
     .vis-flag, .fog-flag {
       position:absolute; top:4px; right:6px;
       max-width:calc(100% - 14px);
@@ -504,14 +498,10 @@
       font-size:clamp(14px,1.8vw,22px); font-weight:900;
       transition: color 0.3s;
     }
-    /* Light mode needs darker/saturated colors for contrast against a white bg */
     .trend-rise { color:#2e7d32; }
     .trend-fall { color:#c62828; }
     .trend-flat { color:#546e7a; opacity:0.6; }
     .trend-pending { color:#90a4ae; opacity:0.5; }
-    /* Dark mode needs brighter colors for contrast against the dark navy bg
-       (previous version had these two swapped, making rise/fall almost
-       invisible in the default dark theme) */
     body.dark .trend-rise { color:#69f0ae; }
     body.dark .trend-fall { color:#ff5252; }
     body.dark .trend-flat { color:#90caf9; opacity:0.6; }
@@ -642,7 +632,6 @@
     }
     @keyframes spin { to { transform:rotate(360deg); } }
 
-    /* History Time Range Buttons */
     .range-buttons {
       display:flex;
       gap:4px;
@@ -675,7 +664,6 @@
       color:#fff;
     }
 
-    /* Modal toolbar: live toggle, reset-zoom, export buttons */
     .modal-toolbar {
       display:flex; align-items:center; justify-content:space-between;
       gap:8px; flex-wrap:wrap;
@@ -715,89 +703,7 @@
     }
     .data-gap-note.show { display:block; }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      #main { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
-      .panel { border-right:none; border-bottom:2px solid var(--panel-border); }
-      .panel:last-child { border-bottom:none; }
-      .brand { font-size:clamp(10px,3vw,16px); }
-      #clock { font-size:clamp(10px,2.6vw,17px); }
-      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(70px,24vw); min-height:60px; }
-      .compass-cell { min-height:60px; }
-      .dch { font-size:clamp(10px,2.5vw,16px); }
-      .dcv { font-size:clamp(20px,5vw,36px); }
-      .wval { font-size:clamp(18px,5.5vw,36px); }
-      #metar-display { font-size:clamp(10px,1.8vw,16px); }
-      #footer { flex-wrap:wrap; justify-content:center; gap:4px; }
-      .modal-box { padding:14px 16px 18px; max-height:96vh; }
-      .modal-chart-wrap { min-height:180px; }
-      .dc .click-hint, .wbox .click-hint {
-        font-size:8px;
-        padding:2px 8px;
-      }
-      .no-data-msg { font-size:clamp(18px,3vw,24px); }
-      .range-buttons { gap:3px; }
-      .range-btn { font-size:6px; padding:1px 6px; }
-    }
-    @media (max-width: 480px) {
-      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(55px,26vw); min-height:50px; }
-      .compass-cell { min-height:50px; }
-      .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
-      .dcv { font-size:clamp(18px,5vw,30px); }
-      .wval { font-size:clamp(16px,5vw,30px); }
-      .range-row { min-height:18px; }
-      .rl { font-size:clamp(7px,1.5vw,10px); }
-      .rv { font-size:clamp(8px,1.8vw,14px); }
-      .data-row { min-height:45px; }
-      .rwy-sel { font-size:8px; max-width:60px; padding:1px 3px; }
-      .rwy-num { font-size:11px; min-width:28px; padding:1px 4px; }
-      .stn-lbl { font-size:7px; }
-      #status { font-size:7px; padding:1px 4px; }
-      .icon-btn { font-size:10px; padding:1px 5px; }
-      .top-btns { gap:4px; }
-      .wcomp-badge { font-size:7px; padding:0 3px; }
-      .mode-pill { font-size:7px; padding:1px 4px; }
-      .wlbl { font-size:9px; }
-      #metar-display { font-size:clamp(8px,1.5vw,12px); padding:1px 8px; }
-      #metar-history-btn { font-size:6px; padding:1px 5px; }
-      #footer .dev { font-size:6px; }
-      .modal-box { padding:10px 12px 14px; }
-      .modal-chart-wrap { min-height:140px; }
-      .modal-header h2 { font-size:14px; }
-      .dc .click-hint, .wbox .click-hint {
-        font-size:7px;
-        padding:2px 6px;
-        bottom:1px;
-        right:4px;
-      }
-      .no-data-msg { font-size:clamp(16px,2.5vw,20px); }
-      .range-buttons { gap:2px; }
-      .range-btn { font-size:5px; padding:1px 4px; }
-      .modal-header { flex-direction:column; align-items:stretch; }
-      .modal-header h2 small { display:block; margin-left:0; }
-    }
-    @media (max-width: 360px) {
-      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(48px,28vw); min-height:45px; }
-      .compass-cell { min-height:45px; }
-      .wval { font-size:14px; }
-      .dcv { font-size:14px; }
-      .dch { font-size:7px; }
-      .rwy-sel { max-width:50px; font-size:6px; }
-      #metar-display { font-size:7px; padding:1px 4px; }
-    }
-    @media (orientation: landscape) and (max-height:500px) {
-      .wind-row { min-height:50px; }
-      .compass-cell { min-height:50px; }
-      .wval { font-size:clamp(16px,3vw,30px); }
-      .dch { font-size:clamp(8px,1.2vw,14px); }
-      .dcv { font-size:clamp(18px,3vw,32px); }
-      .data-row { min-height:40px; }
-      .range-row { min-height:16px; }
-      #metar-display { font-size:clamp(10px,1.5vw,16px); }
-      .modal-chart-wrap { min-height:120px; }
-    }
-
-    /* ── METAR Popup ── */
+    /* METAR Popup */
     .metar-popup-overlay {
       position:fixed; top:0; left:0;
       width:100vw; height:100vh;
@@ -824,6 +730,8 @@
       border-bottom:2px solid var(--border);
       margin-bottom:16px;
       flex-shrink:0;
+      flex-wrap:wrap;
+      gap:8px;
     }
     .metar-popup-header h3 {
       font-family:'Orbitron',sans-serif;
@@ -861,14 +769,17 @@
       color:var(--sub);
       font-size:clamp(14px,1.2vw,18px);
     }
+    .metar-popup-body .loading-msg {
+      height:auto; padding:20px;
+    }
 
     /* Archive popup */
     #ArchiveModalBox {
-      overflow: hidden; /* keep the rounded corners clean; content scrolls inside */
+      overflow: hidden;
     }
     #ArchiveContent {
       flex: 1;
-      min-height: 0;     /* required so a flex child can actually scroll instead of growing past its box */
+      min-height: 0;
       overflow-y: auto;
       padding-right: 4px;
     }
@@ -905,6 +816,90 @@
     }
     .Archive-empty {
       color:var(--sub); font-size:13px; padding:14px; text-align:center;
+    }
+
+    @media (max-width: 768px) {
+      #main { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+      .panel { border-right:none; border-bottom:2px solid var(--panel-border); }
+      .panel:last-child { border-bottom:none; }
+      .brand { font-size:clamp(10px,3vw,16px); }
+      #clock { font-size:clamp(10px,2.6vw,17px); }
+      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(70px,24vw); min-height:60px; }
+      .compass-cell { min-height:60px; }
+      .dch { font-size:clamp(10px,2.5vw,16px); }
+      .dcv { font-size:clamp(20px,5vw,36px); }
+      .wval { font-size:clamp(18px,5.5vw,36px); }
+      #metar-display { font-size:clamp(10px,1.8vw,16px); }
+      #footer { flex-wrap:wrap; justify-content:center; gap:4px; }
+      .modal-box { padding:14px 16px 18px; max-height:96vh; }
+      .modal-chart-wrap { min-height:180px; }
+      .dc .click-hint, .wbox .click-hint {
+        font-size:8px;
+        padding:2px 8px;
+      }
+      .no-data-msg { font-size:clamp(18px,3vw,24px); }
+      .range-buttons { gap:3px; }
+      .range-btn { font-size:6px; padding:1px 6px; }
+      .metar-popup-box { padding:14px 16px; }
+    }
+    @media (max-width: 480px) {
+      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(55px,26vw); min-height:50px; }
+      .compass-cell { min-height:50px; }
+      .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
+      .dcv { font-size:clamp(18px,5vw,30px); }
+      .wval { font-size:clamp(16px,5vw,30px); }
+      .range-row { min-height:18px; }
+      .rl { font-size:clamp(7px,1.5vw,10px); }
+      .rv { font-size:clamp(8px,1.8vw,14px); }
+      .data-row { min-height:45px; }
+      .rwy-sel { font-size:8px; max-width:60px; padding:1px 3px; }
+      .rwy-num { font-size:11px; min-width:28px; padding:1px 4px; }
+      .stn-lbl { font-size:7px; }
+      #status { font-size:7px; padding:1px 4px; }
+      .icon-btn { font-size:10px; padding:1px 5px; }
+      .top-btns { gap:4px; }
+      .wcomp-badge { font-size:7px; padding:0 3px; }
+      .mode-pill { font-size:7px; padding:1px 4px; }
+      .wlbl { font-size:9px; }
+      #metar-display { font-size:clamp(8px,1.5vw,12px); padding:1px 8px; }
+      #metar-history-btn { font-size:6px; padding:1px 5px; }
+      #footer .dev { font-size:6px; }
+      .modal-box { padding:10px 12px 14px; }
+      .modal-chart-wrap { min-height:140px; }
+      .modal-header h2 { font-size:14px; }
+      .dc .click-hint, .wbox .click-hint {
+        font-size:7px;
+        padding:2px 6px;
+        bottom:1px;
+        right:4px;
+      }
+      .no-data-msg { font-size:clamp(16px,2.5vw,20px); }
+      .range-buttons { gap:2px; }
+      .range-btn { font-size:5px; padding:1px 4px; }
+      .modal-header { flex-direction:column; align-items:stretch; }
+      .modal-header h2 small { display:block; margin-left:0; }
+      .metar-popup-box { padding:10px 12px; }
+      .metar-popup-body .metar-line { font-size:10px; padding:4px 6px; }
+    }
+    @media (max-width: 360px) {
+      .wind-row { grid-template-columns:0.82fr 0.82fr minmax(48px,28vw); min-height:45px; }
+      .compass-cell { min-height:45px; }
+      .wval { font-size:14px; }
+      .dcv { font-size:14px; }
+      .dch { font-size:7px; }
+      .rwy-sel { max-width:50px; font-size:6px; }
+      #metar-display { font-size:7px; padding:1px 4px; }
+    }
+    @media (orientation: landscape) and (max-height:500px) {
+      .wind-row { min-height:50px; }
+      .compass-cell { min-height:50px; }
+      .wval { font-size:clamp(16px,3vw,30px); }
+      .dch { font-size:clamp(8px,1.2vw,14px); }
+      .dcv { font-size:clamp(18px,3vw,32px); }
+      .data-row { min-height:40px; }
+      .range-row { min-height:16px; }
+      #metar-display { font-size:clamp(10px,1.5vw,16px); }
+      .modal-chart-wrap { min-height:120px; }
     }
   </style>
 </head>
@@ -1057,7 +1052,7 @@
       <button id="Archive-btn" onclick="openArchivePopup()">Archive</button>
     </div>
     <div id="metar-container">
-      <div id="metar-display"></div>
+      <div id="metar-display">Loading METAR...</div>
       <button id="metar-history-btn" onclick="openMetarPopup()">📜 METAR HISTORY</button>
     </div>
   </div>
@@ -1116,13 +1111,16 @@
   <div class="metar-popup-overlay" id="metarPopup">
     <div class="metar-popup-box">
       <div class="metar-popup-header">
-        <h3>📜 METAR History (Last 6 Hours)</h3>
+        <h3 id="metarPopupTitle">📜 METAR/SPECI History (Last 6 Hours)</h3>
+        <div class="range-buttons" id="metarRangeButtons">
+          <button class="range-btn metar-range-btn active" data-hours="6" onclick="openMetarPopup(6, this)">6H</button>
+          <button class="range-btn metar-range-btn" data-hours="12" onclick="openMetarPopup(12, this)">12H</button>
+          <button class="range-btn metar-range-btn" data-hours="24" onclick="openMetarPopup(24, this)">24H</button>
+        </div>
         <button class="metar-popup-close" onclick="closeMetarPopup()">&times;</button>
       </div>
       <div class="metar-popup-body" id="metarPopupBody">
-        <div class="loading-msg" style="height:auto;padding:20px;">
-          <span class="spinner"></span> Loading METAR history...
-        </div>
+        <div class="loading-msg"><span class="spinner"></span> Loading METAR/SPECI history...</div>
       </div>
     </div>
   </div>
@@ -1134,32 +1132,21 @@
     const API_BASE = 'https://www.ajayydv.shop';
     const DATA_ENDPOINT = '/data';
     const POLL_INTERVAL_MS = 1000;
-    const METAR_URL = 'https://aviationweather.gov/api/data/metar?ids=VOGA&hours=0&sep=true';
-    const METAR_HISTORY_URL = 'https://aviationweather.gov/api/data/metar?ids=VOGA&hours=6&sep=true';
 
-    // ── Multi-proxy fallback chain ──
-    // aviationweather.gov has no CORS header, so a proxy is mandatory.
-    // Instead of depending on one (allorigins.win), we try several in order —
-    // if one is down/slow/rate-limited, the next one is tried automatically.
-    const CORS_PROXIES = [
-      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-      url => `https://thingproxy.freeboard.io/fetch/${url}`,
-      url => `https://r.jina.ai/${url}`,
-    ];
-    const PROXY_TIMEOUT_MS = 7000;
-    const metarCache = {}; // last-good response per target URL, used when every proxy fails
+    // ── Live METAR/SPECI source via backend proxy ──
+    const REGISTER_BASE = 'https://dcwis-register-proxy.ajaypahe01.workers.dev/register';
+    const REGISTER_MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    const REGISTER_CACHE_MS = 60000;
+    const registerCache = {};
 
     // ── state ──
     const latestData = { '28': null, '10': null };
     const modes = { '28': 'instant', '10': 'instant' };
     const compassDirs = { '28': null, '10': null };
-    const RUNWAY_HEADING = { '28': 280, '10': 100 }; // magnetic heading per runway end, used for history hw/cw calc
+    const RUNWAY_HEADING = { '28': 280, '10': 100 };
     let isDark = true;
     let autoRefreshInterval = null;
     let metarInterval = null;
-    let isFirstMetarFetch = true;
     let chartInstance = null;
     let modalParam = null;
     let modalRwy = null;
@@ -1168,36 +1155,22 @@
     let currentBin = 120;
     let liveMode = true;
     let modalRefreshInterval = null;
-    let lastBins = [];           // last fetched bins, kept for CSV export
-    let lastChartMeta = null;    // snapshot of render inputs, used to rebuild a light-mode chart for PNG export
+    let lastBins = [];
+    let lastChartMeta = null;
     let userHasZoomed = false;
-    let qnhTrendBuffer = {};     // { rwy: [{t: ms, v: qnh}, ...] } — last ~12 min of readings
+    let qnhTrendBuffer = {};
+    let metarHistoryHours = 6;
 
-    // Operational reference thresholds — shown as a dashed horizontal line on the
-    // relevant chart and used to flag out-of-limit points in red.
     const THRESHOLDS = {
       crosswind: { limit: 15, direction: 'above', useAbs: true, label: '15kt crosswind limit' },
       rvr:       { limit: 550, direction: 'below', useAbs: false, label: 'CAT I RVR min (550m)' }
     };
 
-    // These sensors have a fixed reporting ceiling (RVR caps out at 'P2000',
-    // MOR's instrument range tops out at 5320m) — pinning the y-axis to that
-    // known physical range keeps the chart's scale consistent and readable
-    // across runs, instead of auto-scaling to whatever happened to be in
-    // the current window.
     const Y_AXIS_LIMITS = {
       rvr: { min: 0, max: 2000 },
       mor: { min: 0, max: 5320 }
     };
 
-    // Chart.js' time scale formats ticks/tooltips using the BROWSER's local
-    // timezone — there's no simple "force UTC" switch with the date-fns
-    // adapter. Since this dashboard's x-axis is explicitly labelled "Time
-    // (UTC)", every timestamp fed to the chart is shifted by the local
-    // offset so that when Chart.js renders it "in local time", the digits
-    // that appear are actually the UTC clock value. (India has no DST, so
-    // this offset is constant; for installs in a DST timezone the offset
-    // would shift by an hour twice a year — not a concern for VOGA-MOPA.)
     const TZ_OFFSET_MS = new Date().getTimezoneOffset() * 60000;
     function toUtcDisplayMs(utcSeconds) {
       return utcSeconds * 1000 + TZ_OFFSET_MS;
@@ -1215,6 +1188,7 @@
     const metarDisplay = document.getElementById('metar-display');
     const metarPopup = document.getElementById('metarPopup');
     const metarPopupBody = document.getElementById('metarPopupBody');
+    const metarPopupTitle = document.getElementById('metarPopupTitle');
 
     // ═══════════════════════════════════════════════════════════════
     //  TIME RANGE CHANGE
@@ -1223,7 +1197,7 @@
       currentHours = hours;
       currentBin = bin;
       
-      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#rangeButtons .range-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
       
       if (modalParam && modalRwy) {
@@ -1261,11 +1235,8 @@
       }
     };
 
-    // ── FULLSCREEN ──
-    let isFS = false;
     window.toggleFullscreen = function(){
-      isFS = !isFS;
-      if(isFS){
+      if(!document.fullscreenElement){
         document.documentElement.requestFullscreen?.();
         document.getElementById('fullscreen-btn').textContent = '⊡';
       } else {
@@ -1275,104 +1246,205 @@
       setTimeout(resizeLayout, 100);
     };
     document.addEventListener('fullscreenchange', () => {
-      if(!document.fullscreenElement && isFS){ isFS=false; document.getElementById('fullscreen-btn').textContent='⛶'; }
+      if(!document.fullscreenElement) document.getElementById('fullscreen-btn').textContent='⛶';
     });
 
     // ═══════════════════════════════════════════════════════════════
-    //  METAR
+    //  WEATHER REGISTER — fetch + cache one calendar month's JSON
     // ═══════════════════════════════════════════════════════════════
-
-    // fetch() with a hard timeout so one slow/hanging proxy can't block the chain
-    function fetchWithTimeout(url, ms){
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), ms);
-      return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+    function registerUrlFor(year, monthIndex0){
+      return `${REGISTER_BASE}/${year}/current_weather_${year}_${REGISTER_MONTH_NAMES[monthIndex0]}.json`;
     }
 
-    // Some proxies are raw passthroughs (allorigins, corsproxy.io, codetabs,
-    // thingproxy) and return the API response byte-for-byte. Others (like
-    // r.jina.ai, a "reader" service) wrap the content with extra metadata lines
-    // such as "URL Source: ..." or "Markdown Content:". This strips ALL of that
-    // noise regardless of which proxy answered, keeping only genuine METAR lines
-    // — so the display is always clean no matter which proxy in the chain wins.
-    function cleanMetarText(raw){
-      return raw.split('\n')
-        .map(l => l.trim())
-        .filter(l => /^METAR\s+[A-Z0-9]{3,4}\s+\d{6}Z/.test(l))
-        .join('\n');
+    async function fetchRegisterMonth(year, monthIndex0){
+      const key = `${year}-${monthIndex0}`;
+      const cached = registerCache[key];
+      if(cached && (Date.now() - cached.time) < REGISTER_CACHE_MS){
+        return cached.data;
+      }
+      const url = registerUrlFor(year, monthIndex0);
+      try {
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const entries = Array.isArray(data) ? data : [];
+        registerCache[key] = { data: entries, time: Date.now() };
+        return entries;
+      } catch (err) {
+        console.error('Failed to fetch register:', err);
+        throw err;
+      }
     }
 
-    // Tries every proxy in CORS_PROXIES in order. Returns the first good response.
-    // If ALL proxies fail, falls back to the last successful response we ever got
-    // for this URL (marked stale) instead of returning nothing — so the panel
-    // never goes blank just because the proxy layer is having a bad day.
-    async function fetchViaProxies(targetUrl){
-      for(const buildProxyUrl of CORS_PROXIES){
-        try{
-          const res = await fetchWithTimeout(buildProxyUrl(targetUrl), PROXY_TIMEOUT_MS);
-          if(!res.ok) throw new Error('HTTP '+res.status);
-          const raw = await res.text();
-          const text = cleanMetarText(raw);
-          if(text.length > 0){
-            metarCache[targetUrl] = { text, time: Date.now() };
-            return { text, stale: false };
-          }
-        } catch(err){
-          // this proxy failed/timed out — silently fall through to the next one
+    function registerEntryEpochMs(e){
+      const parts = String(e.date || '').split('/');
+      if(parts.length !== 3) return null;
+      const day = parseInt(parts[0], 10), month = parseInt(parts[1], 10), year = parseInt(parts[2], 10);
+      const t = String(e.time || '');
+      if(t.length < 3) return null;
+      const hh = parseInt(t.slice(0, 2), 10), mm = parseInt(t.slice(2, 4), 10);
+      if([day, month, year, hh, mm].some(isNaN)) return null;
+      return Date.UTC(year, month - 1, day, hh, mm, 0);
+    }
+
+    // ─── METAR HISTORY: fetch from register for a given time window ───
+    async function fetchMetarHistoryFromRegister(hoursBack) {
+      const now = new Date();
+      const nowMs = now.getTime();
+      const cutoffMs = nowMs - hoursBack * 3600000;
+
+      let entries = [];
+
+      try {
+        const currentMonthData = await fetchRegisterMonth(now.getUTCFullYear(), now.getUTCMonth());
+        entries = entries.concat(currentMonthData);
+      } catch (err) {
+        console.error('Current month fetch failed:', err);
+      }
+
+      const monthStartMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0);
+      if (cutoffMs < monthStartMs) {
+        let pY = now.getUTCFullYear(), pM = now.getUTCMonth() - 1;
+        if (pM < 0) { pM = 11; pY -= 1; }
+        try {
+          const prevMonthData = await fetchRegisterMonth(pY, pM);
+          entries = prevMonthData.concat(entries);
+        } catch (err) {
+          console.error('Previous month fetch failed:', err);
         }
       }
-      const cached = metarCache[targetUrl];
-      if(cached){
-        return { text: cached.text, stale: true, ageMin: Math.max(0, Math.round((Date.now() - cached.time)/60000)) };
-      }
-      return null; // genuinely nothing available yet (e.g. very first load, all proxies down)
+
+      const filtered = entries
+        .map(e => {
+          const ts = registerEntryEpochMs(e);
+          return { entry: e, ts: ts };
+        })
+        .filter(x => x.ts !== null && x.ts >= cutoffMs && x.ts <= nowMs)
+        .sort((a, b) => b.ts - a.ts)
+        .map(x => x.entry);
+
+      return filtered;
     }
 
-    let metarQuickRetryTimer = null;
+    // ═══════════════════════════════════════════════════════════════
+    //  build METAR text — two variants for different JSON formats
+    // ═══════════════════════════════════════════════════════════════
+
+    // Shared helpers
+    function _metarWindCloud(e, parts) {
+      if (e.windspeed) {
+        let w = e.windspeed;
+        if (e.maxwind) w += 'G' + e.maxwind;
+        parts.push(w + 'KT');
+      }
+      if (e.visibility) parts.push(e.visibility);
+    }
+    function _metarWeatherCloudsTemp(e, parts) {
+      if (e.weather) parts.push(e.weather);
+      let anyCloud = false;
+      ['cloud1', 'cloud2', 'cloud3', 'cloud4'].forEach(c => {
+        if (e[c]) { parts.push(e[c]); anyCloud = true; }
+      });
+      if (!anyCloud) parts.push('NSC');
+      const fmtTemp = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = parseFloat(v);
+        if (isNaN(n)) return null;
+        const r = Math.round(n);
+        return r < 0 ? ('M' + Math.abs(r)) : String(r);
+      };
+      const tt = fmtTemp(e.temperature), td = fmtTemp(e.dewpoint);
+      if (tt !== null && td !== null) parts.push(tt + '/' + td);
+      if (e.qnh !== undefined && e.qnh !== '') {
+        const q = Math.floor(parseFloat(e.qnh));
+        if (!isNaN(q)) parts.push('Q' + q);
+      }
+      if (e.trend) parts.push(e.trend);
+    }
+
+    // Register/live format: activervr1/2 = runway number ("28","10") when active, empty when not
+    function buildMetarText(e) {
+      const parts = [(e.selectedOption || 'METAR'), 'VOGA', (e.time || '----') + 'Z'];
+      _metarWindCloud(e, parts);
+      if (e.activervr1 && e.rvr1) {
+        parts.push('R' + String(e.activervr1).padStart(2, '0') + '/' + e.rvr1);
+      }
+      if (e.activervr2 && e.rvr2) {
+        parts.push('R' + String(e.activervr2).padStart(2, '0') + '/' + e.rvr2);
+      }
+      _metarWeatherCloudsTemp(e, parts);
+      return parts.join(' ');
+    }
+
+    // Archive format: activervr1/2 = "1" means active (boolean-style), runway fixed as 28/10
+    function buildArchiveMetarText(e) {
+      const parts = [(e.selectedOption || 'METAR'), 'VOGA', (e.time || '----') + 'Z'];
+      _metarWindCloud(e, parts);
+      if (e.activervr1 === '1' && e.rvr1) {
+        parts.push('R28/' + e.rvr1);
+      }
+      if (e.activervr2 === '1' && e.rvr2) {
+        parts.push('R10/' + e.rvr2);
+      }
+      _metarWeatherCloudsTemp(e, parts);
+      return parts.join(' ');
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  METAR (live, current report — register-based)
+    // ═══════════════════════════════════════════════════════════════
     function fetchMETAR(){
-      fetchViaProxies(METAR_URL).then(result => {
-        if(result && result.text.includes('VOGA')){
-          let txt = result.text.trim().replace(/\s+/g, ' ');
-          if(result.stale) txt += `  ⚠ STALE (${result.ageMin}m old, proxies down)`;
-          metarDisplay.textContent = txt;
-          metarDisplay.style.color = result.stale ? '#d08a00' : '';
+      const now = new Date();
+      fetchRegisterMonth(now.getUTCFullYear(), now.getUTCMonth())
+        .then(monthData => {
+          if(!monthData.length) {
+            throw new Error('empty register for current month');
+          }
+          const latest = monthData[monthData.length - 1];
+          metarDisplay.textContent = buildMetarText(latest);
+          metarDisplay.style.color = '';
           metarDisplay.style.opacity = '1';
-        } else if(!metarQuickRetryTimer){
-          // Total failure AND nothing cached yet (typically only happens on a cold
-          // page load before any proxy has ever succeeded). Retry once, sooner than
-          // the normal 120s cycle, instead of leaving the panel empty that long.
-          metarQuickRetryTimer = setTimeout(() => { metarQuickRetryTimer = null; fetchMETAR(); }, 15000);
-        }
-        // if result is null/invalid, deliberately leave the last displayed METAR
-        // on screen rather than blanking it — a stale-but-visible reading beats none.
-        metarDisplay.classList.remove('fade');
-      });
+          metarDisplay.classList.remove('fade');
+        })
+        .catch(err => {
+          console.error('METAR fetch error:', err);
+          metarDisplay.textContent = '⚠ METAR unavailable';
+          metarDisplay.style.color = '#ff4444';
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  METAR HISTORY POPUP
+    //  METAR/SPECI HISTORY POPUP — register-based, 6H / 12H / 24H
     // ═══════════════════════════════════════════════════════════════
-    window.openMetarPopup = function(){
-      metarPopup.classList.add('active');
-      metarPopupBody.innerHTML = `<div class="loading-msg" style="height:auto;padding:20px;"><span class="spinner"></span> Loading METAR history...</div>`;
+    window.openMetarPopup = async function(hours, btn) {
+      if (hours) metarHistoryHours = hours;
 
-      fetchViaProxies(METAR_HISTORY_URL).then(result => {
-        if(result && result.text.includes('VOGA')){
-          const lines = result.text.trim().split('\n').filter(line => line.includes('VOGA'));
-          if(lines.length > 0){
-            const staleBanner = result.stale
-              ? `<div class="no-data" style="color:#d08a00;padding:8px 0;">⚠ Showing last cached history (${result.ageMin}m old) — live proxies are unreachable right now.</div>`
-              : '';
-            metarPopupBody.innerHTML = staleBanner + lines.map(line =>
-              `<div class="metar-line">${line.trim()}</div>`
-            ).join('');
-          } else {
-            metarPopupBody.innerHTML = `<div class="no-data">No METAR history available</div>`;
-          }
-        } else {
-          metarPopupBody.innerHTML = `<div class="no-data">Unable to reach METAR history right now. Will retry automatically on next refresh.</div>`;
-        }
+      document.querySelectorAll('.metar-range-btn').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.hours, 10) === metarHistoryHours);
       });
+
+      metarPopupTitle.textContent = `📜 METAR/SPECI History (Last ${metarHistoryHours} Hours)`;
+      metarPopup.classList.add('active');
+      metarPopupBody.innerHTML = `<div class="loading-msg"><span class="spinner"></span> Loading METAR/SPECI history...</div>`;
+
+      try {
+        const entries = await fetchMetarHistoryFromRegister(metarHistoryHours);
+        if (entries.length === 0) {
+          metarPopupBody.innerHTML = `<div class="no-data">No METAR/SPECI found in the last ${metarHistoryHours} hours.</div>`;
+          return;
+        }
+        const lines = entries.map(e => buildMetarText(e));
+        metarPopupBody.innerHTML = lines.map(line =>
+          `<div class="metar-line">${escapeHtml(line)}</div>`
+        ).join('');
+      } catch (err) {
+        console.error('METAR history fetch error:', err);
+        metarPopupBody.innerHTML = `<div class="no-data">Unable to load METAR/SPECI history. Error: ${err.message}</div>`;
+      }
     };
 
     window.closeMetarPopup = function(){
@@ -1384,22 +1456,16 @@
     });
 
     // ═══════════════════════════════════════════════════════════════
-    //  Archive — historical METAR lookup (same calendar day, ±3 reports
-    //  either side of the current UTC time, across the 2023-2025 archive)
+    //  Archive — historical METAR lookup (2023-2025 archive)
     // ═══════════════════════════════════════════════════════════════
     const Archive_URLS = {
       2023: 'https://raw.githubusercontent.com/Ajay57484/metarjson/main/VOGA_2023.json',
       2024: 'https://raw.githubusercontent.com/Ajay57484/metarjson/main/VOGA_2024.json',
       2025: 'https://raw.githubusercontent.com/Ajay57484/metarjson/main/VOGA_2025.json'
     };
-    let ArchiveCache = {}; // { '2023': [...], ... } — fetched once per page session
-
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
+    let ArchiveCache = {};
 
     function ArchiveParseDate(dateStr){
-      // 'DD/MM/YYYY'
       const parts = String(dateStr || '').split('/');
       if (parts.length !== 3) return null;
       const day = parseInt(parts[0], 10), month = parseInt(parts[1], 10);
@@ -1416,56 +1482,11 @@
       return hh * 60 + mm;
     }
 
-    function buildMetarText(e){
-      const parts = ['METAR', 'VOGA', (e.time || '----') + 'Z'];
-
-      if (e.windspeed) {
-        let w = e.windspeed;
-        if (e.maxwind) w += 'G' + e.maxwind;
-        parts.push(w + 'KT');
-      }
-      if (e.visibility) parts.push(e.visibility);
-
-      if (e.activervr1 === '1' && e.rvr1) parts.push('RVR1 ' + e.rvr1 + 'M');
-      if (e.activervr2 === '1' && e.rvr2) parts.push('RVR2 ' + e.rvr2 + 'M');
-
-      if (e.weather) parts.push(e.weather);
-
-      let anyCloud = false;
-      ['cloud1', 'cloud2', 'cloud3', 'cloud4'].forEach(c => {
-        if (e[c]) { parts.push(e[c]); anyCloud = true; }
-      });
-      if (!anyCloud) parts.push('NSC');
-
-      const fmtTemp = (v) => {
-        if (v === undefined || v === null || v === '') return null;
-        const n = parseFloat(v);
-        if (isNaN(n)) return null;
-        const r = Math.round(n);
-        return r < 0 ? ('M' + Math.abs(r)) : String(r);
-      };
-      const tt = fmtTemp(e.temperature), td = fmtTemp(e.dewpoint);
-      if (tt !== null && td !== null) parts.push(tt + '/' + td);
-
-      // QNH — integer part only (truncated, not rounded — matches the
-      // standard METAR convention of reporting QNH as whole hectopascals).
-      if (e.qnh !== undefined && e.qnh !== '') {
-        const q = Math.floor(parseFloat(e.qnh));
-        if (!isNaN(q)) parts.push('Q' + q);
-      }
-
-      if (e.trend) parts.push(e.trend);
-
-      return parts.join(' ');
-    }
-
     async function fetchArchiveYear(year){
       if (ArchiveCache[year]) return ArchiveCache[year];
       const res = await fetch(Archive_URLS[year]);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      // The archive can contain non-METAR records (e.g. SPECI) mixed in —
-      // only METAR entries are relevant here.
       const metarOnly = Array.isArray(data) ? data.filter(e => e.selectedOption === 'METAR') : [];
       ArchiveCache[year] = metarOnly;
       return metarOnly;
@@ -1529,7 +1550,7 @@
       let html = '';
       years.forEach(year => {
         const yearResults = allResults.filter(r => r.year === year);
-        if (yearResults.length === 0) return; // no data for this year on this date — ignored, not shown as an error
+        if (yearResults.length === 0) return;
         html += `<div class="Archive-year-group"><div class="Archive-year-label">${year}</div>`;
         yearResults.forEach(r => {
           const e = r.entry;
@@ -1538,7 +1559,7 @@
           const timeDisp = t.slice(0, 2) + ':' + t.slice(2, 4);
           html += `<div class="Archive-row${isHighlight ? ' highlight' : ''}">` +
                     `<span class="Archive-time">${escapeHtml(e.date)} ${timeDisp}Z</span>` +
-                    `<span class="Archive-metar">${escapeHtml(buildMetarText(e))}</span>` +
+                    `<span class="Archive-metar">${escapeHtml(buildArchiveMetarText(e))}</span>` +
                   `</div>`;
         });
         html += `</div>`;
@@ -1587,10 +1608,8 @@
       ctx.fillStyle = isDarkMode ? 'rgba(21,101,192,0.08)' : 'rgba(21,101,192,0.06)';
       ctx.fill();
 
-      // Runway centerline strip (RWY 28/10 — 280°/100° axis), drawn like a real
-      // runway: grey asphalt bar through the center with a dashed centerline.
       (function drawRunwayStrip(){
-        const angA = (280-90)*Math.PI/180; // 100° end is automatically the opposite, since 280-180=100
+        const angA = (280-90)*Math.PI/180;
         const stripLen = r*0.60, stripW = Math.max(2.5, r*0.11);
         ctx.save();
         ctx.translate(cx, cy);
@@ -1602,7 +1621,6 @@
         ctx.beginPath(); ctx.moveTo(-stripLen,0); ctx.lineTo(stripLen,0); ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
-        // runway end designators
         const lblCol = isDarkMode ? 'rgba(176,190,197,0.9)' : 'rgba(69,90,100,0.9)';
         const lblFs = Math.max(6, Math.round(r*0.14));
         ctx.font = `700 ${lblFs}px Inter,Arial`;
@@ -1819,11 +1837,6 @@
     }
 
     function parseVisibilityForFogCheck(raw){
-      // 'P2000' means visibility is AT LEAST 2000m (capped reading) — that's
-      // good visibility and should never trigger a low-visibility warning,
-      // even though its bare magnitude (2000) would otherwise look low.
-      // 'M0050' means visibility is BELOW 50m — already a "bad" direction,
-      // so the magnitude is used as-is.
       if(raw === undefined || raw === null) return null;
       const s = String(raw).trim();
       if(s === '--' || s === '' || s === '—') return null;
@@ -1836,14 +1849,8 @@
       return String(raw).trim().toUpperCase().startsWith('P');
     }
 
-    // Per-runway latched state for each badge, so a value sitting right on
-    // the threshold can't flip the badge on/off every single poll (the
-    // "bar-bar pop" flicker). Each badge enters at the stated threshold but
-    // only EXITS once the reading has cleared it by a margin (classic
-    // Schmitt-trigger hysteresis) — so it appears as soon as the condition
-    // is met, and only disappears once it's genuinely no longer met.
-    let fogRiskActive = {};   // { '10': true/false }
-    let visWarnActive = {};   // { '28': bool, '10': bool }
+    let fogRiskActive = {};
+    let visWarnActive = {};
 
     function renderFogRiskBadge(rwy, containerId, temp, dew, windRaw){
       const el = document.getElementById(containerId);
@@ -1855,12 +1862,10 @@
 
       let isActive = !!fogRiskActive[rwy];
       if (spread === null) {
-        // no usable reading this poll — hold the previous state
+        // hold previous state
       } else if (!isActive) {
-        // Enter: ideal-fog setup — tight spread + calm wind
         isActive = (spread < 2 && windVal !== null && windVal < 5);
       } else {
-        // Exit only once clearly past the threshold, not right at it
         isActive = !(spread > 2.5 || (windVal !== null && windVal >= 6));
       }
       fogRiskActive[rwy] = isActive;
@@ -1882,13 +1887,13 @@
 
       let isActive = !!visWarnActive[rwy];
       if (sensorSaysGood) {
-        isActive = false; // sensor explicitly reports vis at/above its cap
+        isActive = false;
       } else if (visVal === null) {
-        // genuinely no reading this poll — hold the previous state
+        // hold previous state
       } else if (!isActive) {
-        isActive = visVal < 2000;   // enter
+        isActive = visVal < 2000;
       } else {
-        isActive = visVal < 2200;   // exit with a 200m margin
+        isActive = visVal < 2200;
       }
       visWarnActive[rwy] = isActive;
 
@@ -1903,10 +1908,8 @@
       const now = Date.now();
       const buf = qnhTrendBuffer[rwy] || (qnhTrendBuffer[rwy] = []);
       buf.push({ t: now, v: num });
-      const cutoff = now - 12 * 60 * 1000; // keep ~12 min of samples
+      const cutoff = now - 12 * 60 * 1000;
       while (buf.length && buf[0].t < cutoff) buf.shift();
-      // Need at least ~8 min of real span before trusting a trend reading —
-      // right after page load there isn't enough history yet.
       if (buf.length < 2 || (now - buf[0].t) < 8 * 60 * 1000) return null;
       return buf[0].v;
     }
@@ -1917,9 +1920,6 @@
       const i = parseFloat(instant);
       if(isNaN(i)){ el.className='qnh-trend trend-flat'; el.textContent=' →'; return; }
       if(tenMinAgo === null || tenMinAgo === undefined || isNaN(tenMinAgo)){
-        // Not enough buffered history yet to call a trend (e.g. just after
-        // page load) — show a neutral "collecting" marker instead of a
-        // possibly-misleading flat arrow.
         el.className='qnh-trend trend-pending'; el.textContent=' ·'; return;
       }
       const diff = Math.round((i - tenMinAgo) * 10) / 10;
@@ -2023,7 +2023,6 @@
       const qnhTrendRef = updateQnhBufferAndGetReference(rwy, d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded);
       renderPressureTrend('trend'+rwy+'-qnh', d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded, qnhTrendRef);
 
-      // MAX and MIN WS (1min) - use stored instantaneous values directly
       setValue(p+'wsmax', d.windSpeed_maxOneMin_rounded || '--');
       setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
 
@@ -2040,22 +2039,16 @@
     };
 
     // ═══════════════════════════════════════════════════════════════
-    //  HISTORY FROM BACKEND - MATCHES YOUR BACKEND
+    //  HISTORY FROM BACKEND
     // ═══════════════════════════════════════════════════════════════
     async function fetchHistoryFromBackend(rwy, param, hours, bin) {
       const h = hours || currentHours;
       const b = bin || currentBin;
 
-      // Headwind/crosswind history is NOT pulled from the backend's own
-      // headwind/crosswind columns — those don't carry a reliable sign, so a
-      // tailwind period plots the same as a headwind period. Instead we pull
-      // windDirection + windSpeed history (which ARE reliable) and compute
-      // signed head/crosswind ourselves: + = headwind/right, − = tailwind/left.
       if (param === 'headwind' || param === 'crosswind') {
         return fetchComputedWindComponentHistory(rwy, param, h, b);
       }
 
-      // Map frontend param to backend column name
       const paramMap = {
         'windDirection': 'windDirection',
         'windSpeed': 'windSpeed',
@@ -2086,12 +2079,6 @@
       }
     }
 
-    // Computes a signed headwind or crosswind history series from the
-    // windDirection + windSpeed history bins for a runway, instead of relying
-    // on the backend's own headwind/crosswind columns:
-    //   angle     = windDirection − runwayHeading
-    //   headwind  = windSpeed × cos(angle)   [+ve = headwind,  −ve = tailwind]
-    //   crosswind = windSpeed × sin(angle)   [+ve = right,     −ve = left]
     async function fetchComputedWindComponentHistory(rwy, component, hours, bin) {
       const runwayHeading = RUNWAY_HEADING[rwy];
       const [wdBins, wsBins] = await Promise.all([
@@ -2100,14 +2087,12 @@
       ]);
       if (!wdBins.length || !wsBins.length || runwayHeading === undefined) return [];
 
-      // Pair bins by timestamp rather than by array index — keeps things
-      // correct even if one feed has a gap the other doesn't.
       const wsByTs = new Map(wsBins.map(bn => [bn.timestamp, bn]));
 
       const out = [];
       wdBins.forEach(wdBin => {
         const wsBin = wsByTs.get(wdBin.timestamp);
-        if (!wsBin) return; // no matching wind-speed sample for this bin — skip rather than guess
+        if (!wsBin) return;
 
         const wd = wdBin.value, ws = wsBin.value;
         if (wd === null || wd === undefined || ws === null || ws === undefined) return;
@@ -2122,11 +2107,6 @@
           count: wsBin.count
         };
 
-        // Approximate per-bin extremes from windSpeed's own min/max, holding
-        // wind direction at the bin's average (reasonable for typical 2–10
-        // min AWOS bins where direction doesn't usually flip mid-bin). Since
-        // a negative trig value flips which end is the "max", both
-        // candidates are computed and sorted rather than assumed.
         if (wsBin.min !== undefined && wsBin.min !== null && wsBin.max !== undefined && wsBin.max !== null) {
           const a = wsBin.min * trig, c = wsBin.max * trig;
           entry.min = Math.round(Math.min(a, c) * 10) / 10;
@@ -2141,7 +2121,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  HISTORY CHART - UTC TIME
+    //  HISTORY CHART
     // ═══════════════════════════════════════════════════════════════
     function isBreach(cfg, v) {
       if (!cfg || v === null || v === undefined || isNaN(v)) return false;
@@ -2149,16 +2129,6 @@
       return cfg.direction === 'below' ? val < cfg.limit : val >= cfg.limit;
     }
 
-    // RVR/MOR are pure distance measurements — physically can never be
-    // negative. A negative value coming through the backend's history bins
-    // (e.g. -50 for an "M0050" / below-instrument-floor reading) is that
-    // same M-for-minus internal convention the backend already uses for
-    // temperature — not a real measurement. Taking the magnitude here, once,
-    // right after the fetch, keeps the 0-floor intact everywhere downstream:
-    // the plotted line, the min/max meta values, the weighted average, and
-    // both the CSV and PNG export (which all reuse this same bins array) —
-    // instead of a critical low-RVR/MOR moment getting clipped off the
-    // bottom of the chart or dragging the average negative.
     function clampNonNegativeBins(bins, param) {
       if (param !== 'rvr' && param !== 'mor') return bins;
       return bins.map(b => {
@@ -2167,8 +2137,6 @@
         const hasMin = fixed.min !== undefined && fixed.min !== null;
         const hasMax = fixed.max !== undefined && fixed.max !== null;
         if (hasMin && hasMax) {
-          // Abs each independently then re-sort — e.g. min:-50,max:20 must
-          // become min:20,max:50, not min:50,max:20.
           const a = Math.abs(fixed.min), c = Math.abs(fixed.max);
           fixed.min = Math.min(a, c);
           fixed.max = Math.max(a, c);
@@ -2209,46 +2177,24 @@
         const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
 
         const labelMap = {
-          'windDirection': 'Wind Direction',
-          'windSpeed': 'Wind Speed',
-          'headwind': 'Head Wind',
-          'crosswind': 'Cross Wind',
-          'rvr': 'RVR',
-          'mor': 'MOR',
-          'qnh': 'QNH',
-          'qfe': 'QFE',
-          'temperature': 'Temperature',
-          'humidity': 'Humidity',
-          'dewPoint': 'Dew Point'
+          'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
+          'headwind': 'Head Wind', 'crosswind': 'Cross Wind',
+          'rvr': 'RVR', 'mor': 'MOR', 'qnh': 'QNH', 'qfe': 'QFE',
+          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
         };
         const displayName = labelMap[param] || param.toUpperCase();
 
         const unitMap = {
-          'windDirection': '°',
-          'windSpeed': 'kt',
-          'headwind': 'kt',
-          'crosswind': 'kt',
-          'rvr': 'm',
-          'mor': 'm',
-          'qnh': 'hPa',
-          'qfe': 'hPa',
-          'temperature': '°C',
-          'humidity': '%',
-          'dewPoint': '°C'
+          'windDirection': '°', 'windSpeed': 'kt', 'headwind': 'kt', 'crosswind': 'kt',
+          'rvr': 'm', 'mor': 'm', 'qnh': 'hPa', 'qfe': 'hPa',
+          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C'
         };
         const unit = unitMap[param] || '';
-        // Bearings wrap at 360° — a scalar min/max or shaded band across the
-        // wraparound point (e.g. 350°→10°) is meaningless, so it's handled separately.
         const isCircular = (param === 'windDirection');
 
-        // Get current value from latest data
         const d = latestData[rwy];
         let currentVal = '—';
         if (d && (param === 'headwind' || param === 'crosswind')) {
-          // Same formula as the history calc above, applied to the live
-          // instant wind reading — keeps this header consistent with what
-          // the graph is showing instead of pulling a separately-sourced
-          // (and unsigned) backend field.
           const wdNow = parseLeadingNumber(d['windDirection_instant_rounded']);
           const wsNow = parseLeadingNumber(d['windSpeed_instant_rounded']);
           const heading = RUNWAY_HEADING[rwy];
@@ -2320,39 +2266,13 @@
         const oldMsg = parent.querySelector('.no-data-msg');
         if (oldMsg) oldMsg.remove();
 
-        // ── Real UTC-timestamp points (ms) instead of equally-spaced text labels.
-        // This is what makes a sensor/relay outage show up as an actual visual
-        // gap in the line instead of silently compressing the timeline.
         const points = bins.map(b => ({ x: toUtcDisplayMs(b.timestamp), y: b.value }));
         const counts = bins.map(b => b.count || 1);
         const values = bins.map(b => b.value);
 
-        // ─── CALCULATE MIN, MAX, AVG across the FULL selected time window ───
-        //
-        // Strategy (3-tier fallback so the correct extreme is always shown
-        // regardless of what the backend sends):
-        //
-        //  Tier 1 — backend sends per-bin true min/max with their own timestamps
-        //            (b.min, b.max, b.min_timestamp, b.max_timestamp).
-        //            This is the most accurate: a 30-min bin's true max is the
-        //            highest SINGLE reading in those 30 min, not the bin average.
-        //
-        //  Tier 2 — backend sends b.min / b.max but no dedicated timestamps.
-        //            We use b.timestamp (the bin's centre) as a proxy time —
-        //            slightly less precise but still correct VALUE.
-        //
-        //  Tier 3 — backend sends only b.value (the bin average).
-        //            Fallback: min/max are the lowest/highest BIN AVERAGES, which
-        //            understates extremes (a 30kt gust inside a 12kt average bin
-        //            will NOT be shown). A warning label is appended so the
-        //            operator knows the number is an average-of-averages.
-        //
-        // The tier actually used is detected per-bin, and a flag is set so the
-        // UI can warn when tier 3 is active.
-
         let minVal = '—', maxVal = '—', avgVal = '—';
         let minTimeStr = '', maxTimeStr = '';
-        let usingFallbackAvg = false; // true when tier 3 kicks in (no per-bin min/max at all)
+        let usingFallbackAvg = false;
 
         if (!isCircular) {
           let minValRaw = null, maxValRaw = null, minTs = null, maxTs = null;
@@ -2364,13 +2284,9 @@
 
             if (hasMin || hasMax) anyBinHasMinMax = true;
 
-            // True per-bin extreme (Tier 1 / Tier 2).
-            // If only one of min/max is present, use value as the other side.
             const bMin = hasMin ? b.min : b.value;
             const bMax = hasMax ? b.max : b.value;
 
-            // Timestamp: prefer the dedicated extreme-point timestamp if the
-            // backend provides it (Tier 1); fall back to the bin timestamp.
             const bMinTs = (b.min_timestamp !== undefined && b.min_timestamp !== null)
                            ? b.min_timestamp : b.timestamp;
             const bMaxTs = (b.max_timestamp !== undefined && b.max_timestamp !== null)
@@ -2386,12 +2302,10 @@
             }
           });
 
-          // If no bin had a min/max field at all — Tier 3 fallback
           if (!anyBinHasMinMax) {
             usingFallbackAvg = true;
           }
 
-          // Weighted average (by sample count so sparse bins don't overweight)
           const totalCount = counts.reduce((a, c) => a + c, 0);
           const weightedSum = bins.reduce((s, b, i) => s + b.value * counts[i], 0);
           const trueAvg = totalCount > 0
@@ -2403,7 +2317,7 @@
             return new Date(ts * 1000).toISOString().slice(11, 16) + 'Z';
           };
 
-          const fallbackNote = usingFallbackAvg ? ' ᵃ' : ''; // superscript marker
+          const fallbackNote = usingFallbackAvg ? ' ᵃ' : '';
 
           minVal = (minValRaw !== null ? Math.round(minValRaw * 10) / 10 : '—')
                    + (unit ? ' ' + unit : '') + fallbackNote;
@@ -2415,8 +2329,6 @@
           maxTimeStr = maxTs !== null ? fmtUtc(maxTs) : '';
 
         } else {
-          // Wind direction: circular mean is meaningless as a scalar min/max,
-          // so we just show the latest bearing as "current" in the avg slot.
           avgVal = values.length
             ? Math.round(values[values.length - 1] * 10) / 10 + '°'
             : '—';
@@ -2428,9 +2340,6 @@
                         currentBin === 3600 ? '1-hour' : '3-hour';
 
         metaCurrent.textContent = currentVal;
-        // Show the extreme value + its UTC timestamp (e.g. "21.7 kt @14:32Z").
-        // If the backend didn't return per-bin min/max (Tier 3 fallback),
-        // a small ᵃ marker is appended to the value and a footnote explains it.
         metaMin.innerHTML = minTimeStr
           ? `${minVal}<span class="meta-time">@${minTimeStr}</span>`
           : minVal;
@@ -2439,14 +2348,11 @@
           : maxVal;
         metaAvg.textContent = avgVal;
 
-        // ─── Data-gap / fallback warnings ───
         const nowSec = Date.now() / 1000;
         const lastTs = bins[bins.length - 1].timestamp;
         const staleMin = Math.round((nowSec - lastTs) / 60);
         if (gapNote) {
           if (usingFallbackAvg) {
-            // Backend doesn't send per-bin min/max — values shown are bin averages.
-            // This means real extremes (e.g. a wind gust) are understated.
             gapNote.textContent = `ᵃ Min/Max shown are bin averages — backend does not return per-bin extremes. Upgrade the /history API to include MIN() and MAX() per bin for accurate extreme values.`;
             gapNote.classList.add('show');
           } else if (staleMin > Math.max(5, currentBin / 60)) {
@@ -2460,20 +2366,10 @@
         const color = isDarkMode ? '#00e5ff' : '#1565c0';
         const thresholdCfg = THRESHOLDS[param];
 
-        // Headwind is the one chart where the SIGN is the operationally
-        // meaningful thing — + = headwind (favourable), − = tailwind
-        // (unfavourable) — so it gets its own green/red sign coloring
-        // instead of the generic single-color-plus-threshold-breach styling
-        // every other param uses.
         const HEAD_GREEN = '#00e676';
         const TAIL_RED = '#ff1744';
         const isHeadwindChart = (param === 'headwind');
 
-        // Just the clean value line + points — no shaded min/max band. The
-        // band looked nice but its translucent fill was hiding real spikes
-        // in the trace; a plain line shows gusts/dips far more clearly.
-        // Min/Max numbers above the chart are still computed from the bins
-        // regardless (see minVal/maxVal above).
         const datasets = [];
         datasets.push({
           label: displayName,
@@ -2484,8 +2380,6 @@
           tension: 0.3,
           pointRadius: 3,
           segment: isHeadwindChart ? {
-            // Colors each line SEGMENT (not just the point dots) by sign, so
-            // a head→tail crossover is visible along the line itself.
             borderColor: (ctx) => {
               const y0 = ctx.p0?.parsed?.y, y1 = ctx.p1?.parsed?.y;
               const avg = ((y0 ?? 0) + (y1 ?? 0)) / 2;
@@ -2506,8 +2400,6 @@
           spanGaps: false
         });
 
-        // Threshold line + "now" marker drawn directly on canvas — avoids
-        // pulling in a whole separate annotation-plugin dependency.
         const referenceLinePlugin = {
           id: 'refLines',
           afterDraw(chart) {
@@ -2535,8 +2427,6 @@
                 }
               });
             }
-            // Headwind/tailwind boundary — drawn at y=0 so the crossover is
-            // unambiguous regardless of where the line itself happens to sit.
             if (isHeadwindChart) {
               const y0 = scales.y.getPixelForValue(0);
               if (y0 >= chartArea.top && y0 <= chartArea.bottom) {
@@ -2594,10 +2484,10 @@
                 displayColors: false,
                 filter: (item) => item.dataset.label === displayName,
                 callbacks: {
-                  title: () => [],   // no date/time line
+                  title: () => [],
                   label: function(context) {
                     const val = context.parsed.y;
-                    return `${val}${unit ? ' ' + unit : ''}`;   // value only — no name, no sample count
+                    return `${val}${unit ? ' ' + unit : ''}`;
                   }
                 }
               },
@@ -2715,9 +2605,6 @@
       isHistoryLoading = false;
     };
 
-    // ── LIVE auto-refresh while the modal is open ──
-    // Stays on a 30s refresh by default; pauses itself the moment the user
-    // zooms/pans so an incoming refresh doesn't yank back their view.
     function setLiveButtonUI() {
       const btn = document.getElementById('liveToggleBtn');
       if (!btn) return;
@@ -2725,6 +2612,7 @@
       btn.classList.toggle('live-off', !liveMode);
       btn.textContent = liveMode ? '🔴 LIVE (30s)' : '⏸ PAUSED';
     }
+
     function startModalAutoRefresh() {
       stopModalAutoRefresh();
       if (!liveMode) return;
@@ -2732,12 +2620,14 @@
         if (modalParam && modalRwy) renderHistoryChart(modalParam, modalRwy);
       }, 30000);
     }
+
     function stopModalAutoRefresh() {
       if (modalRefreshInterval) {
         clearInterval(modalRefreshInterval);
         modalRefreshInterval = null;
       }
     }
+
     function pauseLiveOnInteraction() {
       userHasZoomed = true;
       if (liveMode) {
@@ -2746,6 +2636,7 @@
         stopModalAutoRefresh();
       }
     }
+
     window.toggleLiveMode = function() {
       liveMode = !liveMode;
       setLiveButtonUI();
@@ -2762,8 +2653,6 @@
     };
 
     function buildExportChartConfig(meta) {
-      // Forced light-mode palette — independent of the dashboard's current
-      // dark/light theme, since the exported PNG should always be light.
       const textColor = '#1a2a3a';
       const gridColor = 'rgba(0,0,0,0.10)';
       const lineColor = '#1565c0';
@@ -2870,7 +2759,7 @@
         plugins: [whiteBgPlugin, referenceLinePlugin],
         options: {
           responsive: false,
-          animation: false,   // ensure the chart is fully drawn before toBase64Image() grabs it
+          animation: false,
           plugins: {
             legend: { labels: { color: textColor, font: { family: 'Inter', weight: '600', size: 13 } } },
             tooltip: { enabled: false }
@@ -2950,7 +2839,7 @@
     //  FETCH DATA
     // ═══════════════════════════════════════════════════════════════
     let consecutiveFetchFailures = 0;
-    const OFFLINE_AFTER_N_FAILURES = 3; // ignore a single transient blip
+    const OFFLINE_AFTER_N_FAILURES = 3;
 
     function setLiveStatus(){
       consecutiveFetchFailures = 0;
@@ -2960,6 +2849,7 @@
       el.style.borderColor = '#00cc66';
       el.style.color = '#00ff88';
     }
+
     function setOfflineStatus(){
       const el = document.getElementById('status');
       if(!el) return;
@@ -2983,7 +2873,7 @@
             latestData['28'] = data['28'];
             renderPanel('28');
           }
-          setLiveStatus(); // a successful poll always clears OFFLINE immediately
+          setLiveStatus();
           setTimeout(resizeLayout, 50);
         })
         .catch(err => {
