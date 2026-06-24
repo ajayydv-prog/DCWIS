@@ -1155,6 +1155,7 @@
     const latestData = { '28': null, '10': null };
     const modes = { '28': 'instant', '10': 'instant' };
     const compassDirs = { '28': null, '10': null };
+    const RUNWAY_HEADING = { '28': 280, '10': 100 }; // magnetic heading per runway end, used for history hw/cw calc
     let isDark = true;
     let autoRefreshInterval = null;
     let metarInterval = null;
@@ -1425,8 +1426,8 @@
       }
       if (e.visibility) parts.push(e.visibility);
 
-      if (e.activervr1 === '1' && e.rvr1) parts.push('R28/' + e.rvr1);
-      if (e.activervr2 === '1' && e.rvr2) parts.push('R10/' + e.rvr2);
+      if (e.activervr1 === '1' && e.rvr1) parts.push('RVR1 ' + e.rvr1 + 'M');
+      if (e.activervr2 === '1' && e.rvr2) parts.push('RVR2 ' + e.rvr2 + 'M');
 
       if (e.weather) parts.push(e.weather);
 
@@ -2044,7 +2045,16 @@
     async function fetchHistoryFromBackend(rwy, param, hours, bin) {
       const h = hours || currentHours;
       const b = bin || currentBin;
-      
+
+      // Headwind/crosswind history is NOT pulled from the backend's own
+      // headwind/crosswind columns — those don't carry a reliable sign, so a
+      // tailwind period plots the same as a headwind period. Instead we pull
+      // windDirection + windSpeed history (which ARE reliable) and compute
+      // signed head/crosswind ourselves: + = headwind/right, − = tailwind/left.
+      if (param === 'headwind' || param === 'crosswind') {
+        return fetchComputedWindComponentHistory(rwy, param, h, b);
+      }
+
       // Map frontend param to backend column name
       const paramMap = {
         'windDirection': 'windDirection',
@@ -2076,6 +2086,60 @@
       }
     }
 
+    // Computes a signed headwind or crosswind history series from the
+    // windDirection + windSpeed history bins for a runway, instead of relying
+    // on the backend's own headwind/crosswind columns:
+    //   angle     = windDirection − runwayHeading
+    //   headwind  = windSpeed × cos(angle)   [+ve = headwind,  −ve = tailwind]
+    //   crosswind = windSpeed × sin(angle)   [+ve = right,     −ve = left]
+    async function fetchComputedWindComponentHistory(rwy, component, hours, bin) {
+      const runwayHeading = RUNWAY_HEADING[rwy];
+      const [wdBins, wsBins] = await Promise.all([
+        fetchHistoryFromBackend(rwy, 'windDirection', hours, bin),
+        fetchHistoryFromBackend(rwy, 'windSpeed', hours, bin)
+      ]);
+      if (!wdBins.length || !wsBins.length || runwayHeading === undefined) return [];
+
+      // Pair bins by timestamp rather than by array index — keeps things
+      // correct even if one feed has a gap the other doesn't.
+      const wsByTs = new Map(wsBins.map(bn => [bn.timestamp, bn]));
+
+      const out = [];
+      wdBins.forEach(wdBin => {
+        const wsBin = wsByTs.get(wdBin.timestamp);
+        if (!wsBin) return; // no matching wind-speed sample for this bin — skip rather than guess
+
+        const wd = wdBin.value, ws = wsBin.value;
+        if (wd === null || wd === undefined || ws === null || ws === undefined) return;
+
+        const angleRad = (wd - runwayHeading) * Math.PI / 180;
+        const trig = component === 'headwind' ? Math.cos(angleRad) : Math.sin(angleRad);
+        const val = ws * trig;
+
+        const entry = {
+          timestamp: wdBin.timestamp,
+          value: Math.round(val * 10) / 10,
+          count: wsBin.count
+        };
+
+        // Approximate per-bin extremes from windSpeed's own min/max, holding
+        // wind direction at the bin's average (reasonable for typical 2–10
+        // min AWOS bins where direction doesn't usually flip mid-bin). Since
+        // a negative trig value flips which end is the "max", both
+        // candidates are computed and sorted rather than assumed.
+        if (wsBin.min !== undefined && wsBin.min !== null && wsBin.max !== undefined && wsBin.max !== null) {
+          const a = wsBin.min * trig, c = wsBin.max * trig;
+          entry.min = Math.round(Math.min(a, c) * 10) / 10;
+          entry.max = Math.round(Math.max(a, c) * 10) / 10;
+          entry.min_timestamp = wsBin.min_timestamp ?? wdBin.timestamp;
+          entry.max_timestamp = wsBin.max_timestamp ?? wdBin.timestamp;
+        }
+
+        out.push(entry);
+      });
+      return out;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  HISTORY CHART - UTC TIME
     // ═══════════════════════════════════════════════════════════════
@@ -2083,6 +2147,38 @@
       if (!cfg || v === null || v === undefined || isNaN(v)) return false;
       const val = cfg.useAbs ? Math.abs(v) : v;
       return cfg.direction === 'below' ? val < cfg.limit : val >= cfg.limit;
+    }
+
+    // RVR/MOR are pure distance measurements — physically can never be
+    // negative. A negative value coming through the backend's history bins
+    // (e.g. -50 for an "M0050" / below-instrument-floor reading) is that
+    // same M-for-minus internal convention the backend already uses for
+    // temperature — not a real measurement. Taking the magnitude here, once,
+    // right after the fetch, keeps the 0-floor intact everywhere downstream:
+    // the plotted line, the min/max meta values, the weighted average, and
+    // both the CSV and PNG export (which all reuse this same bins array) —
+    // instead of a critical low-RVR/MOR moment getting clipped off the
+    // bottom of the chart or dragging the average negative.
+    function clampNonNegativeBins(bins, param) {
+      if (param !== 'rvr' && param !== 'mor') return bins;
+      return bins.map(b => {
+        const fixed = { ...b };
+        if (fixed.value !== undefined && fixed.value !== null) fixed.value = Math.abs(fixed.value);
+        const hasMin = fixed.min !== undefined && fixed.min !== null;
+        const hasMax = fixed.max !== undefined && fixed.max !== null;
+        if (hasMin && hasMax) {
+          // Abs each independently then re-sort — e.g. min:-50,max:20 must
+          // become min:20,max:50, not min:50,max:20.
+          const a = Math.abs(fixed.min), c = Math.abs(fixed.max);
+          fixed.min = Math.min(a, c);
+          fixed.max = Math.max(a, c);
+        } else if (hasMin) {
+          fixed.min = Math.abs(fixed.min);
+        } else if (hasMax) {
+          fixed.max = Math.abs(fixed.max);
+        }
+        return fixed;
+      });
     }
 
     async function renderHistoryChart(param, rwy) {
@@ -2096,7 +2192,7 @@
       canvas.style.display = 'none';
 
       try {
-        const bins = await fetchHistoryFromBackend(rwy, param, currentHours, currentBin);
+        const bins = clampNonNegativeBins(await fetchHistoryFromBackend(rwy, param, currentHours, currentBin), param);
         lastBins = bins;
         const ctx = canvas.getContext('2d');
 
@@ -2148,12 +2244,24 @@
         // Get current value from latest data
         const d = latestData[rwy];
         let currentVal = '—';
-        if (d) {
+        if (d && (param === 'headwind' || param === 'crosswind')) {
+          // Same formula as the history calc above, applied to the live
+          // instant wind reading — keeps this header consistent with what
+          // the graph is showing instead of pulling a separately-sourced
+          // (and unsigned) backend field.
+          const wdNow = parseLeadingNumber(d['windDirection_instant_rounded']);
+          const wsNow = parseLeadingNumber(d['windSpeed_instant_rounded']);
+          const heading = RUNWAY_HEADING[rwy];
+          if (wdNow !== null && wsNow !== null && heading !== undefined) {
+            const angleRad = (wdNow - heading) * Math.PI / 180;
+            const trig = param === 'headwind' ? Math.cos(angleRad) : Math.sin(angleRad);
+            const v = Math.round(wsNow * trig * 10) / 10;
+            currentVal = (v > 0 ? '+' : '') + v + (unit ? ' ' + unit : '');
+          }
+        } else if (d) {
           const fieldMap = {
             'windDirection': 'windDirection_instant_rounded',
             'windSpeed': 'windSpeed_instant_rounded',
-            'headwind': 'headwind_instant',
-            'crosswind': 'crosswind_instant',
             'rvr': 'pwd_rvr_avgOneMin',
             'mor': 'pwd_mor_avgOneMin',
             'qnh': 'qnh_instant_rounded',
@@ -2219,34 +2327,99 @@
         const counts = bins.map(b => b.count || 1);
         const values = bins.map(b => b.value);
 
-        // ─── CALCULATE MIN, MAX, AVG across the whole window ───
-        // Weighted by sample-count per bin so a sparse bin doesn't count as
-        // much as a fully-populated one, and min/max come from the true
-        // per-bin extremes (backend now returns these) rather than from the
-        // already-smoothed bin averages.
+        // ─── CALCULATE MIN, MAX, AVG across the FULL selected time window ───
+        //
+        // Strategy (3-tier fallback so the correct extreme is always shown
+        // regardless of what the backend sends):
+        //
+        //  Tier 1 — backend sends per-bin true min/max with their own timestamps
+        //            (b.min, b.max, b.min_timestamp, b.max_timestamp).
+        //            This is the most accurate: a 30-min bin's true max is the
+        //            highest SINGLE reading in those 30 min, not the bin average.
+        //
+        //  Tier 2 — backend sends b.min / b.max but no dedicated timestamps.
+        //            We use b.timestamp (the bin's centre) as a proxy time —
+        //            slightly less precise but still correct VALUE.
+        //
+        //  Tier 3 — backend sends only b.value (the bin average).
+        //            Fallback: min/max are the lowest/highest BIN AVERAGES, which
+        //            understates extremes (a 30kt gust inside a 12kt average bin
+        //            will NOT be shown). A warning label is appended so the
+        //            operator knows the number is an average-of-averages.
+        //
+        // The tier actually used is detected per-bin, and a flag is set so the
+        // UI can warn when tier 3 is active.
+
         let minVal = '—', maxVal = '—', avgVal = '—';
         let minTimeStr = '', maxTimeStr = '';
+        let usingFallbackAvg = false; // true when tier 3 kicks in (no per-bin min/max at all)
+
         if (!isCircular) {
           let minValRaw = null, maxValRaw = null, minTs = null, maxTs = null;
+          let anyBinHasMinMax = false;
+
           bins.forEach(b => {
-            const bMin = (b.min !== undefined && b.min !== null) ? b.min : b.value;
-            const bMax = (b.max !== undefined && b.max !== null) ? b.max : b.value;
-            if (minValRaw === null || bMin < minValRaw) { minValRaw = bMin; minTs = b.timestamp; }
-            if (maxValRaw === null || bMax > maxValRaw) { maxValRaw = bMax; maxTs = b.timestamp; }
+            const hasMin = (b.min !== undefined && b.min !== null);
+            const hasMax = (b.max !== undefined && b.max !== null);
+
+            if (hasMin || hasMax) anyBinHasMinMax = true;
+
+            // True per-bin extreme (Tier 1 / Tier 2).
+            // If only one of min/max is present, use value as the other side.
+            const bMin = hasMin ? b.min : b.value;
+            const bMax = hasMax ? b.max : b.value;
+
+            // Timestamp: prefer the dedicated extreme-point timestamp if the
+            // backend provides it (Tier 1); fall back to the bin timestamp.
+            const bMinTs = (b.min_timestamp !== undefined && b.min_timestamp !== null)
+                           ? b.min_timestamp : b.timestamp;
+            const bMaxTs = (b.max_timestamp !== undefined && b.max_timestamp !== null)
+                           ? b.max_timestamp : b.timestamp;
+
+            if (minValRaw === null || bMin < minValRaw) {
+              minValRaw = bMin;
+              minTs = bMinTs;
+            }
+            if (maxValRaw === null || bMax > maxValRaw) {
+              maxValRaw = bMax;
+              maxTs = bMaxTs;
+            }
           });
+
+          // If no bin had a min/max field at all — Tier 3 fallback
+          if (!anyBinHasMinMax) {
+            usingFallbackAvg = true;
+          }
+
+          // Weighted average (by sample count so sparse bins don't overweight)
           const totalCount = counts.reduce((a, c) => a + c, 0);
           const weightedSum = bins.reduce((s, b, i) => s + b.value * counts[i], 0);
-          const trueAvg = totalCount > 0 ? weightedSum / totalCount : (values.reduce((a, c) => a + c, 0) / values.length);
-          const fmtUtc = (ts) => new Date(ts * 1000).toISOString().slice(11, 16) + 'Z';
-          minVal = Math.round(minValRaw * 10) / 10 + (unit ? ' ' + unit : '');
-          maxVal = Math.round(maxValRaw * 10) / 10 + (unit ? ' ' + unit : '');
+          const trueAvg = totalCount > 0
+            ? weightedSum / totalCount
+            : values.reduce((a, c) => a + c, 0) / values.length;
+
+          const fmtUtc = (ts) => {
+            if (ts === null || ts === undefined) return '';
+            return new Date(ts * 1000).toISOString().slice(11, 16) + 'Z';
+          };
+
+          const fallbackNote = usingFallbackAvg ? ' ᵃ' : ''; // superscript marker
+
+          minVal = (minValRaw !== null ? Math.round(minValRaw * 10) / 10 : '—')
+                   + (unit ? ' ' + unit : '') + fallbackNote;
+          maxVal = (maxValRaw !== null ? Math.round(maxValRaw * 10) / 10 : '—')
+                   + (unit ? ' ' + unit : '') + fallbackNote;
           avgVal = Math.round(trueAvg * 10) / 10 + (unit ? ' ' + unit : '');
+
           minTimeStr = minTs !== null ? fmtUtc(minTs) : '';
           maxTimeStr = maxTs !== null ? fmtUtc(maxTs) : '';
+
         } else {
-          // Circular mean is computed correctly on the backend per-bin already;
-          // showing a "current bearing" here rather than a misleading min/max.
-          avgVal = values.length ? Math.round(values[values.length - 1] * 10) / 10 + '°' : '—';
+          // Wind direction: circular mean is meaningless as a scalar min/max,
+          // so we just show the latest bearing as "current" in the avg slot.
+          avgVal = values.length
+            ? Math.round(values[values.length - 1] * 10) / 10 + '°'
+            : '—';
         }
 
         const binText = currentBin === 120 ? '2-min' :
@@ -2255,16 +2428,28 @@
                         currentBin === 3600 ? '1-hour' : '3-hour';
 
         metaCurrent.textContent = currentVal;
-        metaMin.innerHTML = minTimeStr ? `${minVal}<span class="meta-time">@${minTimeStr}</span>` : minVal;
-        metaMax.innerHTML = maxTimeStr ? `${maxVal}<span class="meta-time">@${maxTimeStr}</span>` : maxVal;
+        // Show the extreme value + its UTC timestamp (e.g. "21.7 kt @14:32Z").
+        // If the backend didn't return per-bin min/max (Tier 3 fallback),
+        // a small ᵃ marker is appended to the value and a footnote explains it.
+        metaMin.innerHTML = minTimeStr
+          ? `${minVal}<span class="meta-time">@${minTimeStr}</span>`
+          : minVal;
+        metaMax.innerHTML = maxTimeStr
+          ? `${maxVal}<span class="meta-time">@${maxTimeStr}</span>`
+          : maxVal;
         metaAvg.textContent = avgVal;
 
-        // ─── Data-gap warning ───
+        // ─── Data-gap / fallback warnings ───
         const nowSec = Date.now() / 1000;
         const lastTs = bins[bins.length - 1].timestamp;
         const staleMin = Math.round((nowSec - lastTs) / 60);
         if (gapNote) {
-          if (staleMin > Math.max(5, currentBin / 60)) {
+          if (usingFallbackAvg) {
+            // Backend doesn't send per-bin min/max — values shown are bin averages.
+            // This means real extremes (e.g. a wind gust) are understated.
+            gapNote.textContent = `ᵃ Min/Max shown are bin averages — backend does not return per-bin extremes. Upgrade the /history API to include MIN() and MAX() per bin for accurate extreme values.`;
+            gapNote.classList.add('show');
+          } else if (staleMin > Math.max(5, currentBin / 60)) {
             gapNote.textContent = `⚠ Last sample is ${staleMin} min old — check sensor/relay connectivity.`;
             gapNote.classList.add('show');
           } else {
@@ -2275,6 +2460,15 @@
         const color = isDarkMode ? '#00e5ff' : '#1565c0';
         const thresholdCfg = THRESHOLDS[param];
 
+        // Headwind is the one chart where the SIGN is the operationally
+        // meaningful thing — + = headwind (favourable), − = tailwind
+        // (unfavourable) — so it gets its own green/red sign coloring
+        // instead of the generic single-color-plus-threshold-breach styling
+        // every other param uses.
+        const HEAD_GREEN = '#00e676';
+        const TAIL_RED = '#ff1744';
+        const isHeadwindChart = (param === 'headwind');
+
         // Just the clean value line + points — no shaded min/max band. The
         // band looked nice but its translucent fill was hiding real spikes
         // in the trace; a plain line shows gusts/dips far more clearly.
@@ -2284,13 +2478,25 @@
         datasets.push({
           label: displayName,
           data: points,
-          borderColor: color,
+          borderColor: isHeadwindChart ? HEAD_GREEN : color,
           backgroundColor: color + '33',
           fill: isCircular,
           tension: 0.3,
           pointRadius: 3,
+          segment: isHeadwindChart ? {
+            // Colors each line SEGMENT (not just the point dots) by sign, so
+            // a head→tail crossover is visible along the line itself.
+            borderColor: (ctx) => {
+              const y0 = ctx.p0?.parsed?.y, y1 = ctx.p1?.parsed?.y;
+              const avg = ((y0 ?? 0) + (y1 ?? 0)) / 2;
+              return avg < 0 ? TAIL_RED : HEAD_GREEN;
+            }
+          } : undefined,
           pointBackgroundColor: (context) => {
             const v = context.parsed ? context.parsed.y : null;
+            if (isHeadwindChart) {
+              return (v !== null && v < 0) ? TAIL_RED : HEAD_GREEN;
+            }
             return isBreach(thresholdCfg, v) ? '#ff3b3b' : color;
           },
           pointBorderColor: isDarkMode ? '#07111c' : '#ffffff',
@@ -2328,6 +2534,25 @@
                   c.fillText(thresholdCfg.label, chartArea.right - 4, y - 4);
                 }
               });
+            }
+            // Headwind/tailwind boundary — drawn at y=0 so the crossover is
+            // unambiguous regardless of where the line itself happens to sit.
+            if (isHeadwindChart) {
+              const y0 = scales.y.getPixelForValue(0);
+              if (y0 >= chartArea.top && y0 <= chartArea.bottom) {
+                c.strokeStyle = isDarkMode ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
+                c.lineWidth = 1.2;
+                c.setLineDash([5, 4]);
+                c.beginPath();
+                c.moveTo(chartArea.left, y0);
+                c.lineTo(chartArea.right, y0);
+                c.stroke();
+                c.setLineDash([]);
+                c.fillStyle = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+                c.font = "600 10px Inter, sans-serif";
+                c.textAlign = 'left';
+                c.fillText('0  ·  head ↑ / tail ↓', chartArea.left + 4, y0 - 4);
+              }
             }
             const nowX = scales.x.getPixelForValue(toUtcDisplayMs(Date.now() / 1000));
             if (nowX >= chartArea.left && nowX <= chartArea.right) {
@@ -2557,6 +2782,10 @@
         }
       };
 
+      const isHeadwindChart = (meta.param === 'headwind');
+      const HEAD_GREEN = '#00a854';
+      const TAIL_RED = '#c62828';
+
       const referenceLinePlugin = {
         id: 'refLinesExport',
         afterDraw(chart) {
@@ -2584,6 +2813,23 @@
               }
             });
           }
+          if (isHeadwindChart) {
+            const y0 = scales.y.getPixelForValue(0);
+            if (y0 >= chartArea.top && y0 <= chartArea.bottom) {
+              c.strokeStyle = 'rgba(0,0,0,0.45)';
+              c.lineWidth = 1.2;
+              c.setLineDash([5, 4]);
+              c.beginPath();
+              c.moveTo(chartArea.left, y0);
+              c.lineTo(chartArea.right, y0);
+              c.stroke();
+              c.setLineDash([]);
+              c.fillStyle = 'rgba(0,0,0,0.6)';
+              c.font = "600 10px Inter, sans-serif";
+              c.textAlign = 'left';
+              c.fillText('0  ·  head ↑ / tail ↓', chartArea.left + 4, y0 - 4);
+            }
+          }
           c.restore();
         }
       };
@@ -2596,13 +2842,23 @@
           datasets: [{
             label: meta.displayName,
             data: points,
-            borderColor: lineColor,
+            borderColor: isHeadwindChart ? HEAD_GREEN : lineColor,
             backgroundColor: lineColor + '33',
             fill: meta.isCircular,
             tension: 0.3,
             pointRadius: 3,
+            segment: isHeadwindChart ? {
+              borderColor: (ctx) => {
+                const y0 = ctx.p0?.parsed?.y, y1 = ctx.p1?.parsed?.y;
+                const avg = ((y0 ?? 0) + (y1 ?? 0)) / 2;
+                return avg < 0 ? TAIL_RED : HEAD_GREEN;
+              }
+            } : undefined,
             pointBackgroundColor: (context) => {
               const v = context.parsed ? context.parsed.y : null;
+              if (isHeadwindChart) {
+                return (v !== null && v < 0) ? TAIL_RED : HEAD_GREEN;
+              }
               return isBreach(meta.thresholdCfg, v) ? '#c62828' : lineColor;
             },
             pointBorderColor: '#ffffff',
