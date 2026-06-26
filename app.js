@@ -1413,10 +1413,10 @@
         const localCount = bins.filter(b => b._source === 'local').length;
         if (gapNote) {
           if (localCount > 0) {
-            gapNote.textContent = `💾 ${localCount} of ${bins.length} points restored from local browser backup (backend gap detected — likely a restart). Values may be less precise than live sensor data.`;
+            gapNote.textContent = `💾 ${localCount} of ${bins.length} points restored from local browser backup (backend gap detected — likely a restart).`;
             gapNote.classList.add('show');
           } else if (usingFallbackAvg) {
-            gapNote.textContent = `ᵃ Min/Max shown are bin averages — backend does not return per-bin extremes. Upgrade the /history API to include MIN() and MAX() per bin for accurate extreme values.`;
+            gapNote.textContent = `ᵃ Min/Max shown are bin averages.`;
             gapNote.classList.add('show');
           } else if (staleMin > Math.max(5, currentBin / 60)) {
             gapNote.textContent = `⚠ Last sample is ${staleMin} min old — check sensor/relay connectivity.`;
