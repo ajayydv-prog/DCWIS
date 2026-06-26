@@ -2508,7 +2508,7 @@
           <div class="snap-24h-grid">
             ${buildCommonAirfield24hTable(common)}
           </div>
-          <div class="snap-24h-note">RVR / MOR / Temp / Humidity rows are avg-based (approx) pending backend MIN/MAX aggregation upgrade.</div>`;
+          <div class="snap-24h-note">RVR / MOR / Temp / Humidity rows are avg-based (approx).</div>`;
       } catch (err) {
         console.error('24h summary build failed:', err);
         container.innerHTML = `<div class="snap-24h-note">⚠ Could not load 24H summary (backend/register unreachable).</div>`;
