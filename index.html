@@ -712,6 +712,48 @@
       border-color:rgba(255,255,255,0.12); margin-left:auto;
     }
     .snap-btn.btn-close:hover { background:rgba(255,255,255,0.10); color:#fff; }
+    /* ── 24H SUMMARY TABLES (print/PDF page) ── */
+    .snap-24h-section { margin-top:14px; }
+    .snap-24h-heading {
+      font-family:'Orbitron',sans-serif; font-size:clamp(10px,1vw,12px); font-weight:700;
+      color:#7aaccf; letter-spacing:0.6px; text-transform:uppercase;
+      margin:10px 0 5px; padding-bottom:3px; border-bottom:1px solid rgba(255,255,255,0.12);
+    }
+    .snap-24h-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media (max-width:580px) { .snap-24h-grid { grid-template-columns:1fr; } }
+    .snap-24h-table {
+      width:100%; border-collapse:collapse; font-size:clamp(8.5px,0.82vw,10.5px);
+      border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden;
+    }
+    .snap-24h-table caption {
+      font-family:'Orbitron',sans-serif; font-weight:700; letter-spacing:0.5px;
+      font-size:clamp(9px,0.9vw,11px); color:#fff; text-align:left;
+      padding:5px 8px; caption-side:top;
+    }
+    .snap-24h-table.rwy28 caption { background:linear-gradient(90deg,#1565c0,#0288d1); }
+    .snap-24h-table.rwy10 caption { background:linear-gradient(90deg,#00695c,#00897b); }
+    .snap-24h-table.common caption { background:linear-gradient(90deg,#4527a0,#5e35b1); }
+    .snap-24h-table td, .snap-24h-table th {
+      padding:3px 7px; border-bottom:1px solid rgba(255,255,255,0.07); text-align:left;
+    }
+    .snap-24h-table tr:last-child td { border-bottom:none; }
+    .snap-24h-table td.s24-lbl { color:#7aaccf; font-weight:500; width:46%; }
+    .snap-24h-table td.s24-val { color:#fff; font-weight:800; }
+    .snap-24h-table td.s24-time { color:#80cbc4; font-weight:500; font-size:0.92em; white-space:nowrap; }
+    .snap-24h-table td.s24-val.red   { color:#ff5252; }
+    .snap-24h-table td.s24-val.amber { color:#ffb74d; }
+    .snap-24h-table td.s24-val.green { color:#00e676; }
+    .snap-24h-table td.s24-val.cyan  { color:#00e5ff; }
+    .s24-approx { font-size:0.85em; color:#ffb74d; font-weight:500; }
+    .snap-24h-note {
+      font-size:clamp(8px,0.78vw,9.5px); color:#7aaccf; opacity:0.8;
+      margin-top:4px; font-style:italic;
+    }
+    .snap-24h-loading {
+      text-align:center; padding:14px; color:#7aaccf; font-size:11px;
+      grid-column:1/-1;
+    }
+
     @media print {
       body > *:not(#snapshotModal) { display:none !important; }
       #snapshotModal { position:static !important; display:block !important; padding:0 !important; background:none !important; }
@@ -730,6 +772,27 @@
       .snap-station-lbl { color:#555 !important; }
       .snap-metar-body { color:#1b5e20 !important; background:#f1f8e9 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       #snap-actions, .snap-close { display:none !important; }
+
+      /* 24H summary tables — compact, fit on one printed page */
+      .snap-24h-section { margin-top:8px; page-break-inside:avoid; }
+      .snap-24h-heading { color:#333 !important; border-bottom:1px solid #ccc !important; margin:6px 0 4px; font-size:9px !important; }
+      .snap-24h-grid { gap:6px; }
+      .snap-24h-table { font-size:7.6px !important; border:1px solid #bbb !important; }
+      .snap-24h-table caption { font-size:8.4px !important; padding:3px 6px !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-24h-table.rwy28 caption { background:#1565c0 !important; }
+      .snap-24h-table.rwy10 caption { background:#00695c !important; }
+      .snap-24h-table.common caption { background:#5e35b1 !important; }
+      .snap-24h-table td, .snap-24h-table th { padding:1.5px 5px !important; border-bottom:1px solid #e0e0e0 !important; }
+      .snap-24h-table td.s24-lbl { color:#444 !important; }
+      .snap-24h-table td.s24-val { color:#000 !important; }
+      .snap-24h-table td.s24-val.red   { color:#c62828 !important; }
+      .snap-24h-table td.s24-val.amber { color:#a05a00 !important; }
+      .snap-24h-table td.s24-val.green { color:#1b5e20 !important; }
+      .snap-24h-table td.s24-val.cyan  { color:#01579b !important; }
+      .snap-24h-table td.s24-time { color:#00695c !important; }
+      .s24-approx { color:#a05a00 !important; }
+      .snap-24h-note { color:#666 !important; }
+      .snap-24h-loading { display:none !important; }
     }
 
     /* ── HISTORY MODAL ── */
@@ -3484,6 +3547,254 @@
       return 'cyan';
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  24H SUMMARY — data gathering (register-based + backend history)
+    // ═══════════════════════════════════════════════════════════════
+
+    // Harsh-weather priority ranking (high → low severity). Each entry is
+    // checked against e.weather via simple substring/regex match, most
+    // specific (longest / most qualified) patterns first within each tier.
+    const WEATHER_PRIORITY = [
+      { rank: 1,  test: /\+TS(RA|GR)?/,            label: 'Severe Thunderstorm' },
+      { rank: 2,  test: /(?<!\+)TS(RA)?/,          label: 'Thunderstorm' },
+      { rank: 3,  test: /(\+SHRA|\+RA|GR)/,        label: 'Heavy Rain/Showers/Hail' },
+      { rank: 4,  test: /(FZRA|FZFG)/,             label: 'Freezing Rain/Fog' },
+      { rank: 5,  test: /(?<!\w)FG(?!\w)/,         label: 'Fog' },
+      { rank: 6,  test: /(SHRA|(?<!-)RA(?!\w)|DZ)/,label: 'Showers/Rain/Drizzle' },
+      { rank: 7,  test: /(BCFG|PRFG|MIFG)/,        label: 'Patchy/Shallow Fog' },
+      { rank: 8,  test: /(?<!\w)BR(?!\w)/,         label: 'Mist' },
+      { rank: 9,  test: /(?<!\w)HZ(?!\w)/,         label: 'Haze' },
+      { rank: 10, test: /(-RA|-DZ|-SHRA)/,         label: 'Light Rain/Drizzle' }
+    ];
+
+    function classifyWeatherCode(raw) {
+      if (!raw) return null;
+      const s = String(raw).trim().toUpperCase();
+      if (!s) return null;
+      for (const tier of WEATHER_PRIORITY) {
+        if (tier.test.test(s)) return tier;
+      }
+      return null;
+    }
+
+    function registerEntryTimeLabel(e) {
+      const t = String(e.time || '').padStart(4, '0');
+      return t.length >= 4 ? `${t.slice(0,2)}:${t.slice(2,4)}Z` : '—';
+    }
+
+    // Fetch + flatten the register entries needed to cover the last 24h.
+    async function fetch24hRegisterEntries() {
+      return fetchMetarHistoryFromRegister(24); // newest-first array of raw entries
+    }
+
+    // ─── Max reported wind gust (24h), restricted to entries where the
+    //     given runway's RVR was the active one (register OR archive format) ───
+    function getMaxWindGust24h(rwy, entries) {
+      let best = null;
+      entries.forEach(e => {
+        const isActiveForRwy =
+          String(e.activervr1) === rwy || String(e.activervr2) === rwy ||   // live register format
+          (rwy === '28' && e.activervr1 === '1') ||                         // archive format
+          (rwy === '10' && e.activervr2 === '1');
+        if (!isActiveForRwy) return;
+        const g = parseLeadingNumber(e.maxwind);
+        if (g === null) return;
+        if (!best || g > best.value) {
+          best = { value: g, time: registerEntryTimeLabel(e) };
+        }
+      });
+      return best; // { value, time } | null
+    }
+
+    // ─── Common airfield block: lowest visibility, lowest cloud base, harshest weather ───
+    function getCommonAirfield24h(entries) {
+      let lowestVis = null;     // { value, time, isGood }
+      let lowestCloud = null;   // { value, time, raw }
+      let harshest = null;      // { rank, label, raw, time }
+
+      const CLOUD_RE = /^(FEW|SCT|BKN|OVC)(\d{3})/;
+
+      entries.forEach(e => {
+        // Visibility
+        if (e.visibility !== undefined && e.visibility !== null && e.visibility !== '') {
+          const good = isGoodVisibilityReading(e.visibility);
+          const v = parseVisibilityForFogCheck(e.visibility);
+          if (!good && v !== null) {
+            if (!lowestVis || v < lowestVis.value) {
+              lowestVis = { value: v, time: registerEntryTimeLabel(e), isGood: false };
+            }
+          }
+        }
+        // Cloud base — lowest among FEW/SCT/BKN/OVC layers reported in this entry
+        ['cloud1','cloud2','cloud3','cloud4'].forEach(c => {
+          const raw = e[c];
+          if (!raw) return;
+          const m = CLOUD_RE.exec(String(raw).toUpperCase());
+          if (!m) return;
+          const baseFt = parseInt(m[2], 10) * 100;
+          if (!lowestCloud || baseFt < lowestCloud.value) {
+            lowestCloud = { value: baseFt, time: registerEntryTimeLabel(e), raw: raw };
+          }
+        });
+        // Harshest weather phenomenon
+        const tier = classifyWeatherCode(e.weather);
+        if (tier && (!harshest || tier.rank < harshest.rank)) {
+          harshest = { rank: tier.rank, label: tier.label, raw: e.weather, time: registerEntryTimeLabel(e) };
+        }
+      });
+
+      return { lowestVis, lowestCloud, harshest };
+    }
+
+    // ─── Per-runway 24h table rows: wind/headwind from backend history (MIN/MAX
+    //     aggregation), gust from register, and avg-based placeholders for
+    //     RVR/MOR/Temp/Humidity/Spread until the backend MIN/MAX upgrade lands ───
+    async function build24hRunwayData(rwy, registerEntries) {
+      const [wsBins, hwBins, rvrBins, morBins, tempBins, humBins] = await Promise.all([
+        fetchHistoryFromBackend(rwy, 'windSpeed', 24, 3600),
+        fetchComputedWindComponentHistory(rwy, 'headwind', 24, 3600),
+        fetchHistoryFromBackend(rwy, 'rvr', 24, 3600),
+        fetchHistoryFromBackend(rwy, 'mor', 24, 3600),
+        fetchHistoryFromBackend(rwy, 'temperature', 24, 3600),
+        fetchHistoryFromBackend(rwy, 'humidity', 24, 3600)
+      ]);
+
+      function minMaxOf(bins, key) {
+        let mn = null, mx = null, mnT = null, mxT = null;
+        bins.forEach(b => {
+          const hasRange = b.min !== undefined && b.min !== null && b.max !== undefined && b.max !== null;
+          const lo = hasRange ? b.min : b.value;
+          const hi = hasRange ? b.max : b.value;
+          if (lo === undefined || lo === null || isNaN(lo)) return;
+          if (mn === null || lo < mn) { mn = lo; mnT = b.min_timestamp ?? b.timestamp; }
+          if (mx === null || hi > mx) { mx = hi; mxT = b.max_timestamp ?? b.timestamp; }
+        });
+        return { min: mn, max: mx, minTs: mnT, maxTs: mxT };
+      }
+
+      // Backend bin timestamps are epoch seconds (UTC); format directly.
+      function fmtEpochSec(ts) {
+        if (ts === undefined || ts === null) return '—';
+        const d = new Date(ts * 1000);
+        if (isNaN(d.getTime())) return '—';
+        return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0') + 'Z';
+      }
+
+      const ws = minMaxOf(wsBins);
+      const hw = minMaxOf(hwBins);
+      const rvr = minMaxOf(rvrBins);
+      const mor = minMaxOf(morBins);
+      const temp = minMaxOf(tempBins);
+      const hum = minMaxOf(humBins);
+      const gust = getMaxWindGust24h(rwy, registerEntries);
+
+      // Fog-risk spread: derive from temp/hum bins isn't possible without dew
+      // point history; reuse min temp & corresponding humidity as an approx
+      // unless dew point history is available.
+      const dewBins = await fetchHistoryFromBackend(rwy, 'dewPoint', 24, 3600);
+      const dew = minMaxOf(dewBins);
+      let minSpread = null;
+      if (temp.min !== null && dew.max !== null) {
+        // Worst-case (smallest) spread isn't simply min(temp)-max(dew) across
+        // *different* timestamps, but it's the best available approximation
+        // without per-bin paired temp/dew samples.
+        minSpread = Math.round((temp.min - dew.max) * 10) / 10;
+      }
+
+      return {
+        rwy,
+        wsMax: ws.max, wsMaxT: fmtEpochSec(ws.maxTs),
+        wsMin: ws.min, wsMinT: fmtEpochSec(ws.minTs),
+        hwMax: hw.max, hwMaxT: fmtEpochSec(hw.maxTs),
+        gust,
+        rvrMin: rvr.min, rvrMinT: fmtEpochSec(rvr.minTs),
+        morMin: mor.min, morMinT: fmtEpochSec(mor.minTs),
+        tempMax: temp.max, tempMaxT: fmtEpochSec(temp.maxTs),
+        tempMin: temp.min, tempMinT: fmtEpochSec(temp.minTs),
+        humMax: hum.max, humMaxT: fmtEpochSec(hum.maxTs),
+        humMin: hum.min, humMinT: fmtEpochSec(hum.minTs),
+        minSpread
+      };
+    }
+
+    function s24row(lbl, val, unit, colorCls, timeStr, approx) {
+      const valDisp = (val === null || val === undefined || val === '—') ? '—' : `${val}${unit||''}`;
+      return `<tr>
+        <td class="s24-lbl">${lbl}${approx ? ' <span class="s24-approx">(approx)</span>' : ''}</td>
+        <td class="s24-val ${colorCls||''}">${valDisp}</td>
+        <td class="s24-time">${timeStr || '—'}</td>
+      </tr>`;
+    }
+
+    function buildRunway24hTable(d, headerCls, label) {
+      const wsMaxColor = d.wsMax !== null ? (d.wsMax >= 25 ? 'red' : d.wsMax >= 15 ? 'amber' : 'green') : '';
+      const hwMaxColor = d.hwMax !== null ? (Math.abs(d.hwMax) >= 30 ? 'red' : Math.abs(d.hwMax) >= 20 ? 'amber' : 'green') : '';
+      const gustColor = d.gust ? (d.gust.value >= 25 ? 'red' : d.gust.value >= 15 ? 'amber' : 'green') : '';
+      const rvrColor = d.rvrMin !== null ? (d.rvrMin < 550 ? 'red' : d.rvrMin < 1000 ? 'amber' : 'green') : '';
+      const spreadColor = d.minSpread !== null ? (d.minSpread < 2 ? 'red' : d.minSpread < 3 ? 'amber' : 'green') : '';
+
+      return `<table class="snap-24h-table ${headerCls}">
+        <caption>RWY ${d.rwy} — 24H Summary${label ? ' · ' + label : ''}</caption>
+        <tbody>
+          ${s24row('Max Wind Speed', d.wsMax, ' kt', wsMaxColor, d.wsMaxT)}
+          ${s24row('Min Wind Speed', d.wsMin, ' kt', '', d.wsMinT)}
+          ${s24row('Max Headwind', d.hwMax, ' kt', hwMaxColor, d.hwMaxT)}
+          ${s24row('Max Wind Gust (reported)', d.gust ? d.gust.value : null, ' kt', gustColor, d.gust ? d.gust.time : null)}
+          ${s24row('Min RVR', d.rvrMin, ' m', rvrColor, d.rvrMinT, true)}
+          ${s24row('Min MOR', d.morMin, ' m', '', d.morMinT, true)}
+          ${s24row('Max Temp', d.tempMax, ' °C', '', d.tempMaxT, true)}
+          ${s24row('Min Temp', d.tempMin, ' °C', '', d.tempMinT, true)}
+          ${s24row('Max Humidity', d.humMax, ' %', '', d.humMaxT, true)}
+          ${s24row('Min Humidity', d.humMin, ' %', '', d.humMinT, true)}
+          ${s24row('Min T–Td Spread (Fog Risk)', d.minSpread, '°C', spreadColor, '', true)}
+        </tbody>
+      </table>`;
+    }
+
+    function buildCommonAirfield24hTable(common) {
+      const visStr = common.lowestVis ? `${common.lowestVis.value} m` : '—';
+      const visColor = common.lowestVis ? (common.lowestVis.value < 550 ? 'red' : common.lowestVis.value < 1500 ? 'amber' : 'green') : '';
+      const cloudStr = common.lowestCloud ? `${common.lowestCloud.raw} (${common.lowestCloud.value} ft)` : '—';
+      const weatherStr = common.harshest ? `${common.harshest.label} (${common.harshest.raw})` : 'NSW';
+
+      return `<table class="snap-24h-table common">
+        <caption>Airfield Common — 24H</caption>
+        <tbody>
+          <tr><td class="s24-lbl">Lowest Visibility</td><td class="s24-val ${visColor}">${visStr}</td><td class="s24-time">${common.lowestVis ? common.lowestVis.time : '—'}</td></tr>
+          <tr><td class="s24-lbl">Lowest Cloud Base</td><td class="s24-val">${cloudStr}</td><td class="s24-time">${common.lowestCloud ? common.lowestCloud.time : '—'}</td></tr>
+          <tr><td class="s24-lbl">Harshest Weather</td><td class="s24-val ${common.harshest ? 'amber' : ''}">${weatherStr}</td><td class="s24-time">${common.harshest ? common.harshest.time : '—'}</td></tr>
+        </tbody>
+      </table>`;
+    }
+
+    async function buildAndInject24hSummary() {
+      const container = document.getElementById('snap24hContainer');
+      if (!container) return;
+      try {
+        const entries = await fetch24hRegisterEntries();
+        const common = getCommonAirfield24h(entries);
+        const [d28, d10] = await Promise.all([
+          build24hRunwayData('28', entries),
+          build24hRunwayData('10', entries)
+        ]);
+
+        container.innerHTML = `
+          <div class="snap-24h-heading">24H Summary (RWY 28 / RWY 10)</div>
+          <div class="snap-24h-grid">
+            ${buildRunway24hTable(d28, 'rwy28')}
+            ${buildRunway24hTable(d10, 'rwy10')}
+          </div>
+          <div class="snap-24h-heading">Airfield Common — 24H</div>
+          <div class="snap-24h-grid">
+            ${buildCommonAirfield24hTable(common)}
+          </div>
+          <div class="snap-24h-note">RVR / MOR / Temp / Humidity rows are avg-based (approx).</div>`;
+      } catch (err) {
+        console.error('24h summary build failed:', err);
+        container.innerHTML = `<div class="snap-24h-note">⚠ Could not load 24H summary (backend/register unreachable).</div>`;
+      }
+    }
+
     function buildSnapshotHTML() {
       const now = new Date();
       const utcStr = now.toUTCString().replace('GMT', 'UTC');
@@ -3572,12 +3883,16 @@
         <div class="snap-metar-box">
           <div class="snap-metar-hdr">📡 LATEST METAR / SPECI</div>
           <div class="snap-metar-body">${escapeHtml(metar)}</div>
+        </div>
+        <div class="snap-24h-section" id="snap24hContainer">
+          <div class="snap-24h-loading">Loading 24H summary…</div>
         </div>`;
     }
 
     window.openSnapshot = function() {
       document.getElementById('snapshotContent').innerHTML = buildSnapshotHTML();
       document.getElementById('snapshotModal').classList.add('active');
+      buildAndInject24hSummary(); // async, fills in #snap24hContainer when ready
     };
 
     window.closeSnapshot = function() {
