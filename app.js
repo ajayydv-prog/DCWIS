@@ -2518,7 +2518,7 @@
     function buildSnapshotHTML() {
       const now = new Date();
       const utcStr = now.toUTCString().replace('GMT', 'UTC');
-      document.getElementById('snap-time-hdr').textContent = `Weather Report.· ${utcStr}`;
+      document.getElementById('snap-time-hdr').textContent = `Weather Report ☔️· ${utcStr}`;
 
       function sv(id) {
         const el = document.getElementById(id);
