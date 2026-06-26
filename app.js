@@ -1413,7 +1413,7 @@
         const localCount = bins.filter(b => b._source === 'local').length;
         if (gapNote) {
           if (localCount > 0) {
-            gapNote.textContent = `💾 ${localCount} of ${bins.length} points restored from local browser backup (backend gap detected — likely a restart).`;
+            gapNote.textContent = `💾 ${localCount} of ${bins.length} points received from browser backup.`;
             gapNote.classList.add('show');
           } else if (usingFallbackAvg) {
             gapNote.textContent = `ᵃ Min/Max shown are bin averages.`;
