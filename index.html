@@ -507,6 +507,231 @@
     body.dark .trend-flat { color:#90caf9; opacity:0.6; }
     body.dark .trend-pending { color:#546e7a; opacity:0.6; }
 
+    /* ── QNH SPARKLINE ── */
+    .qnh-spark-wrap {
+      display:flex; align-items:center; gap:6px; justify-content:center;
+      position:absolute;
+      bottom:4px; left:50%;
+      transform:translateX(-50%);
+      pointer-events:none;
+      z-index:1;
+    }
+    .qnh-spark-canvas {
+      display:block;
+      border-radius:3px;
+      opacity:0.85;
+    }
+
+    /* ── RVR TREND BADGE ── */
+    .rvr-trend-badge {
+      font-size:clamp(8px,0.85vw,11px);
+      font-family:'Inter',sans-serif;
+      font-weight:700;
+      padding:1px 6px;
+      border-radius:8px;
+      letter-spacing:0.3px;
+      white-space:nowrap;
+      border:1px solid;
+      position:absolute;
+      top:4px;
+      left:6px;
+      pointer-events:none;
+    }
+    .rvr-trend-impr { color:#00c853; border-color:#00c853; background:rgba(0,200,83,0.12); }
+    .rvr-trend-deter { color:#ff5252; border-color:#ff5252; background:rgba(255,82,82,0.14);
+                       animation:rvr-pulse 1.6s ease-in-out infinite; }
+    .rvr-trend-stable { color:#78909c; border-color:#546e7a; background:rgba(84,110,122,0.10); }
+    body.dark .rvr-trend-impr { color:#00e676; border-color:#00e676; background:rgba(0,230,118,0.10); }
+    body.dark .rvr-trend-deter { color:#ff1744; border-color:#ff1744; background:rgba(255,23,68,0.12); }
+    @keyframes rvr-pulse {
+      0%,100% { box-shadow:0 0 0 0 rgba(255,82,82,0.5); }
+      50%      { box-shadow:0 0 0 3px rgba(255,82,82,0); }
+    }
+
+    /* ── ALERT OVERLAY ── */
+    #alertOverlay {
+      position:fixed; top:0; left:0; width:100vw; height:100vh;
+      pointer-events:none; z-index:99998;
+      display:none;
+    }
+    #alertOverlay.alert-active {
+      display:block;
+      animation:alertFlash 0.8s ease-in-out infinite alternate;
+    }
+    @keyframes alertFlash {
+      from { border:0px solid transparent; }
+      to   { border:6px solid rgba(255,23,68,0.75); box-shadow:inset 0 0 40px rgba(255,23,68,0.18); }
+    }
+    #alertBanner {
+      position:fixed; top:50px; left:50%; transform:translateX(-50%);
+      background:rgba(183,0,0,0.97);
+      color:#fff; font-family:'Inter',sans-serif; font-weight:800;
+      font-size:clamp(12px,1.4vw,17px);
+      padding:8px 22px; border-radius:10px;
+      box-shadow:0 4px 24px rgba(0,0,0,0.6);
+      border:2px solid #ff5252;
+      display:none; z-index:99999;
+      pointer-events:none;
+      white-space:nowrap;
+      letter-spacing:0.4px;
+      text-align:center;
+      max-width:90vw;
+    }
+    #alertBanner.banner-active { display:block; }
+
+    /* ── PRINT SNAPSHOT MODAL ── */
+    #snapshotModal {
+      position:fixed; top:0; left:0; width:100vw; height:100vh;
+      background:rgba(0,0,0,0.75); backdrop-filter:blur(5px);
+      display:none; justify-content:center; align-items:center;
+      z-index:9999; padding:16px;
+    }
+    #snapshotModal.active { display:flex; }
+    #snapshotBox {
+      background:#0d1f35;
+      border:2px solid #1e4a7a;
+      border-radius:16px; padding:0; max-width:820px; width:100%;
+      box-shadow:0 24px 80px rgba(0,0,0,0.9); position:relative;
+      max-height:94vh; overflow:hidden;
+      display:flex; flex-direction:column;
+    }
+    #snap-header {
+      background:linear-gradient(135deg,#0d47a1 0%,#1565c0 40%,#0277bd 100%);
+      padding:14px 22px 12px;
+      display:flex; justify-content:space-between; align-items:flex-start;
+      flex-shrink:0;
+      border-bottom:2px solid rgba(0,229,255,0.3);
+    }
+    #snap-header-left { display:flex; flex-direction:column; gap:2px; }
+    #snap-header-left .snap-title {
+      font-family:'Orbitron',sans-serif; color:#ffffff;
+      font-size:clamp(13px,1.8vw,20px); font-weight:900; letter-spacing:1px;
+    }
+    #snap-header-left .snap-title span { color:#00e5ff; }
+    #snap-header-left .snap-subtitle {
+      font-family:'Inter',sans-serif; color:rgba(255,255,255,0.65);
+      font-size:clamp(9px,0.85vw,11px); letter-spacing:0.3px;
+    }
+    .snap-close {
+      background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25);
+      color:#fff; font-size:18px; cursor:pointer; border-radius:6px;
+      padding:2px 8px; line-height:1; transition:all 0.2s;
+    }
+    .snap-close:hover { background:rgba(255,255,255,0.25); }
+    #snapshotContent {
+      overflow-y:auto; padding:16px 20px;
+      font-family:'Inter',sans-serif;
+      font-size:clamp(10px,1vw,13px);
+      color:#e0e8f4;
+      flex:1; min-height:0;
+    }
+    .snap-rwy-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:10px;
+      margin-bottom:12px;
+    }
+    @media (max-width:580px) { .snap-rwy-grid { grid-template-columns:1fr; } }
+    .snap-panel {
+      border-radius:10px; overflow:hidden;
+      border:1px solid rgba(255,255,255,0.1);
+    }
+    .snap-panel-header {
+      padding:6px 12px;
+      font-family:'Orbitron',sans-serif;
+      font-size:clamp(10px,1.1vw,13px); font-weight:700;
+      letter-spacing:1px; color:#fff;
+    }
+    .snap-panel-header.rwy28 { background:linear-gradient(90deg,#1565c0,#0288d1); }
+    .snap-panel-header.rwy10 { background:linear-gradient(90deg,#00695c,#00897b); }
+    .snap-panel-body { background:rgba(255,255,255,0.04); padding:8px 10px; }
+    .snap-drow {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .snap-drow:last-child { border-bottom:none; }
+    .snap-dlbl { color:#7aaccf; font-size:clamp(9px,0.85vw,11px); font-weight:500; }
+    .snap-dval { font-weight:800; font-size:clamp(10px,1vw,13px); color:#fff; }
+    .snap-dval.cyan  { color:#00e5ff; }
+    .snap-dval.green { color:#00e676; }
+    .snap-dval.red   { color:#ff5252; }
+    .snap-dval.amber { color:#ffb74d; }
+    .snap-dval.teal  { color:#80cbc4; }
+    .snap-station-bar {
+      display:flex; gap:16px; flex-wrap:wrap;
+      background:rgba(21,101,192,0.18); border:1px solid rgba(21,101,192,0.4);
+      border-radius:8px; padding:8px 14px; margin-bottom:12px;
+      align-items:center;
+    }
+    .snap-station-item { display:flex; flex-direction:column; gap:1px; }
+    .snap-station-lbl { color:#7aaccf; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+    .snap-station-val { color:#fff; font-weight:800; font-size:clamp(10px,1vw,13px); }
+    .snap-metar-box { border-radius:8px; overflow:hidden; margin-top:10px; }
+    .snap-metar-hdr {
+      background:linear-gradient(90deg,#1b5e20,#2e7d32);
+      padding:5px 12px;
+      font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+      color:#fff; letter-spacing:0.5px;
+    }
+    .snap-metar-body {
+      background:rgba(0,100,50,0.15); border:1px solid rgba(0,200,83,0.25);
+      border-top:none; padding:10px 12px;
+      font-family:'JetBrains Mono','Courier New',monospace;
+      color:#00e676; font-size:clamp(11px,1.1vw,15px);
+      word-break:break-all; letter-spacing:0.3px;
+      border-radius:0 0 8px 8px;
+    }
+    .snap-divider { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:10px 0; }
+    #snap-actions {
+      display:flex; gap:8px; padding:12px 20px;
+      border-top:1px solid rgba(255,255,255,0.1);
+      flex-shrink:0; flex-wrap:wrap;
+      background:rgba(0,0,0,0.25);
+    }
+    .snap-btn {
+      font-family:'Inter',sans-serif; font-size:clamp(9px,0.9vw,12px);
+      font-weight:700; padding:6px 16px; border-radius:8px;
+      cursor:pointer; transition:all 0.2s; border:1px solid;
+      display:flex; align-items:center; gap:5px;
+    }
+    .snap-btn.btn-pdf {
+      background:linear-gradient(135deg,#b71c1c,#c62828);
+      color:#fff; border-color:#e53935;
+    }
+    .snap-btn.btn-pdf:hover { filter:brightness(1.15); }
+    .snap-btn.btn-print {
+      background:linear-gradient(135deg,#0d47a1,#1565c0);
+      color:#fff; border-color:#1976d2;
+    }
+    .snap-btn.btn-print:hover { filter:brightness(1.15); }
+    .snap-btn.btn-copy {
+      background:rgba(255,255,255,0.07); color:#e0e8f4;
+      border-color:rgba(255,255,255,0.2);
+    }
+    .snap-btn.btn-copy:hover { background:rgba(255,255,255,0.14); }
+    .snap-btn.btn-close {
+      background:rgba(255,255,255,0.05); color:#7aaccf;
+      border-color:rgba(255,255,255,0.12); margin-left:auto;
+    }
+    .snap-btn.btn-close:hover { background:rgba(255,255,255,0.10); color:#fff; }
+    @media print {
+      body > *:not(#snapshotModal) { display:none !important; }
+      #snapshotModal { position:static !important; display:block !important; padding:0 !important; background:none !important; }
+      #snapshotBox { max-height:none !important; overflow:visible !important; background:#fff !important; border:none !important; box-shadow:none !important; border-radius:0 !important; display:block !important; }
+      #snap-header { background:#1565c0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-panel-header.rwy28 { background:#1565c0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-panel-header.rwy10 { background:#00695c !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-metar-hdr { background:#2e7d32 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      #snapshotContent { color:#000 !important; overflow:visible !important; }
+      .snap-dlbl { color:#444 !important; }
+      .snap-dval, .snap-dval.cyan, .snap-dval.green, .snap-dval.amber, .snap-dval.teal { color:#000 !important; }
+      .snap-dval.red { color:#c62828 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-panel-body { background:#f0f4f8 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-station-bar { background:#e3f2fd !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .snap-station-val { color:#000 !important; }
+      .snap-station-lbl { color:#555 !important; }
+      .snap-metar-body { color:#1b5e20 !important; background:#f1f8e9 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      #snap-actions, .snap-close { display:none !important; }
+    }
+
     /* ── HISTORY MODAL ── */
     .modal-overlay {
       position:fixed; top:0; left:0;
@@ -911,6 +1136,7 @@
     <div class="top-btns">
       <div id="status">⬤ LIVE</div>
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
+      <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
   </div>
@@ -972,11 +1198,11 @@
           <div class="rr"><span class="rl">WD 2min</span><span class="rv" id="r28-wd2">—</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc" data-param="rvr" data-rwy="28"><div class="dch">RVR</div><div class="dcv" id="r28-rvr">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="rvr" data-rwy="28"><div class="dch">RVR</div><div class="dcv" id="r28-rvr">—</div><div id="rvrtrd28" class="rvr-trend-badge" style="display:none"></div><span class="click-hint">📊 Click to see history</span></div>
           <div class="dc" data-param="mor" data-rwy="28"><div class="dch">MOR</div><div class="dcv" id="r28-mor">—</div><div id="visflag28" class="vis-flag"></div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc" data-param="qnh" data-rwy="28"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—<span class="qnh-trend trend-flat" id="trend28-qnh">→</span></div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="qnh" data-rwy="28"><div class="dch">QNH (hPa)</div><div class="dcv" id="r28-qnh">—<span class="qnh-trend trend-flat" id="trend28-qnh">→</span></div><div class="qnh-spark-wrap"><canvas class="qnh-spark-canvas" id="qnhspark28" width="80" height="22"></canvas></div><span class="click-hint">📊 Click to see history</span></div>
           <div class="dc" data-param="qfe" data-rwy="28"><div class="dch">QFE (hPa)</div><div class="dcv" id="r28-qfe">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c3">
@@ -985,8 +1211,8 @@
           <div class="dc" data-param="dewPoint" data-rwy="28"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r28-dew">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r28-wsmax">—</div></div>
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r28-wsmin">—</div></div>
+          <div class="dc" onclick="cycleWsExtreme('28')"><div class="dch" id="wsmaxlbl28" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r28-wsmax">—</div><span class="click-hint">🔁 Click to switch window</span></div>
+          <div class="dc" onclick="cycleWsExtreme('28')"><div class="dch" id="wsminlbl28" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r28-wsmin">—</div><span class="click-hint">🔁 Click to switch window</span></div>
         </div>
       </div>
     </div>
@@ -1027,11 +1253,11 @@
           <div class="rr"><span class="rl">WD 2min</span><span class="rv" id="r10-wd2">—</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc" data-param="rvr" data-rwy="10"><div class="dch">RVR</div><div class="dcv" id="r10-rvr">—</div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="rvr" data-rwy="10"><div class="dch">RVR</div><div class="dcv" id="r10-rvr">—</div><div id="rvrtrd10" class="rvr-trend-badge" style="display:none"></div><span class="click-hint">📊 Click to see history</span></div>
           <div class="dc" data-param="mor" data-rwy="10"><div class="dch">MOR</div><div class="dcv" id="r10-mor">—</div><div id="visflag10" class="vis-flag"></div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc" data-param="qnh" data-rwy="10"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—<span class="qnh-trend trend-flat" id="trend10-qnh">→</span></div><span class="click-hint">📊 Click to see history</span></div>
+          <div class="dc" data-param="qnh" data-rwy="10"><div class="dch">QNH (hPa)</div><div class="dcv" id="r10-qnh">—<span class="qnh-trend trend-flat" id="trend10-qnh">→</span></div><div class="qnh-spark-wrap"><canvas class="qnh-spark-canvas" id="qnhspark10" width="80" height="22"></canvas></div><span class="click-hint">📊 Click to see history</span></div>
           <div class="dc" data-param="qfe" data-rwy="10"><div class="dch">QFE (hPa)</div><div class="dcv" id="r10-qfe">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c3">
@@ -1040,8 +1266,8 @@
           <div class="dc" data-param="dewPoint" data-rwy="10"><div class="dch">DEW PT (°C)</div><div class="dcv" id="r10-dew">—</div><span class="click-hint">📊 Click to see history</span></div>
         </div>
         <div class="data-row c2">
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r10-wsmax">—</div></div>
-          <div class="dc"><div class="dch" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r10-wsmin">—</div></div>
+          <div class="dc" onclick="cycleWsExtreme('10')"><div class="dch" id="wsmaxlbl10" style="background:var(--hdr2-bg)">MAX WS (1min)</div><div class="dcv" id="r10-wsmax">—</div><span class="click-hint">🔁 Click to switch window</span></div>
+          <div class="dc" onclick="cycleWsExtreme('10')"><div class="dch" id="wsminlbl10" style="background:var(--hdr2-bg)">MIN WS (1min)</div><div class="dcv" id="r10-wsmin">—</div><span class="click-hint">🔁 Click to switch window</span></div>
         </div>
       </div>
     </div>
@@ -1053,7 +1279,32 @@
     </div>
     <div id="metar-container">
       <div id="metar-display">Loading METAR...</div>
+      <button id="metar-copy-btn" title="Copy METAR" onclick="copyMetar()" style="background:rgba(0,200,83,0.10);border:1px solid #00c853;color:#00e676;font-size:clamp(11px,1.2vw,16px);padding:2px 6px;border-radius:8px;cursor:pointer;line-height:1;transition:all 0.2s;flex-shrink:0;">📋</button>
       <button id="metar-history-btn" onclick="openMetarPopup()">📜 METAR HISTORY</button>
+    </div>
+  </div>
+
+  <!-- ─── ALERT OVERLAY ─── -->
+  <div id="alertOverlay"></div>
+  <div id="alertBanner"></div>
+
+  <!-- ─── SNAPSHOT MODAL ─── -->
+  <div id="snapshotModal">
+    <div id="snapshotBox">
+      <div id="snap-header">
+        <div id="snap-header-left">
+          <div class="snap-title">VOGA / MOPA &nbsp;<span>DCWIS</span></div>
+          <div class="snap-subtitle" id="snap-time-hdr">Station Snapshot</div>
+        </div>
+        <button class="snap-close" onclick="closeSnapshot()">&times;</button>
+      </div>
+      <div id="snapshotContent"></div>
+      <div id="snap-actions">
+        <button class="snap-btn btn-pdf" onclick="downloadSnapshotPDF()">⬇ Download PDF</button>
+        <button class="snap-btn btn-print" onclick="window.print()">🖨 Print</button>
+        <button class="snap-btn btn-copy" id="snapCopyBtn" onclick="copySnapshotText()">📋 Copy Text</button>
+        <button class="snap-btn btn-close" onclick="closeSnapshot()">✕ Close</button>
+      </div>
     </div>
   </div>
 
@@ -1142,6 +1393,7 @@
     // ── state ──
     const latestData = { '28': null, '10': null };
     const modes = { '28': 'instant', '10': 'instant' };
+    const wsExtremeModes = { '28': '1min', '10': '1min' };
     const compassDirs = { '28': null, '10': null };
     const RUNWAY_HEADING = { '28': 280, '10': 100 };
     let isDark = true;
@@ -1229,7 +1481,10 @@
       isDark = !isDark;
       document.body.classList.toggle('dark', isDark);
       document.querySelector('[onclick="toggleTheme()"]').textContent = isDark ? '☀' : '🌙';
-      ['28','10'].forEach(r => drawCompass(r, compassDirs[r]));
+      ['28','10'].forEach(r => {
+        drawCompass(r, compassCurrentAngle[r] ?? compassDirs[r]);
+        drawQnhSparkline(r);
+      });
       if(modal.classList.contains('active') && modalParam){
         renderHistoryChart(modalParam, modalRwy);
       }
@@ -1701,8 +1956,9 @@
       });
       ['28','10'].forEach(rwy=>{
         const cell=document.getElementById('compass-'+rwy)?.parentElement;
-        if(cell) drawCompass(rwy, compassDirs[rwy]);
+        if(cell) drawCompass(rwy, compassCurrentAngle[rwy] ?? compassDirs[rwy]);
       });
+      ['28','10'].forEach(rwy => drawQnhSparkline(rwy));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -2023,12 +2279,41 @@
       const qnhTrendRef = updateQnhBufferAndGetReference(rwy, d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded);
       renderPressureTrend('trend'+rwy+'-qnh', d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded, qnhTrendRef);
 
-      setValue(p+'wsmax', d.windSpeed_maxOneMin_rounded || '--');
-      setValue(p+'wsmin', d.windSpeed_minOneMin_rounded || '--');
+      const wsExtSuffix = { '1min':'OneMin', '2min':'TwoMin', '10min':'TenMin' }[wsExtremeModes[rwy]] || 'OneMin';
+      setValue(p+'wsmax', d['windSpeed_max'+wsExtSuffix+'_rounded'] ?? '--');
+      setValue(p+'wsmin', d['windSpeed_min'+wsExtSuffix+'_rounded'] ?? '--');
 
       compassDirs[rwy]=wd;
-      drawCompass(rwy, wd);
+      setCompassTarget(rwy, wd);
+
+      // QNH sparkline
+      const qnhRaw = d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded;
+      pushQnhSpark(rwy, qnhRaw);
+      drawQnhSparkline(rwy);
+
+      // RVR trend
+      const rvrRawForTrend = d['pwd_rvr_avgOneMin'];
+      pushRvrHistory(rwy, rvrRawForTrend);
+      renderRvrTrend(rwy);
+
+      // Alert check (after both panels get data at least once)
+      checkAlerts();
     }
+
+    window.cycleWsExtreme = function(rwy){
+      const order = ['1min','2min','10min'];
+      const cur = wsExtremeModes[rwy] || '1min';
+      const next = order[(order.indexOf(cur) + 1) % order.length];
+      wsExtremeModes[rwy] = next;
+
+      const maxLbl = document.getElementById('wsmaxlbl'+rwy);
+      const minLbl = document.getElementById('wsminlbl'+rwy);
+      if(maxLbl) maxLbl.textContent = 'MAX WS ('+next+')';
+      if(minLbl) minLbl.textContent = 'MIN WS ('+next+')';
+
+      if(latestData[rwy]) renderPanel(rwy);
+    };
+
 
     // ═══════════════════════════════════════════════════════════════
     //  MODE CHANGE
@@ -2916,6 +3201,435 @@
       document.getElementById('status').style.color = '#00ff88';
       consecutiveFetchFailures = 0;
     });
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FEATURE 1 — ALERT / THRESHOLD NOTIFICATION SYSTEM
+    // ═══════════════════════════════════════════════════════════════
+    const alertOverlay = document.getElementById('alertOverlay');
+    const alertBanner  = document.getElementById('alertBanner');
+
+    // Audio context for beep alerts
+    let audioCtx = null;
+    function getAudioCtx() {
+      if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+      }
+      return audioCtx;
+    }
+    function playAlert(freq, duration, type) {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      } catch(e) {}
+    }
+    function playAlertSequence(level) {
+      if (level === 'critical') {
+        // Two short high beeps
+        playAlert(880, 0.22, 'square');
+        setTimeout(() => playAlert(880, 0.22, 'square'), 350);
+      } else {
+        playAlert(660, 0.3, 'sine');
+      }
+    }
+
+    // Alert state tracking
+    const alertStates = {};
+    let alertDismissed = false;
+    let alertDismissTimer = null;
+
+    const ALERT_DEFS = [
+      { id: 'cw28',  label: 'RWY 28 CROSSWIND', rwy: '28', type: 'crosswind',   limit: 15, dir: 'above', useAbs: true,  level: 'critical' },
+      { id: 'cw10',  label: 'RWY 10 CROSSWIND', rwy: '10', type: 'crosswind',   limit: 15, dir: 'above', useAbs: true,  level: 'critical' },
+      { id: 'rvr28', label: 'RWY 28 RVR',       rwy: '28', type: 'rvr',        limit: 550, dir: 'below', useAbs: false, level: 'critical' },
+      { id: 'rvr10', label: 'RWY 10 RVR',       rwy: '10', type: 'rvr',        limit: 550, dir: 'below', useAbs: false, level: 'critical' },
+      { id: 'ws28',  label: 'RWY 28 WIND SPEED',rwy: '28', type: 'windSpeed',  limit: 25,  dir: 'above', useAbs: false, level: 'warn' },
+      { id: 'ws10',  label: 'RWY 10 WIND SPEED',rwy: '10', type: 'windSpeed',  limit: 25,  dir: 'above', useAbs: false, level: 'warn' },
+    ];
+
+    function getAlertValue(def, data) {
+      if (!data) return null;
+      const keyMap = {
+        crosswind: 'crosswind_avgOneMin',
+        rvr:       'pwd_rvr_avgOneMin',
+        windSpeed: 'windSpeed_instant_rounded'
+      };
+      const raw = data[keyMap[def.type]];
+      return parseLeadingNumber(raw);
+    }
+
+    function isAlertBreached(def, val) {
+      if (val === null || isNaN(val)) return false;
+      const v = def.useAbs ? Math.abs(val) : val;
+      return def.dir === 'above' ? v >= def.limit : v < def.limit;
+    }
+
+    function checkAlerts() {
+      if (alertDismissed) return;
+      const activeAlerts = [];
+      ALERT_DEFS.forEach(def => {
+        const data = latestData[def.rwy];
+        const val = getAlertValue(def, data);
+        const breached = isAlertBreached(def, val);
+        const wasBreached = !!alertStates[def.id];
+        alertStates[def.id] = breached;
+        if (breached && !wasBreached) {
+          playAlertSequence(def.level);
+        }
+        if (breached) {
+          const dispVal = val !== null ? (def.useAbs ? Math.abs(val) : val) : '—';
+          const unit = { crosswind:'kt', rvr:'m', windSpeed:'kt' }[def.type] || '';
+          activeAlerts.push(`⚠ ${def.label}: ${dispVal}${unit}`);
+        }
+      });
+
+      if (activeAlerts.length > 0) {
+        alertOverlay.classList.add('alert-active');
+        alertBanner.classList.add('banner-active');
+        alertBanner.innerHTML = activeAlerts.join('&emsp;|&emsp;') +
+          `&emsp;<span onclick="dismissAlert()" style="cursor:pointer;opacity:0.7;font-size:0.85em">✕ Dismiss</span>`;
+      } else {
+        alertOverlay.classList.remove('alert-active');
+        alertBanner.classList.remove('banner-active');
+        alertBanner.innerHTML = '';
+        alertDismissed = false;
+      }
+    }
+
+    window.dismissAlert = function() {
+      alertDismissed = true;
+      alertOverlay.classList.remove('alert-active');
+      alertBanner.classList.remove('banner-active');
+      // Auto re-enable after 5 minutes
+      clearTimeout(alertDismissTimer);
+      alertDismissTimer = setTimeout(() => { alertDismissed = false; }, 5 * 60 * 1000);
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FEATURE 2 — QNH SPARKLINE (mini trend chart in cell)
+    // ═══════════════════════════════════════════════════════════════
+    const qnhSparkData = { '28': [], '10': [] };
+    const QNH_SPARK_MAX = 30; // keep last 30 readings
+
+    function pushQnhSpark(rwy, val) {
+      const num = parseFloat(val);
+      if (isNaN(num)) return;
+      const buf = qnhSparkData[rwy];
+      buf.push(num);
+      if (buf.length > QNH_SPARK_MAX) buf.shift();
+    }
+
+    function drawQnhSparkline(rwy) {
+      const canvas = document.getElementById('qnhspark' + rwy);
+      if (!canvas) return;
+      const buf = qnhSparkData[rwy];
+      const isDarkMode = document.body.classList.contains('dark');
+
+      // Size canvas to parent cell width
+      const parent = canvas.parentElement;
+      const w = Math.max(parent.clientWidth - 12, 40);
+      const h = 22;
+      canvas.width = w;
+      canvas.height = h;
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+
+      if (buf.length < 2) return;
+
+      const min = Math.min(...buf);
+      const max = Math.max(...buf);
+      const range = max - min || 0.01;
+
+      const lineColor = isDarkMode ? '#64b5f6' : '#1565c0';
+      const fillColor = isDarkMode ? 'rgba(100,181,246,0.18)' : 'rgba(21,101,192,0.12)';
+
+      // Draw fill
+      ctx.beginPath();
+      buf.forEach((v, i) => {
+        const x = (i / (buf.length - 1)) * (w - 2) + 1;
+        const y = h - 3 - ((v - min) / range) * (h - 6);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.lineTo((w - 1), h - 2);
+      ctx.lineTo(1, h - 2);
+      ctx.closePath();
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+
+      // Draw line
+      ctx.beginPath();
+      buf.forEach((v, i) => {
+        const x = (i / (buf.length - 1)) * (w - 2) + 1;
+        const y = h - 3 - ((v - min) / range) * (h - 6);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Last dot
+      const last = buf[buf.length - 1];
+      const lx = w - 1;
+      const ly = h - 3 - ((last - min) / range) * (h - 6);
+      ctx.beginPath();
+      ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FEATURE 3 — RVR TREND INDICATOR
+    // ═══════════════════════════════════════════════════════════════
+    const rvrHistory = { '28': [], '10': [] };
+    const RVR_HIST_MAX = 8; // last 8 readings (~8 seconds at 1Hz)
+    const RVR_TREND_WINDOW = 5; // compare last vs 5 readings ago
+
+    function pushRvrHistory(rwy, rawVal) {
+      const num = parseLeadingNumber(rawVal);
+      if (num === null || isNaN(num) || num < 0) return;
+      const buf = rvrHistory[rwy];
+      buf.push(num);
+      if (buf.length > RVR_HIST_MAX) buf.shift();
+    }
+
+    function renderRvrTrend(rwy) {
+      const el = document.getElementById('rvrtrd' + rwy);
+      if (!el) return;
+      const buf = rvrHistory[rwy];
+      if (buf.length < RVR_TREND_WINDOW + 1) { el.style.display = 'none'; return; }
+      const recent  = buf[buf.length - 1];
+      const earlier = buf[buf.length - 1 - RVR_TREND_WINDOW];
+      const diff = recent - earlier;
+      if (Math.abs(diff) < 25) {
+        el.textContent = '→ STABLE';
+        el.className = 'rvr-trend-badge rvr-trend-stable';
+      } else if (diff > 0) {
+        el.textContent = '↑ IMPR +' + Math.round(diff) + 'm';
+        el.className = 'rvr-trend-badge rvr-trend-impr';
+      } else {
+        el.textContent = '↓ DETER ' + Math.round(diff) + 'm';
+        el.className = 'rvr-trend-badge rvr-trend-deter';
+      }
+      el.style.display = 'block';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FEATURE 4 — COMPASS ANIMATED ROTATION
+    // ═══════════════════════════════════════════════════════════════
+    const compassCurrentAngle = { '28': null, '10': null };
+    const compassTargetAngle  = { '28': null, '10': null };
+    const compassAnimFrame    = { '28': null, '10': null };
+
+    function shortestAngleDiff(from, to) {
+      let diff = ((to - from) % 360 + 360) % 360;
+      if (diff > 180) diff -= 360;
+      return diff;
+    }
+
+    function animateCompass(rwy) {
+      const cur = compassCurrentAngle[rwy];
+      const tgt = compassTargetAngle[rwy];
+      if (cur === null || tgt === null) return;
+      const diff = shortestAngleDiff(cur, tgt);
+      if (Math.abs(diff) < 0.5) {
+        compassCurrentAngle[rwy] = tgt;
+        drawCompass(rwy, tgt);
+        return;
+      }
+      // Ease: move 15% of remaining each frame
+      const step = diff * 0.15;
+      compassCurrentAngle[rwy] = cur + step;
+      drawCompass(rwy, compassCurrentAngle[rwy]);
+      compassAnimFrame[rwy] = requestAnimationFrame(() => animateCompass(rwy));
+    }
+
+    function setCompassTarget(rwy, deg) {
+      if (deg === null || isNaN(deg)) return;
+      compassTargetAngle[rwy] = deg;
+      if (compassCurrentAngle[rwy] === null) {
+        compassCurrentAngle[rwy] = deg;
+        drawCompass(rwy, deg);
+        return;
+      }
+      if (compassAnimFrame[rwy]) cancelAnimationFrame(compassAnimFrame[rwy]);
+      animateCompass(rwy);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FEATURE 5 — PRINT / SNAPSHOT REPORT
+    // ═══════════════════════════════════════════════════════════════
+    function snapColorClass(id, thresholds) {
+      const el = document.getElementById(id);
+      if (!el) return '';
+      let txt = '';
+      el.childNodes.forEach(n => { if (n.nodeType === 3) txt += n.textContent; });
+      const num = parseLeadingNumber(txt.trim());
+      if (num === null) return '';
+      if (thresholds) {
+        if (thresholds.red   && num >= thresholds.red)   return 'red';
+        if (thresholds.amber && num >= thresholds.amber) return 'amber';
+        if (thresholds.green && num <= thresholds.green) return 'green';
+      }
+      return 'cyan';
+    }
+
+    function buildSnapshotHTML() {
+      const now = new Date();
+      const utcStr = now.toUTCString().replace('GMT', 'UTC');
+      document.getElementById('snap-time-hdr').textContent = `Snapshot · ${utcStr}`;
+
+      function sv(id) {
+        const el = document.getElementById(id);
+        if (!el) return '—';
+        let txt = '';
+        el.childNodes.forEach(n => { if (n.nodeType === 3) txt += n.textContent; });
+        return txt.trim() || '—';
+      }
+
+      function drow(lbl, val, colorCls) {
+        return `<div class="snap-drow"><span class="snap-dlbl">${lbl}</span><span class="snap-dval ${colorCls||''}">${val}</span></div>`;
+      }
+
+      function rwyPanel(rwy, headerCls, tealLabel) {
+        const d = latestData[rwy];
+
+        // Print/PDF snapshot always uses 2-min average wind, regardless of
+        // whatever instant/1min/10min mode is currently toggled on the live dashboard.
+        const wd = d ? (getValueByMode(d, 'windDirection', '2min') ?? '—') : sv('r'+rwy+'-wd');
+        const ws = d ? (getValueByMode(d, 'windSpeed', '2min') ?? '—') : sv('r'+rwy+'-ws');
+        const wsNum = parseLeadingNumber(ws);
+        const wsColor = wsNum !== null ? (wsNum >= 25 ? 'red' : wsNum >= 15 ? 'amber' : 'green') : '';
+
+        const windComp2min = d ? getHeadCrossWind(d, '2min') : { hw: sv('r'+rwy+'-hw'), cw: sv('r'+rwy+'-cw') };
+        const cw = windComp2min.cw;
+        const cwNum = parseLeadingNumber(cw);
+        const cwColor = cwNum !== null ? (Math.abs(cwNum) >= 15 ? 'red' : Math.abs(cwNum) >= 10 ? 'amber' : 'green') : '';
+
+        const hw = windComp2min.hw;
+        const hwStr = String(hw);
+        const hwColor = hwStr.endsWith('T') ? 'red' : hwStr.endsWith('H') ? 'green' : '';
+
+        const rvr = sv('r'+rwy+'-rvr');
+        const rvrNum = parseLeadingNumber(rvr);
+        const rvrColor = rvrNum !== null ? (rvrNum < 550 ? 'red' : rvrNum < 1000 ? 'amber' : 'green') : '';
+
+        const mor = sv('r'+rwy+'-mor');
+        const qnh = sv('r'+rwy+'-qnh');
+        const qfe = sv('r'+rwy+'-qfe');
+        const temp = sv('r'+rwy+'-temp');
+        const hum = sv('r'+rwy+'-hum');
+        const humNum = parseLeadingNumber(hum);
+        const humColor = humNum !== null ? (humNum >= 95 ? 'red' : humNum >= 85 ? 'amber' : 'teal') : '';
+        const dew = sv('r'+rwy+'-dew');
+        const wsmax = d ? (d.windSpeed_maxTenMin_rounded ?? '—') : sv('r'+rwy+'-wsmax');
+        const wsmin = d ? (d.windSpeed_minTenMin_rounded ?? '—') : sv('r'+rwy+'-wsmin');
+
+        return `<div class="snap-panel">
+          <div class="snap-panel-header ${headerCls}">RWY ${rwy} — ${tealLabel}</div>
+          <div class="snap-panel-body">
+            ${drow('Wind Direction (2min Avg)', wd + '°', 'cyan')}
+            ${drow('Wind Speed (2min Avg)', ws + ' kt', wsColor)}
+            ${drow('Headwind', hw, hwColor)}
+            ${drow('Crosswind', cw, cwColor)}
+            ${drow('Wind Speed Max (10min)', wsmax + ' kt', '')}
+            ${drow('Wind Speed Min (10min)', wsmin + ' kt', '')}
+            <div class="snap-drow" style="border-top:1px solid rgba(255,255,255,0.1);margin-top:4px;padding-top:4px;"></div>
+            ${drow('RVR', rvr + ' m', rvrColor)}
+            ${drow('MOR', mor + ' m', '')}
+            ${drow('QNH', qnh + ' hPa', 'amber')}
+            ${drow('QFE', qfe + ' hPa', '')}
+            ${drow('Temp', temp + ' °C', '')}
+            ${drow('Humidity', hum + ' %', humColor)}
+            ${drow('Dew Point', dew + ' °C', 'teal')}
+          </div>
+        </div>`;
+      }
+
+      const metar = document.getElementById('metar-display')?.textContent?.trim() || '—';
+      const status = document.getElementById('status')?.textContent || '—';
+
+      return `
+        <div class="snap-station-bar">
+          <div class="snap-station-item"><span class="snap-station-lbl">Station</span><span class="snap-station-val">VOGA / MOPA — Goa</span></div>
+          <div class="snap-station-item"><span class="snap-station-lbl">Time (UTC)</span><span class="snap-station-val">${utcStr}</span></div>
+          <div class="snap-station-item"><span class="snap-station-lbl">Link Status</span><span class="snap-station-val">${status}</span></div>
+        </div>
+        <div class="snap-rwy-grid">
+          ${rwyPanel('28','rwy28','Goa Intl')}
+          ${rwyPanel('10','rwy10','Goa Intl')}
+        </div>
+        <div class="snap-metar-box">
+          <div class="snap-metar-hdr">📡 LATEST METAR / SPECI</div>
+          <div class="snap-metar-body">${escapeHtml(metar)}</div>
+        </div>`;
+    }
+
+    window.openSnapshot = function() {
+      document.getElementById('snapshotContent').innerHTML = buildSnapshotHTML();
+      document.getElementById('snapshotModal').classList.add('active');
+    };
+
+    window.closeSnapshot = function() {
+      document.getElementById('snapshotModal').classList.remove('active');
+    };
+
+    window.downloadSnapshotPDF = function() {
+      // Trigger browser print dialog with PDF destination
+      // Colors preserved via print-color-adjust CSS rules
+      window.print();
+    };
+
+    window.copySnapshotText = function() {
+      function sv(id) {
+        const el = document.getElementById(id);
+        if (!el) return '—';
+        let txt = '';
+        el.childNodes.forEach(n => { if (n.nodeType === 3) txt += n.textContent; });
+        return txt.trim() || '—';
+      }
+      const r = (rwy) =>
+        `--- Runway ${rwy} ---\nWD: ${sv('r'+rwy+'-wd')}° | WS: ${sv('r'+rwy+'-ws')} kt | HW: ${sv('r'+rwy+'-hw')} | CW: ${sv('r'+rwy+'-cw')}\nRVR: ${sv('r'+rwy+'-rvr')} m | MOR: ${sv('r'+rwy+'-mor')} m\nQNH: ${sv('r'+rwy+'-qnh')} hPa | QFE: ${sv('r'+rwy+'-qfe')} hPa\nTEMP: ${sv('r'+rwy+'-temp')} °C | HUM: ${sv('r'+rwy+'-hum')} % | DEW: ${sv('r'+rwy+'-dew')} °C`;
+      const metar = document.getElementById('metar-display')?.textContent?.trim() || '—';
+      const txt = `VOGA/MOPA DCWIS Snapshot — ${new Date().toUTCString()}\n\n${r('28')}\n\n${r('10')}\n\nMETAR: ${metar}`;
+      navigator.clipboard?.writeText(txt).then(() => {
+        const btn = document.getElementById('snapCopyBtn');
+        if (btn) { btn.textContent = '✔ Copied!'; setTimeout(() => btn.textContent = '📋 Copy Text', 1800); }
+      });
+    };
+
+    document.getElementById('snapshotModal').addEventListener('click', function(e) {
+      if (e.target === this) closeSnapshot();
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FEATURE 6 — METAR COPY BUTTON
+    // ═══════════════════════════════════════════════════════════════
+    window.copyMetar = function() {
+      const txt = document.getElementById('metar-display')?.textContent?.trim();
+      if (!txt || txt === 'Loading METAR...') return;
+      navigator.clipboard?.writeText(txt).then(() => {
+        const btn = document.getElementById('metar-copy-btn');
+        if (btn) {
+          btn.textContent = '✔';
+          btn.style.color = '#ffffff';
+          setTimeout(() => {
+            btn.textContent = '📋';
+            btn.style.color = '';
+          }, 1800);
+        }
+      });
+    };
 
     window.addEventListener('beforeunload', () => {
       if(autoRefreshInterval) clearInterval(autoRefreshInterval);
