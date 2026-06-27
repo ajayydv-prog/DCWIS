@@ -166,6 +166,49 @@ html,body {
 }
 .panel:last-child { border-right:none; }
 .pb { flex:1; display:flex; flex-direction:column; min-height:0; }
+
+/* ═══ TREND DASHBOARD VIEW ═══ */
+#trendView {
+  display:none;
+  flex:1; min-height:0;
+  grid-template-columns:1fr 1fr;
+  gap:0;
+}
+body.trend-mode #main { display:none; }
+body.trend-mode #trendView { display:grid; }
+.trend-col {
+  display:flex; flex-direction:column; min-height:0;
+  border-right:2px solid var(--panel-border);
+  background:var(--bg);
+}
+.trend-col:last-child { border-right:none; }
+.trend-col-hdr {
+  flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font:800 clamp(11px,1.3vw,15px) 'Inter',sans-serif;
+  letter-spacing:0.04em;
+  padding:clamp(3px,0.6vh,7px) 0;
+  background:var(--hdr2-bg); color:#fff;
+  border-bottom:1px solid var(--border);
+}
+.trend-live-pill {
+  font:700 clamp(8px,0.9vw,11px) 'Inter',sans-serif;
+  color:#69f0ae; opacity:0.9;
+}
+.trend-chart-box {
+  flex:1; min-height:0; position:relative;
+  padding:2px 6px;
+  border-bottom:1px solid var(--border);
+}
+.trend-chart-box:last-child { border-bottom:none; }
+.trend-chart-box canvas { width:100% !important; height:100% !important; }
+#trend-toggle-btn.active {
+  background:rgba(0,230,118,0.20);
+  border-color:#00e676;
+  color:#00e676;
+  box-shadow:0 0 8px rgba(0,230,118,0.5);
+}
+
 .wind-row {
   display:grid; grid-template-columns:0.82fr 0.82fr minmax(80px,17vw);
   flex-shrink:0; border-bottom:2px solid var(--border);

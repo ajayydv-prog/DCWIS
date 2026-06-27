@@ -20,6 +20,7 @@
       <div id="status">⬤ LIVE</div>
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
+      <button class="icon-btn" id="trend-toggle-btn" onclick="toggleTrendView()" title="Trend Dashboard (1H graphs)">📈</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
   </div>
@@ -155,6 +156,27 @@
       </div>
     </div>
   </div>
+
+  <!-- ─── TREND DASHBOARD VIEW ─── -->
+  <div id="trendView">
+    <div class="trend-col" data-rwy="28">
+      <div class="trend-col-hdr">RUNWAY 28 <span class="trend-live-pill" id="trend-live-pill-28">● LIVE</span></div>
+      <div class="trend-chart-box" data-param="windDirection"><canvas id="trend-28-windDirection"></canvas></div>
+      <div class="trend-chart-box" data-param="windSpeed"><canvas id="trend-28-windSpeed"></canvas></div>
+      <div class="trend-chart-box" data-param="rvr"><canvas id="trend-28-rvr"></canvas></div>
+      <div class="trend-chart-box" data-param="qnh"><canvas id="trend-28-qnh"></canvas></div>
+      <div class="trend-chart-box" data-param="temperature"><canvas id="trend-28-temperature"></canvas></div>
+    </div>
+    <div class="trend-col" data-rwy="10">
+      <div class="trend-col-hdr">RUNWAY 10 <span class="trend-live-pill" id="trend-live-pill-10">● LIVE</span></div>
+      <div class="trend-chart-box" data-param="windDirection"><canvas id="trend-10-windDirection"></canvas></div>
+      <div class="trend-chart-box" data-param="windSpeed"><canvas id="trend-10-windSpeed"></canvas></div>
+      <div class="trend-chart-box" data-param="rvr"><canvas id="trend-10-rvr"></canvas></div>
+      <div class="trend-chart-box" data-param="qnh"><canvas id="trend-10-qnh"></canvas></div>
+      <div class="trend-chart-box" data-param="temperature"><canvas id="trend-10-temperature"></canvas></div>
+    </div>
+  </div>
+
   <div id="footer">
     <div class="dev-row">
       <div class="dev">DEVELOPED BY: AJAY (GOA)</div>

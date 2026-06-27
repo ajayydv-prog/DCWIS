@@ -259,6 +259,10 @@
       if(modal.classList.contains('active') && modalParam){
         renderHistoryChart(modalParam, modalRwy);
       }
+      if (trendViewActive) {
+        destroyAllTrendCharts();
+        renderAllTrendCharts();
+      }
     };
 
     window.toggleFullscreen = function(){
@@ -1618,6 +1622,194 @@
 
       isHistoryLoading = false;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  TREND DASHBOARD VIEW (1H multi-chart grid, both runways)
+    // ═══════════════════════════════════════════════════════════════
+    const TREND_PARAMS = ['windDirection', 'windSpeed', 'rvr', 'qnh', 'temperature'];
+    const TREND_HOURS = 1;
+    const TREND_BIN = 60; // 1-min bins for a 1H window
+    const trendCharts = {}; // key `${rwy}-${param}` -> Chart instance
+    let trendViewActive = false;
+    let trendRefreshInterval = null;
+    let trendRenderInFlight = false;
+
+    const TREND_LABEL_MAP = {
+      windDirection: 'Wind Direction', windSpeed: 'Wind Speed',
+      rvr: 'RVR', qnh: 'QNH', temperature: 'Temperature'
+    };
+    const TREND_UNIT_MAP = {
+      windDirection: '°', windSpeed: 'kt', rvr: 'm', qnh: 'hPa', temperature: '°C'
+    };
+
+    async function buildTrendChart(rwy, param) {
+      const key = `${rwy}-${param}`;
+      const canvas = document.getElementById(`trend-${rwy}-${param}`);
+      if (!canvas) return;
+
+      let bins;
+      try {
+        bins = clampNonNegativeBins(await fetchHistoryFromBackend(rwy, param, TREND_HOURS, TREND_BIN), param);
+      } catch (err) {
+        console.error('Trend fetch error:', key, err);
+        bins = [];
+      }
+
+      const isDarkMode = document.body.classList.contains('dark');
+      const textColor = isDarkMode ? '#e0e8f0' : '#1a2a3a';
+      const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+      const color = isDarkMode ? '#00e5ff' : '#1565c0';
+      const displayName = TREND_LABEL_MAP[param];
+      const unit = TREND_UNIT_MAP[param];
+      const isCircular = (param === 'windDirection');
+      const thresholdCfg = THRESHOLDS[param];
+      const nowSec = Date.now() / 1000;
+
+      const points = bins.map(b => ({ x: toUtcDisplayMs(b.timestamp), y: b.value }));
+
+      const existing = trendCharts[key];
+      if (existing) {
+        existing.data.datasets[0].data = points;
+        existing.options.scales.x.min = toUtcDisplayMs(nowSec - TREND_HOURS * 3600);
+        existing.options.scales.x.max = toUtcDisplayMs(nowSec);
+        existing.update('none');
+        return;
+      }
+
+      const refLinePlugin = {
+        id: `refLines-${key}`,
+        afterDraw(chart) {
+          const { ctx: c, chartArea, scales } = chart;
+          if (!chartArea || !scales.x || !scales.y || !thresholdCfg) return;
+          c.save();
+          const limits = thresholdCfg.useAbs ? [thresholdCfg.limit, -thresholdCfg.limit] : [thresholdCfg.limit];
+          limits.forEach(lim => {
+            const y = scales.y.getPixelForValue(lim);
+            if (y < chartArea.top || y > chartArea.bottom) return;
+            c.strokeStyle = '#ff3b3b';
+            c.lineWidth = 1;
+            c.setLineDash([5, 3]);
+            c.beginPath();
+            c.moveTo(chartArea.left, y);
+            c.lineTo(chartArea.right, y);
+            c.stroke();
+            c.setLineDash([]);
+          });
+          c.restore();
+        }
+      };
+
+      const ctx = canvas.getContext('2d');
+      trendCharts[key] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: displayName,
+            data: points,
+            borderColor: color,
+            backgroundColor: color + '33',
+            fill: isCircular,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            borderWidth: 1.8,
+            spanGaps: false
+          }]
+        },
+        plugins: [refLinePlugin],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: textColor, font: { family: 'Inter', weight: '700', size: 10 }, boxWidth: 8, boxHeight:8, padding:4 }
+            },
+            tooltip: {
+              backgroundColor: isDarkMode ? 'rgba(7,17,28,0.92)' : 'rgba(255,255,255,0.92)',
+              titleColor: textColor, bodyColor: textColor,
+              borderColor: gridColor, borderWidth: 1, cornerRadius: 6, displayColors: false,
+              callbacks: { label: (c) => `${c.parsed.y}${unit ? ' ' + unit : ''}` }
+            },
+            zoom: {
+              pan: { enabled: true, mode: 'x' },
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'x' },
+              limits: { x: { min: 'original', max: 'original' } }
+            }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              min: toUtcDisplayMs(nowSec - TREND_HOURS * 3600),
+              max: toUtcDisplayMs(nowSec),
+              time: { displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } },
+              grid: { color: gridColor, drawBorder: false },
+              ticks: { color: textColor, font: { family: 'Inter', size: 9 }, maxTicksLimit: 6, autoSkip: true }
+            },
+            y: {
+              min: Y_AXIS_LIMITS[param] ? Y_AXIS_LIMITS[param].min : undefined,
+              max: Y_AXIS_LIMITS[param] ? Y_AXIS_LIMITS[param].max : undefined,
+              grid: { color: gridColor, drawBorder: false },
+              ticks: { color: textColor, font: { family: 'Inter', size: 9 }, maxTicksLimit: 4 }
+            }
+          },
+          interaction: { intersect: false, mode: 'index' }
+        }
+      });
+    }
+
+    async function renderAllTrendCharts() {
+      if (trendRenderInFlight) return;
+      trendRenderInFlight = true;
+      try {
+        const jobs = [];
+        ['28', '10'].forEach(rwy => {
+          TREND_PARAMS.forEach(param => jobs.push(buildTrendChart(rwy, param)));
+        });
+        await Promise.all(jobs);
+      } finally {
+        trendRenderInFlight = false;
+      }
+    }
+
+    function destroyAllTrendCharts() {
+      Object.keys(trendCharts).forEach(key => {
+        if (trendCharts[key]) trendCharts[key].destroy();
+        delete trendCharts[key];
+      });
+    }
+
+    function startTrendAutoRefresh() {
+      stopTrendAutoRefresh();
+      trendRefreshInterval = setInterval(renderAllTrendCharts, 30000);
+    }
+
+    function stopTrendAutoRefresh() {
+      if (trendRefreshInterval) {
+        clearInterval(trendRefreshInterval);
+        trendRefreshInterval = null;
+      }
+    }
+
+    window.toggleTrendView = async function() {
+      trendViewActive = !trendViewActive;
+      document.body.classList.toggle('trend-mode', trendViewActive);
+      const btn = document.getElementById('trend-toggle-btn');
+      if (btn) {
+        btn.classList.toggle('active', trendViewActive);
+        btn.textContent = trendViewActive ? '📡' : '📈';
+        btn.title = trendViewActive ? 'Back to Live View' : 'Trend Dashboard (1H graphs)';
+      }
+
+      if (trendViewActive) {
+        await renderAllTrendCharts();
+        startTrendAutoRefresh();
+      } else {
+        stopTrendAutoRefresh();
+        destroyAllTrendCharts();
+      }
+    };
 
     // ═══════════════════════════════════════════════════════════════
     //  MODAL CONTROLS
