@@ -1641,6 +1641,22 @@
     const TREND_UNIT_MAP = {
       windDirection: '°', windSpeed: 'kt', rvr: 'm', qnh: 'hPa', temperature: '°C'
     };
+    const TREND_COLOR_MAP = {
+      light: {
+        windDirection: '#1565c0',
+        windSpeed:     '#00897b',
+        rvr:            '#e65100',
+        qnh:            '#6a1b9a',
+        temperature:    '#c62828'
+      },
+      dark: {
+        windDirection: '#42a5f5',
+        windSpeed:     '#26d9c4',
+        rvr:            '#ffb74d',
+        qnh:            '#ba68c8',
+        temperature:    '#ff7043'
+      }
+    };
 
     async function buildTrendChart(rwy, param) {
       const key = `${rwy}-${param}`;
@@ -1658,7 +1674,7 @@
       const isDarkMode = document.body.classList.contains('dark');
       const textColor = isDarkMode ? '#e0e8f0' : '#1a2a3a';
       const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-      const color = isDarkMode ? '#00e5ff' : '#1565c0';
+      const color = TREND_COLOR_MAP[isDarkMode ? 'dark' : 'light'][param] || (isDarkMode ? '#00e5ff' : '#1565c0');
       const displayName = TREND_LABEL_MAP[param];
       const unit = TREND_UNIT_MAP[param];
       const isCircular = (param === 'windDirection');
