@@ -31,7 +31,7 @@
     const IDB_VERSION = 1;
     const IDB_STORES = { '28': 'history_28', '10': 'history_10' };
     const IDB_RETENTION_SEC = 3 * 24 * 60 * 60; // 3 days
-    const IDB_WRITE_INTERVAL_MS = 60 * ;    // persist once a minute, not every poll
+    const IDB_WRITE_INTERVAL_MS = 60 * 1000;    // persist once a minute, not every poll
     const IDB_FIELD_KEYS = ['windSpeed','windDirection','temperature','humidity','dewPoint','qnh','qfe','rvr','mor'];
 
     let idbHandle = null;
@@ -1799,7 +1799,7 @@
 
     function startTrendAutoRefresh() {
       stopTrendAutoRefresh();
-      trendRefreshInterval = setInterval(renderAllTrendCharts, 5000);
+      trendRefreshInterval = setInterval(renderAllTrendCharts, 10000);
     }
 
     function stopTrendAutoRefresh() {
@@ -2957,7 +2957,7 @@
         doc.setFontSize(7);
         doc.setTextColor(150, 150, 150);
         doc.text(
-          'VOGA/MOPA DCWIS · Generated ' + utcStr,
+          'VOGA/MOPA DCWIS · Generated ' + utcStr + ' · Developed by Ajay (Goa)',
           MARGIN_MM, A4_H_MM - 6
         );
 
