@@ -20,6 +20,7 @@
       <div id="status">⬤ LIVE</div>
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
+      <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Satellite Cloud Analysis">☁️</button>
       <button class="icon-btn" id="trend-toggle-btn" onclick="toggleTrendView()" title="Trend Dashboard (1H graphs)">📈</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
@@ -210,6 +211,20 @@
         <button class="snap-btn btn-copy" id="snapCopyBtn" onclick="copySnapshotText()">📋 Copy Text</button>
         <button class="snap-btn btn-close" onclick="closeSnapshot()">✕ Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ─── CLOUD INFO MODAL ─── -->
+  <div id="cloudModal">
+    <div id="cloudBox">
+      <div id="cloud-header">
+        <div id="cloud-header-left">
+          <div class="cloud-title">☁️ Satellite Cloud Analysis</div>
+          <div class="cloud-subtitle" id="cloud-time-hdr">Loading…</div>
+        </div>
+        <button class="cloud-close" onclick="closeCloudInfo()">&times;</button>
+      </div>
+      <div id="cloudContent"></div>
     </div>
   </div>
 

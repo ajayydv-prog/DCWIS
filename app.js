@@ -3,6 +3,7 @@
     // ═══════════════════════════════════════════════════════════════
     const API_BASE = 'https://www.ajayydv.shop';
     const DATA_ENDPOINT = '/data';
+    const CLOUD_ENDPOINT = '/cloud';
     const POLL_INTERVAL_MS = 1000;
 
     // ── Live METAR/SPECI source via backend proxy ──
@@ -1798,7 +1799,7 @@
 
     function startTrendAutoRefresh() {
       stopTrendAutoRefresh();
-      trendRefreshInterval = setInterval(renderAllTrendCharts, 5000);
+      trendRefreshInterval = setInterval(renderAllTrendCharts, 10000);
     }
 
     function stopTrendAutoRefresh() {
@@ -2827,10 +2828,188 @@
       document.getElementById('snapshotModal').classList.remove('active');
     };
 
-    window.downloadSnapshotPDF = function() {
-      // Trigger browser print dialog with PDF destination
-      // Colors preserved via print-color-adjust CSS rules
-      window.print();
+    window.downloadSnapshotPDF = async function() {
+      const btn = document.querySelector('.snap-btn.btn-pdf');
+      if (btn) { btn.textContent = '⏳ Generating…'; btn.disabled = true; }
+
+      try {
+        // jsPDF dynamically load karo (agar pehle load nahi hua)
+        if (!window.jspdf) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const now = new Date();
+        const utcStr = now.toUTCString().replace('GMT','UTC');
+        const metar  = document.getElementById('metar-display')?.textContent?.trim() || '—';
+        const status = document.getElementById('status')?.textContent || '—';
+
+        // ── Helpers ──────────────────────────────────────────────────
+        function sv(id) {
+          const el = document.getElementById(id);
+          if (!el) return '—';
+          let txt = '';
+          el.childNodes.forEach(n => { if (n.nodeType === 3) txt += n.textContent; });
+          return txt.trim() || '—';
+        }
+        function pdfRect(x, y, w, h, r, g, b) {
+          doc.setFillColor(r, g, b);
+          doc.rect(x, y, w, h, 'F');
+        }
+        function pdfText(text, x, y, size, r, g, b, style) {
+          doc.setFontSize(size);
+          doc.setTextColor(r, g, b);
+          if (style) doc.setFont('helvetica', style);
+          doc.text(String(text), x, y);
+          doc.setFont('helvetica', 'normal');
+        }
+
+        const PW = 210, PH = 297;
+        const ML = 12, MR = 12, MT = 10;
+        let cy = MT;
+
+        // ── Header bar ───────────────────────────────────────────────
+        pdfRect(ML, cy, PW - ML - MR, 12, 21, 101, 192);
+        pdfText('VOGA / MOPA  DCWIS', ML + 3, cy + 8, 13, 255, 255, 255, 'bold');
+        pdfText('Station Snapshot Report', PW - MR - 62, cy + 5, 8, 200, 230, 255, 'normal');
+        pdfText(utcStr, PW - MR - 62, cy + 10, 7, 180, 210, 255, 'normal');
+        cy += 15;
+
+        // ── Station bar ───────────────────────────────────────────────
+        pdfRect(ML, cy, PW - ML - MR, 8, 227, 242, 253);
+        pdfText('Station: VOGA / MOPA — Goa', ML + 3, cy + 5.5, 8, 0, 0, 0, 'normal');
+        pdfText('Link: ' + status, ML + 80, cy + 5.5, 8, 0, 0, 0);
+        cy += 11;
+
+        // ── Runway panels ────────────────────────────────────────────
+        const rwyDefs = [
+          { rwy: '28', hdr: [21, 101, 192], label: 'RWY 28', x: ML },
+          { rwy: '10', hdr: [0, 105, 92],   label: 'RWY 10', x: ML + (PW - ML - MR) / 2 + 2 },
+        ];
+        const panelW = (PW - ML - MR) / 2 - 2;
+        const panelStartY = cy;
+
+        rwyDefs.forEach(({ rwy, hdr, label, x }) => {
+          const d = latestData[rwy];
+          const wd    = d ? (getValueByMode(d, 'windDirection', '2min') ?? '—') : sv('r'+rwy+'-wd');
+          const ws    = d ? (getValueByMode(d, 'windSpeed', '2min') ?? '—') : sv('r'+rwy+'-ws');
+          const wc    = d ? getHeadCrossWind(d, '2min') : { hw: sv('r'+rwy+'-hw'), cw: sv('r'+rwy+'-cw') };
+          const rvr   = sv('r'+rwy+'-rvr');
+          const mor   = sv('r'+rwy+'-mor');
+          const qnh   = sv('r'+rwy+'-qnh');
+          const qfe   = sv('r'+rwy+'-qfe');
+          const temp  = sv('r'+rwy+'-temp');
+          const hum   = sv('r'+rwy+'-hum');
+          const dew   = sv('r'+rwy+'-dew');
+          const wsmax = d ? (d.windSpeed_maxTenMin_rounded ?? '—') : sv('r'+rwy+'-wsmax');
+          const wsmin = d ? (d.windSpeed_minTenMin_rounded ?? '—') : sv('r'+rwy+'-wsmin');
+
+          const rows = [
+            ['Wind Direction (2min Avg)', wd + '°'],
+            ['Wind Speed (2min Avg)',      ws + ' kt'],
+            ['Headwind',                   String(wc.hw)],
+            ['Crosswind',                  String(wc.cw)],
+            ['WS Max (10min)',             wsmax + ' kt'],
+            ['WS Min (10min)',             wsmin + ' kt'],
+            ['—', ''],
+            ['RVR',      rvr + ' m'],
+            ['MOR',      mor + ' m'],
+            ['QNH',      qnh + ' hPa'],
+            ['QFE',      qfe + ' hPa'],
+            ['Temp',     temp + ' °C'],
+            ['Humidity', hum + ' %'],
+            ['Dew Point', dew + ' °C'],
+          ];
+
+          let ry = panelStartY;
+          // Panel header
+          pdfRect(x, ry, panelW, 7, hdr[0], hdr[1], hdr[2]);
+          pdfText(label, x + 3, ry + 5, 9, 255, 255, 255, 'bold');
+          ry += 8;
+
+          rows.forEach(([lbl, val]) => {
+            if (lbl === '—') { ry += 2; return; }
+            pdfRect(x, ry, panelW, 6, 240, 244, 248);
+            doc.setDrawColor(200, 210, 220);
+            doc.rect(x, ry, panelW, 6, 'S');
+            pdfText(lbl, x + 2, ry + 4.2, 7.5, 80, 100, 120);
+            pdfText(val, x + panelW - 2, ry + 4.2, 8, 0, 0, 0, 'bold');
+            // right-align value
+            doc.setFontSize(8);
+            const tw = doc.getTextWidth(String(val));
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text(String(val), x + panelW - 2 - tw, ry + 4.2);
+            doc.setFont('helvetica', 'normal');
+            // overwrite with left-aligned label (already done above — just value needs right-align)
+            ry += 6;
+          });
+        });
+
+        cy = panelStartY + 8 + 14 * 6 + 10;
+
+        // ── METAR box ─────────────────────────────────────────────────
+        pdfRect(ML, cy, PW - ML - MR, 7, 46, 125, 50);
+        pdfText('📡 LATEST METAR / SPECI', ML + 3, cy + 5, 9, 255, 255, 255, 'bold');
+        cy += 8;
+        pdfRect(ML, cy, PW - ML - MR, 12, 241, 248, 233);
+        doc.setFontSize(9);
+        doc.setTextColor(27, 94, 32);
+        doc.setFont('helvetica', 'bold');
+        const metarLines = doc.splitTextToSize(metar, PW - ML - MR - 6);
+        doc.text(metarLines, ML + 3, cy + 5);
+        doc.setFont('helvetica', 'normal');
+        cy += Math.max(12, metarLines.length * 5) + 4;
+
+        // ── 24H table from DOM ────────────────────────────────────────
+        const snap24 = document.getElementById('snap24hContainer');
+        if (snap24 && !snap24.querySelector('.snap-24h-loading')) {
+          pdfRect(ML, cy, PW - ML - MR, 6, 200, 200, 220);
+          pdfText('24H SUMMARY', ML + 3, cy + 4.5, 8, 50, 50, 80, 'bold');
+          cy += 8;
+          const tables = snap24.querySelectorAll('table');
+          tables.forEach(tbl => {
+            const caption = tbl.querySelector('caption')?.textContent || '';
+            pdfRect(ML, cy, PW - ML - MR, 5, 180, 190, 210);
+            pdfText(caption, ML + 2, cy + 3.8, 7.5, 30, 30, 80, 'bold');
+            cy += 5;
+            tbl.querySelectorAll('tr').forEach(tr => {
+              const cells = tr.querySelectorAll('td,th');
+              if (!cells.length) return;
+              const texts = Array.from(cells).map(c => c.textContent.trim());
+              pdfRect(ML, cy, PW - ML - MR, 4.5, 248, 250, 255);
+              doc.setDrawColor(210, 215, 230);
+              doc.rect(ML, cy, PW - ML - MR, 4.5, 'S');
+              const colW = (PW - ML - MR) / texts.length;
+              texts.forEach((t, i) => pdfText(t, ML + i * colW + 1.5, cy + 3.2, 6.5, 30, 30, 30));
+              cy += 4.5;
+              if (cy > PH - 15) { doc.addPage(); cy = MT; }
+            });
+            cy += 3;
+          });
+        }
+
+        // ── Footer ────────────────────────────────────────────────────
+        doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+        doc.text('VOGA/MOPA DCWIS · Generated ' + utcStr + ' · Developed by Ajay (Goa)', ML, PH - 6);
+
+        // ── Save ──────────────────────────────────────────────────────
+        const fname = `VOGA_Snapshot_${now.toISOString().slice(0,16).replace('T','_').replace(':','')}.pdf`;
+        doc.save(fname);
+
+      } catch (err) {
+        console.error('PDF generation failed:', err);
+        // Fallback to print
+        window.print();
+      } finally {
+        if (btn) { btn.textContent = '⬇ Download PDF'; btn.disabled = false; }
+      }
     };
 
     window.copySnapshotText = function() {
@@ -2853,6 +3032,139 @@
 
     document.getElementById('snapshotModal').addEventListener('click', function(e) {
       if (e.target === this) closeSnapshot();
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    //  CLOUD INFO MODAL (satellite-derived cloud analysis)
+    // ═══════════════════════════════════════════════════════════════
+    const CLOUD_AMOUNT_ICON = {
+      'SKC': '☀️', 'CLR': '☀️', 'FEW': '🌤️', 'SCT': '⛅', 'BKN': '🌥️', 'OVC': '☁️'
+    };
+    const CLOUD_TYPE_NAME = {
+      'CU': 'Cumulus', 'SC': 'Stratocumulus', 'AC': 'Altocumulus', 'AS': 'Altostratus',
+      'CI': 'Cirrus', 'CS': 'Cirrostratus', 'CC': 'Cirrocumulus', 'NS': 'Nimbostratus',
+      'ST': 'Stratus', 'CB': 'Cumulonimbus', 'TCU': 'Towering Cumulus',
+      'SC/AC': 'Stratocumulus / Altocumulus', 'NSC': 'No Significant Cloud',
+      'NSC': 'No Significant Cloud', 'CLR': 'Clear'
+    };
+
+    function cloudRow(lbl, val, cls) {
+      return `<div class="cloud-row"><span class="cloud-lbl">${lbl}</span><span class="cloud-val ${cls||''}">${val}</span></div>`;
+    }
+
+    function buildCloudHTML(c) {
+      const amount = c.cloud_amount || '—';
+      const icon = CLOUD_AMOUNT_ICON[amount] || '☁️';
+      const typeName = CLOUD_TYPE_NAME[c.cloud_type] || c.cloud_type || '—';
+      const ctbtRaw  = c.raw_analysis?.ctbt;
+      const ctbtTypeName = CLOUD_TYPE_NAME[ctbtRaw?.dominant_cloud_type] || ctbtRaw?.dominant_cloud_type || '—';
+
+      const obsDate = c.unix_ts ? new Date(c.unix_ts * 1000) : null;
+      const ageMin = obsDate ? Math.round((Date.now() - obsDate.getTime()) / 60000) : null;
+      const staleWarning = (ageMin !== null && ageMin > 20)
+        ? `<div class="cloud-stale-note">⚠ Last satellite pass ${ageMin} min ago — may not reflect current sky.</div>` : '';
+
+      const remarksHTML = (c.remarks && c.remarks.length)
+        ? `<div class="cloud-remark-box">📌 ${c.remarks.map(escapeHtml).join(' · ')}</div>` : '';
+
+      const fs = c.fetch_status || {};
+      const channelPill = (name, key) => {
+        const ok = fs[key] === 'ok';
+        return `<div class="cloud-channel-pill">
+          <span class="cloud-channel-name">${name}</span>
+          <span class="cloud-channel-status ${ok ? 'ok' : 'bad'}">${ok ? '✔ OK' : '✘ FAIL'}</span>
+        </div>`;
+      };
+
+      const conf = typeof c.confidence_pct === 'number' ? c.confidence_pct : null;
+
+      // CTBT detection details — tcu_tops support added
+      const det = ctbtRaw?.detections || {};
+      const cbFrac   = det.deep_convection?.fraction ?? 0;
+      const tcuFrac  = det.tcu_tops?.fraction ?? 0;
+      const ciFrac   = det.high_cloud?.fraction ?? 0;
+      const totalCol = ctbtRaw?.total_colored_fraction ?? 0;
+
+      const ctbtDetailHTML = ctbtRaw ? `
+        <div class="cloud-section-hdr">CTBT Channel Detail</div>
+        <div class="cloud-grid" style="grid-template-columns:1fr 1fr 1fr;">
+          ${cloudRow('CB tops', (cbFrac*100).toFixed(1)+'%', cbFrac>0.05?'flag-yes':'flag-no')}
+          ${cloudRow('TCU tops', (tcuFrac*100).toFixed(1)+'%', tcuFrac>0.05?'flag-yes':'flag-no')}
+          ${cloudRow('CI tops', (ciFrac*100).toFixed(1)+'%', '')}
+        </div>` : '';
+
+      return `
+        <div class="cloud-hero">
+          <div class="cloud-hero-icon">${icon}</div>
+          <div class="cloud-hero-main">
+            <div class="cloud-hero-amount">${amount} &nbsp;·&nbsp; ${c.oktas ?? '—'}/8 oktas</div>
+            <div class="cloud-hero-sub">${typeName}${c.est_cloud_base_ft ? ' · Base ' + c.est_cloud_base_ft : ''}</div>
+          </div>
+        </div>
+
+        ${remarksHTML}
+
+        <div class="cloud-grid">
+          ${cloudRow('Moisture Level', c.moisture_level || '—')}
+          ${cloudRow('Amount Source', (c.amount_source || '—') + ' channel')}
+          ${cloudRow('Cumulonimbus (CB)', c.cb_flag ? 'DETECTED' : 'Not detected', c.cb_flag ? 'flag-yes' : 'flag-no')}
+          ${cloudRow('Towering Cu (TCU)', c.tcu_flag ? 'POSSIBLE' : 'Not detected', c.tcu_flag ? 'flag-yes' : 'flag-no')}
+          ${cloudRow('METAR Group', c.metar_cloud_group || '—')}
+          ${cloudRow('Dominant Type (CTBT)', ctbtTypeName)}
+        </div>
+
+        ${ctbtDetailHTML}
+
+        <div class="cloud-section-hdr">Estimate Confidence</div>
+        <div class="cloud-confidence-bar-wrap">
+          <div class="cloud-confidence-track"><div class="cloud-confidence-fill" style="width:${conf ?? 0}%"></div></div>
+          <div class="cloud-confidence-pct">${conf !== null ? conf + '%' : '—'}</div>
+        </div>
+
+        <div class="cloud-section-hdr">Satellite Channels</div>
+        <div class="cloud-channels">
+          ${channelPill('IR', 'ir1')}
+          ${channelPill('VIS', 'vis')}
+          ${channelPill('WV', 'wv')}
+          ${channelPill('CTBT', 'ctbt')}
+        </div>
+
+        ${staleWarning}
+      `;
+    }
+
+    let lastCloudData = null;
+
+    async function fetchAndRenderCloudInfo() {
+      const content = document.getElementById('cloudContent');
+      const timeHdr = document.getElementById('cloud-time-hdr');
+      try {
+        const res = await fetch(`${API_BASE}${CLOUD_ENDPOINT}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        lastCloudData = data;
+        const obsStr = data.obs_time_utc || '—';
+        timeHdr.textContent = `${data.icao || 'VOGA'} / ${data.location || 'Mopa, Goa'} — ${obsStr}`;
+        content.innerHTML = buildCloudHTML(data);
+      } catch (err) {
+        console.error('Cloud info fetch failed:', err);
+        timeHdr.textContent = 'Unavailable';
+        content.innerHTML = `<div class="cloud-error-note">⚠ Could not load cloud analysis.<br>Backend / pipeline may be unreachable.</div>`;
+      }
+    }
+
+    window.openCloudInfo = function() {
+      document.getElementById('cloudModal').classList.add('active');
+      document.getElementById('cloudContent').innerHTML = `<div class="cloud-error-note" style="color:#8fa8bd;">Loading…</div>`;
+      fetchAndRenderCloudInfo();
+    };
+
+    window.closeCloudInfo = function() {
+      document.getElementById('cloudModal').classList.remove('active');
+    };
+
+    document.getElementById('cloudModal').addEventListener('click', function(e) {
+      if (e.target === this) closeCloudInfo();
     });
 
     // ═══════════════════════════════════════════════════════════════
