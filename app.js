@@ -2957,7 +2957,7 @@
         doc.setFontSize(7);
         doc.setTextColor(150, 150, 150);
         doc.text(
-          'VOGA/MOPA DCWIS · Generated ' + utcStr',
+          'VOGA/MOPA DCWIS · Generated ' + utcStr,
           MARGIN_MM, A4_H_MM - 6
         );
 
