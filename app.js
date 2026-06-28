@@ -1799,7 +1799,7 @@
 
     function startTrendAutoRefresh() {
       stopTrendAutoRefresh();
-      trendRefreshInterval = setInterval(renderAllTrendCharts, 10000);
+      trendRefreshInterval = setInterval(renderAllTrendCharts, 1000);
     }
 
     function stopTrendAutoRefresh() {
