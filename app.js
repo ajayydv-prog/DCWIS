@@ -2832,180 +2832,140 @@
       const btn = document.querySelector('.snap-btn.btn-pdf');
       if (btn) { btn.textContent = '⏳ Generating…'; btn.disabled = true; }
 
+      // Helper: load a script once
+      function loadScript(src) {
+        return new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = src;
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+
       try {
-        // jsPDF dynamically load karo (agar pehle load nahi hua)
         if (!window.jspdf) {
-          await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-            s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
-          });
+          await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        }
+        if (!window.html2canvas) {
+          await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
         }
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-        const now = new Date();
-        const utcStr = now.toUTCString().replace('GMT','UTC');
-        const metar  = document.getElementById('metar-display')?.textContent?.trim() || '—';
-        const status = document.getElementById('status')?.textContent || '—';
+        const sourceEl = document.getElementById('snapshotContent');
+        if (!sourceEl) throw new Error('snapshotContent not found');
 
-        // ── Helpers ──────────────────────────────────────────────────
-        function sv(id) {
-          const el = document.getElementById(id);
-          if (!el) return '—';
-          let txt = '';
-          el.childNodes.forEach(n => { if (n.nodeType === 3) txt += n.textContent; });
-          return txt.trim() || '—';
-        }
-        function pdfRect(x, y, w, h, r, g, b) {
-          doc.setFillColor(r, g, b);
-          doc.rect(x, y, w, h, 'F');
-        }
-        function pdfText(text, x, y, size, r, g, b, style) {
-          doc.setFontSize(size);
-          doc.setTextColor(r, g, b);
-          if (style) doc.setFont('helvetica', style);
-          doc.text(String(text), x, y);
-          doc.setFont('helvetica', 'normal');
-        }
+        // ── Clone the snapshot content off-screen and apply the same
+        // print CSS rules (@media print) so html2canvas captures the
+        // exact same visual layout as window.print() does. ──
+        const clone = sourceEl.cloneNode(true);
+        const wrapper = document.createElement('div');
+        wrapper.id = 'pdf-export-wrapper';
+        // A4 usable width at 96dpi-equivalent px for good canvas resolution
+        const A4_W_MM = 210, MARGIN_MM = 12;
+        const usableWidthMM = A4_W_MM - MARGIN_MM * 2;
+        const PX_PER_MM = 3.78; // ~96dpi
+        const targetWidthPx = Math.round(usableWidthMM * PX_PER_MM);
 
-        const PW = 210, PH = 297;
-        const ML = 12, MR = 12, MT = 10;
-        let cy = MT;
+        wrapper.style.position = 'fixed';
+        wrapper.style.left = '-99999px';
+        wrapper.style.top = '0';
+        wrapper.style.width = targetWidthPx + 'px';
+        wrapper.style.background = '#fff';
+        wrapper.style.color = '#000';
+        wrapper.style.padding = '6px 12px';
+        wrapper.className = 'pdf-export-print-styles';
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
 
-        // ── Header bar ───────────────────────────────────────────────
-        pdfRect(ML, cy, PW - ML - MR, 12, 21, 101, 192);
-        pdfText('VOGA / MOPA  DCWIS', ML + 3, cy + 8, 13, 255, 255, 255, 'bold');
-        pdfText('Station Snapshot Report', PW - MR - 62, cy + 5, 8, 200, 230, 255, 'normal');
-        pdfText(utcStr, PW - MR - 62, cy + 10, 7, 180, 210, 255, 'normal');
-        cy += 15;
+        // Re-apply the print-only classes/colors inline by toggling a
+        // print-style stylesheet scoped to this wrapper.
+        const styleTag = document.createElement('style');
+        styleTag.textContent = `
+          #pdf-export-wrapper, #pdf-export-wrapper * { color:#000; }
+          #pdf-export-wrapper #snap-actions, #pdf-export-wrapper .snap-close { display:none !important; }
+          #pdf-export-wrapper .snap-panel-header.rwy28 { background:#1565c0 !important; color:#fff !important; }
+          #pdf-export-wrapper .snap-panel-header.rwy10 { background:#00695c !important; color:#fff !important; }
+          #pdf-export-wrapper .snap-metar-hdr { background:#2e7d32 !important; color:#fff !important; }
+          #pdf-export-wrapper .snap-panel-body { background:#f0f4f8 !important; padding:4px 8px !important; }
+          #pdf-export-wrapper .snap-station-bar { background:#e3f2fd !important; padding:6px 10px !important; margin-bottom:8px !important; }
+          #pdf-export-wrapper .snap-station-lbl { color:#555 !important; font-size:11px !important; }
+          #pdf-export-wrapper .snap-station-val { color:#000 !important; font-size:12px !important; }
+          #pdf-export-wrapper .snap-metar-body { color:#1b5e20 !important; background:#f1f8e9 !important; font-size:12px !important; padding:6px 10px !important; }
+          #pdf-export-wrapper .snap-dlbl { font-size:12px !important; color:#444 !important; }
+          #pdf-export-wrapper .snap-dval { font-size:13px !important; color:#000 !important; }
+          #pdf-export-wrapper .snap-dval.red { color:#c62828 !important; }
+          #pdf-export-wrapper .snap-24h-table { font-size:9px !important; border:1px solid #bbb !important; }
+          #pdf-export-wrapper .snap-24h-table caption { font-size:10px !important; padding:3px 6px !important; color:#fff !important; }
+          #pdf-export-wrapper .snap-24h-table.rwy28 caption { background:#1565c0 !important; }
+          #pdf-export-wrapper .snap-24h-table.rwy10 caption { background:#00695c !important; }
+          #pdf-export-wrapper .snap-24h-table.common caption { background:#5e35b1 !important; }
+          #pdf-export-wrapper .snap-24h-table td.s24-val.red   { color:#c62828 !important; }
+          #pdf-export-wrapper .snap-24h-table td.s24-val.amber { color:#a05a00 !important; }
+          #pdf-export-wrapper .snap-24h-table td.s24-val.green { color:#1b5e20 !important; }
+          #pdf-export-wrapper .snap-24h-table td.s24-val.cyan  { color:#01579b !important; }
+          #pdf-export-wrapper .snap-24h-loading { display:none !important; }
+        `;
+        document.head.appendChild(styleTag);
 
-        // ── Station bar ───────────────────────────────────────────────
-        pdfRect(ML, cy, PW - ML - MR, 8, 227, 242, 253);
-        pdfText('Station: VOGA / MOPA — Goa', ML + 3, cy + 5.5, 8, 0, 0, 0, 'normal');
-        pdfText('Link: ' + status, ML + 80, cy + 5.5, 8, 0, 0, 0);
-        cy += 11;
+        // Allow the browser a tick to layout the cloned, styled content
+        await new Promise(r => setTimeout(r, 50));
 
-        // ── Runway panels ────────────────────────────────────────────
-        const rwyDefs = [
-          { rwy: '28', hdr: [21, 101, 192], label: 'RWY 28', x: ML },
-          { rwy: '10', hdr: [0, 105, 92],   label: 'RWY 10', x: ML + (PW - ML - MR) / 2 + 2 },
-        ];
-        const panelW = (PW - ML - MR) / 2 - 2;
-        const panelStartY = cy;
-
-        rwyDefs.forEach(({ rwy, hdr, label, x }) => {
-          const d = latestData[rwy];
-          const wd    = d ? (getValueByMode(d, 'windDirection', '2min') ?? '—') : sv('r'+rwy+'-wd');
-          const ws    = d ? (getValueByMode(d, 'windSpeed', '2min') ?? '—') : sv('r'+rwy+'-ws');
-          const wc    = d ? getHeadCrossWind(d, '2min') : { hw: sv('r'+rwy+'-hw'), cw: sv('r'+rwy+'-cw') };
-          const rvr   = sv('r'+rwy+'-rvr');
-          const mor   = sv('r'+rwy+'-mor');
-          const qnh   = sv('r'+rwy+'-qnh');
-          const qfe   = sv('r'+rwy+'-qfe');
-          const temp  = sv('r'+rwy+'-temp');
-          const hum   = sv('r'+rwy+'-hum');
-          const dew   = sv('r'+rwy+'-dew');
-          const wsmax = d ? (d.windSpeed_maxTenMin_rounded ?? '—') : sv('r'+rwy+'-wsmax');
-          const wsmin = d ? (d.windSpeed_minTenMin_rounded ?? '—') : sv('r'+rwy+'-wsmin');
-
-          const rows = [
-            ['Wind Direction (2min Avg)', wd + '°'],
-            ['Wind Speed (2min Avg)',      ws + ' kt'],
-            ['Headwind',                   String(wc.hw)],
-            ['Crosswind',                  String(wc.cw)],
-            ['WS Max (10min)',             wsmax + ' kt'],
-            ['WS Min (10min)',             wsmin + ' kt'],
-            ['—', ''],
-            ['RVR',      rvr + ' m'],
-            ['MOR',      mor + ' m'],
-            ['QNH',      qnh + ' hPa'],
-            ['QFE',      qfe + ' hPa'],
-            ['Temp',     temp + ' °C'],
-            ['Humidity', hum + ' %'],
-            ['Dew Point', dew + ' °C'],
-          ];
-
-          let ry = panelStartY;
-          // Panel header
-          pdfRect(x, ry, panelW, 7, hdr[0], hdr[1], hdr[2]);
-          pdfText(label, x + 3, ry + 5, 9, 255, 255, 255, 'bold');
-          ry += 8;
-
-          rows.forEach(([lbl, val]) => {
-            if (lbl === '—') { ry += 2; return; }
-            pdfRect(x, ry, panelW, 6, 240, 244, 248);
-            doc.setDrawColor(200, 210, 220);
-            doc.rect(x, ry, panelW, 6, 'S');
-            pdfText(lbl, x + 2, ry + 4.2, 7.5, 80, 100, 120);
-            pdfText(val, x + panelW - 2, ry + 4.2, 8, 0, 0, 0, 'bold');
-            // right-align value
-            doc.setFontSize(8);
-            const tw = doc.getTextWidth(String(val));
-            doc.setTextColor(0, 0, 0);
-            doc.setFont('helvetica', 'bold');
-            doc.text(String(val), x + panelW - 2 - tw, ry + 4.2);
-            doc.setFont('helvetica', 'normal');
-            // overwrite with left-aligned label (already done above — just value needs right-align)
-            ry += 6;
-          });
+        const canvas = await window.html2canvas(wrapper, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          windowWidth: targetWidthPx
         });
 
-        cy = panelStartY + 8 + 14 * 6 + 10;
+        // Cleanup the off-screen clone
+        document.body.removeChild(wrapper);
+        document.head.removeChild(styleTag);
 
-        // ── METAR box ─────────────────────────────────────────────────
-        pdfRect(ML, cy, PW - ML - MR, 7, 46, 125, 50);
-        pdfText('📡 LATEST METAR / SPECI', ML + 3, cy + 5, 9, 255, 255, 255, 'bold');
-        cy += 8;
-        pdfRect(ML, cy, PW - ML - MR, 12, 241, 248, 233);
-        doc.setFontSize(9);
-        doc.setTextColor(27, 94, 32);
-        doc.setFont('helvetica', 'bold');
-        const metarLines = doc.splitTextToSize(metar, PW - ML - MR - 6);
-        doc.text(metarLines, ML + 3, cy + 5);
-        doc.setFont('helvetica', 'normal');
-        cy += Math.max(12, metarLines.length * 5) + 4;
+        // ── Slice the tall canvas into A4-height pages ──────────────
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const A4_H_MM = 297;
+        const usableHeightMM = A4_H_MM - MARGIN_MM * 2;
 
-        // ── 24H table from DOM ────────────────────────────────────────
-        const snap24 = document.getElementById('snap24hContainer');
-        if (snap24 && !snap24.querySelector('.snap-24h-loading')) {
-          pdfRect(ML, cy, PW - ML - MR, 6, 200, 200, 220);
-          pdfText('24H SUMMARY', ML + 3, cy + 4.5, 8, 50, 50, 80, 'bold');
-          cy += 8;
-          const tables = snap24.querySelectorAll('table');
-          tables.forEach(tbl => {
-            const caption = tbl.querySelector('caption')?.textContent || '';
-            pdfRect(ML, cy, PW - ML - MR, 5, 180, 190, 210);
-            pdfText(caption, ML + 2, cy + 3.8, 7.5, 30, 30, 80, 'bold');
-            cy += 5;
-            tbl.querySelectorAll('tr').forEach(tr => {
-              const cells = tr.querySelectorAll('td,th');
-              if (!cells.length) return;
-              const texts = Array.from(cells).map(c => c.textContent.trim());
-              pdfRect(ML, cy, PW - ML - MR, 4.5, 248, 250, 255);
-              doc.setDrawColor(210, 215, 230);
-              doc.rect(ML, cy, PW - ML - MR, 4.5, 'S');
-              const colW = (PW - ML - MR) / texts.length;
-              texts.forEach((t, i) => pdfText(t, ML + i * colW + 1.5, cy + 3.2, 6.5, 30, 30, 30));
-              cy += 4.5;
-              if (cy > PH - 15) { doc.addPage(); cy = MT; }
-            });
-            cy += 3;
-          });
+        const pageHeightPx = Math.floor(usableHeightMM * (canvas.width / usableWidthMM));
+        const totalPages = Math.ceil(canvas.height / pageHeightPx);
+
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) doc.addPage();
+
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          const sliceHeightPx = Math.min(pageHeightPx, canvas.height - page * pageHeightPx);
+          sliceCanvas.height = sliceHeightPx;
+
+          const ctx = sliceCanvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+          ctx.drawImage(
+            canvas,
+            0, page * pageHeightPx, canvas.width, sliceHeightPx,
+            0, 0, canvas.width, sliceHeightPx
+          );
+
+          const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+          const sliceHeightMM = sliceHeightPx * (usableWidthMM / canvas.width);
+          doc.addImage(imgData, 'JPEG', MARGIN_MM, MARGIN_MM, usableWidthMM, sliceHeightMM);
         }
 
-        // ── Footer ────────────────────────────────────────────────────
-        doc.setFontSize(7); doc.setTextColor(150, 150, 150);
-        doc.text('VOGA/MOPA DCWIS · Generated ' + utcStr + ' · Developed by Ajay (Goa)', ML, PH - 6);
+        // ── Footer on last page ──────────────────────────────────────
+        const now = new Date();
+        const utcStr = now.toUTCString().replace('GMT', 'UTC');
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          'VOGA/MOPA DCWIS · Generated ' + utcStr + ' · Developed by Ajay (Goa)',
+          MARGIN_MM, A4_H_MM - 6
+        );
 
-        // ── Save ──────────────────────────────────────────────────────
         const fname = `VOGA_Snapshot_${now.toISOString().slice(0,16).replace('T','_').replace(':','')}.pdf`;
         doc.save(fname);
 
       } catch (err) {
         console.error('PDF generation failed:', err);
-        // Fallback to print
         window.print();
       } finally {
         if (btn) { btn.textContent = '⬇ Download PDF'; btn.disabled = false; }
