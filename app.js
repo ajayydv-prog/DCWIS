@@ -3113,6 +3113,11 @@
           ${cloudRow('Dominant Type (CTBT)', ctbtTypeName)}
         </div>
 
+        <div class="cloud-remark-box" style="color:#f0a500">
+          ⚠ Satellite analysis detects dominant cloud layer only. 
+          Multiple layers require observer confirmation.
+        </div>
+
         ${ctbtDetailHTML}
 
         <div class="cloud-section-hdr">Estimate Confidence</div>
