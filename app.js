@@ -50,7 +50,8 @@
 
     const Y_AXIS_LIMITS = {
       rvr: { min: 0, max: 2000 },
-      mor: { min: 0, max: 5320 }
+      mor: { min: 0, max: 5320 },
+      windDirection: { min: 0, max: 360 }
     };
 
     const TZ_OFFSET_MS = new Date().getTimezoneOffset() * 60000;
