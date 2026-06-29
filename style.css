@@ -277,6 +277,16 @@ body.dark .wbox .click-hint {
 .red  { color:var(--val-red); }
 .sev-orange { color:var(--sev-orange) !important; }
 .sev-red { color:var(--sev-red) !important; }
+.boundary-ge {
+  text-decoration: underline dotted #00e5ff;
+  text-decoration-thickness: 2px;
+  cursor: help;
+}
+.boundary-le {
+  text-decoration: underline dotted #ff6b6b;
+  text-decoration-thickness: 2px;
+  cursor: help;
+}
 .compass-cell {
   display:flex; align-items:center; justify-content:center;
   background:var(--compass-bg); overflow:hidden;

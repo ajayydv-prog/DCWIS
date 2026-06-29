@@ -25,155 +25,13 @@
     let modalParam = null;
 
     // ═══════════════════════════════════════════════════════════════
-    //  INDEXEDDB — local 3-day backup (survives backend restarts)
+    //  (IndexedDB local backup feature removed — backend history is
+    //  the sole source of truth for charts; mixing raw instant readings
+    //  with backend-averaged bins produced misleading/jagged data.)
     // ═══════════════════════════════════════════════════════════════
-    const IDB_NAME = 'voga_mopa_awos_db';
-    const IDB_VERSION = 1;
-    const IDB_STORES = { '28': 'history_28', '10': 'history_10' };
-    const IDB_RETENTION_SEC = 3 * 24 * 60 * 60; // 3 days
-    const IDB_WRITE_INTERVAL_MS = 60 * 1000;    // persist once a minute, not every poll
-    const IDB_FIELD_KEYS = ['windSpeed','windDirection','temperature','humidity','dewPoint','qnh','qfe','rvr','mor'];
-
-    let idbHandle = null;
-    let idbReady = false;
-    let idbLastWriteTs = { '28': 0, '10': 0 };
-
-    function idbOpen() {
-      return new Promise((resolve, reject) => {
-        if (!window.indexedDB) { reject(new Error('IndexedDB not supported')); return; }
-        const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-        req.onupgradeneeded = (ev) => {
-          const db = ev.target.result;
-          Object.values(IDB_STORES).forEach(storeName => {
-            if (!db.objectStoreNames.contains(storeName)) {
-              db.createObjectStore(storeName, { keyPath: 'timestamp' });
-            }
-          });
-        };
-        req.onsuccess = (ev) => resolve(ev.target.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    async function idbInit() {
-      try {
-        idbHandle = await idbOpen();
-        idbReady = true;
-        console.log('[IndexedDB] backup store ready');
-        idbPruneOld(); // housekeeping on startup
-      } catch (err) {
-        idbReady = false;
-        console.warn('[IndexedDB] unavailable, running without local backup:', err.message);
-      }
-    }
-
-    // Snapshot the current live reading into a single per-minute row.
-    // Uses 'instant' values so the backup reflects the raw sensor reading
-    // regardless of whatever display mode (1min/2min/10min) is active.
-    function buildIdbRow(rwy, d, timestamp) {
-      const row = { timestamp };
-      row.windSpeed     = parseLeadingNumber(d.windSpeed_instant_rounded);
-      row.windDirection = parseLeadingNumber(d.windDirection_instant_rounded);
-      row.temperature   = parseLeadingNumber(d.temperature_instant_rounded);
-      row.humidity      = parseLeadingNumber(d.humidity_instant_rounded);
-      row.dewPoint      = parseLeadingNumber(d.dewPoint_instant_rounded);
-      row.qnh           = parseLeadingNumber(d.qnh_instant_rounded);
-      row.qfe           = parseLeadingNumber(d.qfe_instant_rounded);
-      row.rvr           = parseLeadingNumber(d.pwd_rvr_avgOneMin);
-      row.mor           = parseLeadingNumber(d.pwd_mor_avgOneMin);
-      return row;
-    }
-
-    function idbPutRow(rwy, row) {
-      if (!idbReady || !idbHandle) return;
-      try {
-        const tx = idbHandle.transaction(IDB_STORES[rwy], 'readwrite');
-        tx.objectStore(IDB_STORES[rwy]).put(row);
-      } catch (err) {
-        console.warn('[IndexedDB] write failed:', err.message);
-      }
-    }
-
-    // Called from fetchData() on every poll; internally throttles to once/min.
-    function idbMaybePersist(rwy, d) {
-      if (!idbReady || !d) return;
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (nowSec - idbLastWriteTs[rwy] < IDB_WRITE_INTERVAL_MS / 1000) return;
-      idbLastWriteTs[rwy] = nowSec;
-      const row = buildIdbRow(rwy, d, nowSec);
-      idbPutRow(rwy, row);
-    }
-
-    function idbPruneOld() {
-      if (!idbReady || !idbHandle) return;
-      const cutoff = Math.floor(Date.now() / 1000) - IDB_RETENTION_SEC;
-      Object.values(IDB_STORES).forEach(storeName => {
-        try {
-          const tx = idbHandle.transaction(storeName, 'readwrite');
-          const store = tx.objectStore(storeName);
-          const range = IDBKeyRange.upperBound(cutoff);
-          store.openCursor(range).onsuccess = (ev) => {
-            const cursor = ev.target.result;
-            if (cursor) { cursor.delete(); cursor.continue(); }
-          };
-        } catch (err) {
-          console.warn('[IndexedDB] prune failed for', storeName, err.message);
-        }
-      });
-    }
-
-    // Read rows in [fromTs, toTs] (epoch seconds, inclusive) for a runway.
-    function idbReadRange(rwy, fromTs, toTs) {
-      return new Promise((resolve) => {
-        if (!idbReady || !idbHandle) { resolve([]); return; }
-        try {
-          const tx = idbHandle.transaction(IDB_STORES[rwy], 'readonly');
-          const store = tx.objectStore(IDB_STORES[rwy]);
-          const range = IDBKeyRange.bound(fromTs, toTs);
-          const out = [];
-          store.openCursor(range).onsuccess = (ev) => {
-            const cursor = ev.target.result;
-            if (cursor) { out.push(cursor.value); cursor.continue(); }
-            else resolve(out);
-          };
-          tx.onerror = () => resolve(out);
-        } catch (err) {
-          console.warn('[IndexedDB] read failed:', err.message);
-          resolve([]);
-        }
-      });
-    }
-
-    // Convert a stored per-minute row into the {timestamp, value} bin shape
-    // the chart/history code already expects, for one parameter.
-    function idbRowsToBins(rows, param) {
-      return rows
-        .filter(r => r[param] !== undefined && r[param] !== null && !isNaN(r[param]))
-        .map(r => ({ timestamp: r.timestamp, value: r[param], count: 1, _source: 'local' }));
-    }
-
-    // Merge backend bins with local IndexedDB bins for the same window.
-    // Backend wins on overlap (timestamp match) since it's the authoritative
-    // source whenever it's alive; local fills in timestamps the backend is
-    // missing (e.g. after a restart). True gaps (no data either side) are
-    // left as gaps rather than interpolated.
-    async function mergeWithLocalBackup(rwy, param, hours, backendBins) {
-      if (!idbReady || !IDB_FIELD_KEYS.includes(param)) return backendBins;
-
-      const toTs = Math.floor(Date.now() / 1000);
-      const fromTs = toTs - hours * 3600;
-      const localRows = await idbReadRange(rwy, fromTs, toTs);
-      if (!localRows.length) return backendBins;
-
-      const localBins = idbRowsToBins(localRows, param);
-      const merged = new Map();
-      localBins.forEach(b => merged.set(b.timestamp, b));
-      backendBins.forEach(b => merged.set(b.timestamp, b)); // backend overwrites on collision
-
-      return Array.from(merged.values()).sort((a, b) => a.timestamp - b.timestamp);
-    }
 
     let modalRwy = null;
+    let gustViewActive = false;
     let isHistoryLoading = false;
     let currentHours = 6;
     let currentBin = 120;
@@ -227,7 +85,7 @@
       if (modalParam && modalRwy) {
         liveMode = true;
         setLiveButtonUI();
-        renderHistoryChart(modalParam, modalRwy).then(startModalAutoRefresh);
+        renderHistoryChart(displayParam(), modalRwy).then(startModalAutoRefresh);
       }
     };
 
@@ -793,6 +651,26 @@
       if(sevClass) el.classList.add(sevClass);
     }
 
+    // Highlights RVR/MOR readings that carry a "P" (>= range, e.g. P2000
+    // means RVR/MOR is at least 2000m) or "M" (<= minimum reportable,
+    // e.g. M200 means RVR/MOR is at or below 200m) boundary-indicator
+    // prefix, so observers can see at a glance that the value is a
+    // sensor-range boundary rather than an exact reading.
+    function applyBoundaryBadge(id, rawVal){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.classList.remove('boundary-ge', 'boundary-le');
+      el.removeAttribute('title');
+      const s = String(rawVal || '').trim().toUpperCase();
+      if(s.startsWith('P')){
+        el.classList.add('boundary-ge');
+        el.title = 'At or beyond sensor range (≥ ' + s.slice(1) + 'm)';
+      } else if(s.startsWith('M')){
+        el.classList.add('boundary-le');
+        el.title = 'At or below minimum reportable value (≤ ' + s.slice(1) + 'm)';
+      }
+    }
+
     function getValueByMode(data, field, mode){
       if(!data) return null;
       const suffixMap = {
@@ -1020,9 +898,11 @@
 
       const rvrKey = mode === '10min' ? 'pwd_rvr_avgTenMin' : 'pwd_rvr_avgOneMin';
       setValueWithSeverity(p+'rvr', d[rvrKey] || '--', 'visibility');
+      applyBoundaryBadge(p+'rvr', d[rvrKey]);
 
       const morKey = mode === '10min' ? 'pwd_mor_avgTenMin' : 'pwd_mor_avgOneMin';
       setValueWithSeverity(p+'mor', d[morKey] || '--', 'visibility');
+      applyBoundaryBadge(p+'mor', d[morKey]);
 
       const qnh = getValueByMode(d, 'qnh', mode);
       setValue(p+'qnh', qnh);
@@ -1121,7 +1001,9 @@
         'qnh': 'qnh',
         'qfe': 'qfe',
         'rvr': 'rvr',
-        'mor': 'mor'
+        'mor': 'mor',
+        'windSpeedGustMax': 'windSpeedGustMax',
+        'windSpeedGustMin': 'windSpeedGustMin'
       };
       
       const backendParam = paramMap[param] || param;
@@ -1131,15 +1013,14 @@
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          const bins = data.data || [];
-          return await mergeWithLocalBackup(rwy, backendParam, h, bins);
+          return data.data || [];
         }
-        // Backend reachable but returned an error — fall back to local-only.
-        return await mergeWithLocalBackup(rwy, backendParam, h, []);
+        // Backend reachable but returned an error — no data available.
+        return [];
       } catch (err) {
         console.error('History fetch error:', err);
-        // Backend unreachable entirely — serve whatever we have locally.
-        return await mergeWithLocalBackup(rwy, backendParam, h, []);
+        // Backend unreachable entirely — no data available.
+        return [];
       }
     }
 
@@ -1244,14 +1125,16 @@
           'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
           'headwind': 'Head Wind', 'crosswind': 'Cross Wind',
           'rvr': 'RVR', 'mor': 'MOR', 'qnh': 'QNH', 'qfe': 'QFE',
-          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
+          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point',
+          'windSpeedGustMax': 'Wind Speed Gust (Max)', 'windSpeedGustMin': 'Wind Speed Gust (Min)'
         };
         const displayName = labelMap[param] || param.toUpperCase();
 
         const unitMap = {
           'windDirection': '°', 'windSpeed': 'kt', 'headwind': 'kt', 'crosswind': 'kt',
           'rvr': 'm', 'mor': 'm', 'qnh': 'hPa', 'qfe': 'hPa',
-          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C'
+          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C',
+          'windSpeedGustMax': 'kt', 'windSpeedGustMin': 'kt'
         };
         const unit = unitMap[param] || '';
         const isCircular = (param === 'windDirection');
@@ -1415,12 +1298,8 @@
         const nowSec = Date.now() / 1000;
         const lastTs = bins[bins.length - 1].timestamp;
         const staleMin = Math.round((nowSec - lastTs) / 60);
-        const localCount = bins.filter(b => b._source === 'local').length;
         if (gapNote) {
-          if (localCount > 0) {
-            gapNote.textContent = `💾 ${localCount} of ${bins.length} points received from browser backup.`;
-            gapNote.classList.add('show');
-          } else if (usingFallbackAvg) {
+          if (usingFallbackAvg) {
             gapNote.textContent = `ᵃ Min/Max shown are bin averages.`;
             gapNote.classList.add('show');
           } else if (staleMin > Math.max(5, currentBin / 60)) {
@@ -1837,6 +1716,14 @@
       modalRwy = rwy;
       liveMode = true;
       setLiveButtonUI();
+      gustViewActive = false;
+
+      const gustBtn = document.getElementById('gustToggleBtn');
+      if (gustBtn) {
+        gustBtn.style.display = (param === 'windSpeed') ? 'inline-block' : 'none';
+        gustBtn.classList.remove('live-on');
+        gustBtn.textContent = '💨 Gust History';
+      }
 
       const labelMap = {
         'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
@@ -1875,6 +1762,7 @@
       modalParam = null;
       modalRwy = null;
       isHistoryLoading = false;
+      gustViewActive = false;
     };
 
     function setLiveButtonUI() {
@@ -1889,7 +1777,7 @@
       stopModalAutoRefresh();
       if (!liveMode) return;
       modalRefreshInterval = setInterval(() => {
-        if (modalParam && modalRwy) renderHistoryChart(modalParam, modalRwy);
+        if (modalParam && modalRwy) renderHistoryChart(displayParam(), modalRwy);
       }, 30000);
     }
 
@@ -1914,10 +1802,31 @@
       setLiveButtonUI();
       if (liveMode) {
         userHasZoomed = false;
-        renderHistoryChart(modalParam, modalRwy).then(startModalAutoRefresh);
+        renderHistoryChart(displayParam(), modalRwy).then(startModalAutoRefresh);
       } else {
         stopModalAutoRefresh();
       }
+    };
+
+    // Tracks what's actually rendered in the chart right now. Usually this
+    // is just modalParam, but toggling "Gust History" swaps in the gust
+    // param temporarily without disturbing modalParam (which the modal
+    // title / range buttons / live-mode refresh all key off of).
+    function displayParam() {
+      return gustViewActive ? 'windSpeedGustMax' : modalParam;
+    }
+
+    window.toggleGustView = function() {
+      if (modalParam !== 'windSpeed') return; // button is hidden otherwise, but guard anyway
+      gustViewActive = !gustViewActive;
+
+      const gustBtn = document.getElementById('gustToggleBtn');
+      if (gustBtn) {
+        gustBtn.classList.toggle('live-on', gustViewActive);
+        gustBtn.textContent = gustViewActive ? '💨 Gust History (ON)' : '💨 Gust History';
+      }
+
+      renderHistoryChart(displayParam(), modalRwy);
     };
 
     window.resetChartZoom = function() {
@@ -2125,7 +2034,7 @@
     function setOfflineStatus(){
       const el = document.getElementById('status');
       if(!el) return;
-      el.textContent = idbReady ? '⚠ OFFLINE · 💾 backup active' : '⚠ OFFLINE';
+      el.textContent = '⚠ OFFLINE';
       el.style.borderColor = '#ff4444';
       el.style.color = '#ff4444';
     }
@@ -2140,12 +2049,10 @@
           if(data['10']) {
             latestData['10'] = data['10'];
             renderPanel('10');
-            idbMaybePersist('10', data['10']);
           }
           if(data['28']) {
             latestData['28'] = data['28'];
             renderPanel('28');
-            idbMaybePersist('28', data['28']);
           }
           setLiveStatus();
           setTimeout(resizeLayout, 50);
@@ -2175,11 +2082,8 @@
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
       setupClickHandlers();
-      idbInit(); // fire-and-forget; idbReady gates persistence once it resolves
       fetchData();
       startAutoRefresh();
-      // Daily housekeeping: prune rows older than 3 days even on long-lived tabs.
-      setInterval(idbPruneOld, 6 * 60 * 60 * 1000);
 
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { closeHistory(); closeArchive(); }
@@ -2410,7 +2314,7 @@
         el.textContent = '↑ IMPR +' + Math.round(diff) + 'm';
         el.className = 'rvr-trend-badge rvr-trend-impr';
       } else {
-        el.textContent = '↓ DETER ' + Math.round(diff) + 'm';
+        el.textContent = '↓ DETER ' + Math.round(Math.abs(diff)) + 'm';
         el.className = 'rvr-trend-badge rvr-trend-deter';
       }
       el.style.display = 'block';
