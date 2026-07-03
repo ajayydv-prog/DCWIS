@@ -584,12 +584,40 @@
         const windRow=pb.querySelector('.wind-row');
         const rangeRow=pb.querySelector('.range-row');
         const dataRows=pb.querySelectorAll('.data-row');
-        const windH=Math.round(totalH*0.32);
-        const rangeH = rangeRow ? Math.max(rangeRow.getBoundingClientRect().height, 30) : 30;
-        const remaining=totalH-windH-rangeH;
+
+        // The glass layout adds a gap between every stacked row plus
+        // top/bottom padding on .pb (see --tile-gap in style.css). Both eat
+        // into the space available for the rows themselves, so they must be
+        // subtracted here — otherwise the computed row heights overflow the
+        // panel and the last row (MAX/MIN WS) ends up clipped under the footer.
+        const pbStyle = getComputedStyle(pb);
+        const padTop = parseFloat(pbStyle.paddingTop) || 0;
+        const padBottom = parseFloat(pbStyle.paddingBottom) || 0;
+        const rowGap = parseFloat(pbStyle.rowGap || pbStyle.gap) || 0;
+        const childCount = (windRow ? 1 : 0) + (rangeRow ? 1 : 0) + dataRows.length;
+        const totalGaps = rowGap * Math.max(childCount - 1, 0);
+        const available = totalH - padTop - padBottom - totalGaps;
+        if (available < 10) return;
+
+        const windMin = windRow ? (parseFloat(getComputedStyle(windRow).minHeight) || 70) : 70;
+        const dataMin = dataRows.length ? (parseFloat(getComputedStyle(dataRows[0]).minHeight) || 55) : 55;
+        const rangeMin = rangeRow ? (parseFloat(getComputedStyle(rangeRow).minHeight) || 22) : 22;
+        const rangeH = rangeRow ? Math.max(rangeRow.getBoundingClientRect().height, rangeMin) : rangeMin;
+
+        // Wind-row wants 32% of the space by design, but on a short screen
+        // that ideal figure can leave less than the data rows' own minimum
+        // height once range/gaps/padding are also subtracted — so cap it at
+        // whatever's actually left over after reserving everyone's minimum,
+        // rather than letting the data rows overflow past their forced floor.
+        const dataFloorTotal = dataMin * dataRows.length;
+        const idealWindH = Math.round(available * 0.32);
+        const maxWindH = Math.max(windMin, available - rangeH - dataFloorTotal);
+        const windH = Math.min(Math.max(idealWindH, windMin), maxWindH);
+
+        const remaining=available-windH-rangeH;
         const perData=Math.floor(remaining/dataRows.length);
-        if(windRow) windRow.style.height=Math.max(windH, 70)+'px';
-        dataRows.forEach(r=>r.style.height=Math.max(perData, 55)+'px');
+        if(windRow) windRow.style.height=windH+'px';
+        dataRows.forEach(r=>r.style.height=Math.max(perData, dataMin)+'px');
       });
       ['28','10'].forEach(rwy=>{
         const cell=document.getElementById('compass-'+rwy)?.parentElement;
