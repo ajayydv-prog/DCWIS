@@ -246,9 +246,9 @@
       <div class="modal-header">
         <h2 id="modalTitle">Loading... <small>Runway -- · Trend</small></h2>
         <div class="range-buttons" id="rangeButtons">
-          <button class="range-btn active" data-hours="6" data-bin="60" onclick="changeTimeRange(6, 60, this)">6H (1m)</button>
-          <button class="range-btn" data-hours="24" data-bin="60" onclick="changeTimeRange(24, 60, this)">24H (1m)</button>
-          <button class="range-btn" data-hours="72" data-bin="60" onclick="changeTimeRange(72, 60, this)">3D (1m)</button>
+          <button class="range-btn active" data-hours="6" data-bin="120" onclick="changeTimeRange(6, 120, this)">6H (2m)</button>
+          <button class="range-btn" data-hours="24" data-bin="1800" onclick="changeTimeRange(24, 1800, this)">24H (30m)</button>
+          <button class="range-btn" data-hours="72" data-bin="3600" onclick="changeTimeRange(72, 3600, this)">3D (1H)</button>
         </div>
         <button class="modal-close" onclick="closeHistory()">&times;</button>
       </div>

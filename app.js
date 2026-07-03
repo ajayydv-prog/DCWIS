@@ -34,7 +34,13 @@
     let gustViewActive = false;
     let isHistoryLoading = false;
     let currentHours = 6;
-    let currentBin = 60;
+    let currentBin = 120;
+    // The history modal chart's LINE is always built from 1-min (60s) data
+    // from the backend, no matter which range/bin preset button (2m/30m/1H)
+    // is selected. currentBin still drives the axis label text, stale-data
+    // gap threshold, and the CSV/export meta — only the plotted resolution
+    // changes, so the x-axis time range and displayed "bin" label stay same.
+    const CHART_LINE_BIN = 60;
     let liveMode = true;
     let modalRefreshInterval = null;
     let lastBins = [];
@@ -485,9 +491,7 @@
       if(r<4) return;
       const isDarkMode = document.body.classList.contains('dark');
       ctx.clearRect(0,0,W,H);
-      // translucent wash instead of opaque fill, so the compass-cell's
-      // frosted-glass background shows through behind the dial
-      ctx.fillStyle = isDarkMode ? 'rgba(4,9,15,0.38)' : 'rgba(232,240,248,0.38)';
+      ctx.fillStyle = isDarkMode ? '#04090f' : '#e8f0f8';
       ctx.fillRect(0,0,W,H);
       
       const grad = ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
@@ -584,40 +588,12 @@
         const windRow=pb.querySelector('.wind-row');
         const rangeRow=pb.querySelector('.range-row');
         const dataRows=pb.querySelectorAll('.data-row');
-
-        // The glass layout adds a gap between every stacked row plus
-        // top/bottom padding on .pb (see --tile-gap in style.css). Both eat
-        // into the space available for the rows themselves, so they must be
-        // subtracted here — otherwise the computed row heights overflow the
-        // panel and the last row (MAX/MIN WS) ends up clipped under the footer.
-        const pbStyle = getComputedStyle(pb);
-        const padTop = parseFloat(pbStyle.paddingTop) || 0;
-        const padBottom = parseFloat(pbStyle.paddingBottom) || 0;
-        const rowGap = parseFloat(pbStyle.rowGap || pbStyle.gap) || 0;
-        const childCount = (windRow ? 1 : 0) + (rangeRow ? 1 : 0) + dataRows.length;
-        const totalGaps = rowGap * Math.max(childCount - 1, 0);
-        const available = totalH - padTop - padBottom - totalGaps;
-        if (available < 10) return;
-
-        const windMin = windRow ? (parseFloat(getComputedStyle(windRow).minHeight) || 70) : 70;
-        const dataMin = dataRows.length ? (parseFloat(getComputedStyle(dataRows[0]).minHeight) || 55) : 55;
-        const rangeMin = rangeRow ? (parseFloat(getComputedStyle(rangeRow).minHeight) || 22) : 22;
-        const rangeH = rangeRow ? Math.max(rangeRow.getBoundingClientRect().height, rangeMin) : rangeMin;
-
-        // Wind-row wants 32% of the space by design, but on a short screen
-        // that ideal figure can leave less than the data rows' own minimum
-        // height once range/gaps/padding are also subtracted — so cap it at
-        // whatever's actually left over after reserving everyone's minimum,
-        // rather than letting the data rows overflow past their forced floor.
-        const dataFloorTotal = dataMin * dataRows.length;
-        const idealWindH = Math.round(available * 0.32);
-        const maxWindH = Math.max(windMin, available - rangeH - dataFloorTotal);
-        const windH = Math.min(Math.max(idealWindH, windMin), maxWindH);
-
-        const remaining=available-windH-rangeH;
+        const windH=Math.round(totalH*0.32);
+        const rangeH = rangeRow ? Math.max(rangeRow.getBoundingClientRect().height, 30) : 30;
+        const remaining=totalH-windH-rangeH;
         const perData=Math.floor(remaining/dataRows.length);
-        if(windRow) windRow.style.height=windH+'px';
-        dataRows.forEach(r=>r.style.height=Math.max(perData, dataMin)+'px');
+        if(windRow) windRow.style.height=Math.max(windH, 70)+'px';
+        dataRows.forEach(r=>r.style.height=Math.max(perData, 55)+'px');
       });
       ['28','10'].forEach(rwy=>{
         const cell=document.getElementById('compass-'+rwy)?.parentElement;
@@ -1136,7 +1112,15 @@
       canvas.style.display = 'none';
 
       try {
-        const bins = clampNonNegativeBins(await fetchHistoryFromBackend(rwy, param, currentHours, currentBin), param);
+        // NOTE: We always pull 1-min (bin=60) resolution from the backend for
+        // the actual plotted line, regardless of which range preset (2m/30m/1H)
+        // is selected. currentBin is still used below purely for the axis
+        // label text and the stale-data gap threshold, so the x-axis time
+        // range and "bin" labeling shown to the user stay exactly the same —
+        // only the underlying data driving the line gets finer-grained, so
+        // real spikes/changes (gusts, RVR dips, etc.) that were being
+        // smoothed away by the larger aggregation windows are now visible.
+        const bins = clampNonNegativeBins(await fetchHistoryFromBackend(rwy, param, currentHours, CHART_LINE_BIN), param);
         lastBins = bins;
         const ctx = canvas.getContext('2d');
 
@@ -1311,12 +1295,6 @@
             ? Math.round(values[values.length - 1] * 10) / 10 + '°'
             : '—';
         }
-
-        const binText = currentBin === 60 ? '1-min' :
-                        currentBin === 120 ? '2-min' :
-                        currentBin === 600 ? '10-min' :
-                        currentBin === 1800 ? '30-min' :
-                        currentBin === 3600 ? '1-hour' : '3-hour';
 
         metaCurrent.textContent = currentVal;
         metaMin.innerHTML = minTimeStr
@@ -1500,7 +1478,7 @@
                 },
                 title: { 
                   display: true, 
-                  text: `Time (UTC - last ${currentHours} hours, ${binText} bins)`, 
+                  text: `Time (UTC - last ${currentHours} hours)`, 
                   color: textColor,
                   font: { family: 'Inter', size: 11 } 
                 }
@@ -1765,14 +1743,8 @@
       };
       const displayName = labelMap[param] || param;
       
-      const binText = currentBin === 60 ? '1-min' :
-                      currentBin === 120 ? '2-min' :
-                      currentBin === 600 ? '10-min' :
-                      currentBin === 1800 ? '30-min' :
-                      currentBin === 3600 ? '1-hour' : '3-hour';
-      
       modalTitle.innerHTML =
-        `${displayName} <small>Runway ${rwy} · ${currentHours}H trend (${binText} bins)</small>`;
+        `${displayName} <small>Runway ${rwy} · ${currentHours}H trend</small>`;
 
       metaCurrent.textContent = '⏳';
       metaMin.textContent = '⏳';
