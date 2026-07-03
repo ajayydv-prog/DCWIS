@@ -31,9 +31,10 @@
     // ═══════════════════════════════════════════════════════════════
 
     let modalRwy = null;
+    let gustViewActive = false;
     let isHistoryLoading = false;
     let currentHours = 6;
-    let currentBin = 120;
+    let currentBin = 60;
     let liveMode = true;
     let modalRefreshInterval = null;
     let lastBins = [];
@@ -49,7 +50,8 @@
 
     const Y_AXIS_LIMITS = {
       rvr: { min: 0, max: 2000 },
-      mor: { min: 0, max: 5320 }
+      mor: { min: 0, max: 5320 },
+      windDirection: { min: 0, max: 360 }
     };
 
     const TZ_OFFSET_MS = new Date().getTimezoneOffset() * 60000;
@@ -84,7 +86,7 @@
       if (modalParam && modalRwy) {
         liveMode = true;
         setLiveButtonUI();
-        renderHistoryChart(modalParam, modalRwy).then(startModalAutoRefresh);
+        renderHistoryChart(displayParam(), modalRwy).then(startModalAutoRefresh);
       }
     };
 
@@ -652,6 +654,26 @@
       if(sevClass) el.classList.add(sevClass);
     }
 
+    // Highlights RVR/MOR readings that carry a "P" (>= range, e.g. P2000
+    // means RVR/MOR is at least 2000m) or "M" (<= minimum reportable,
+    // e.g. M200 means RVR/MOR is at or below 200m) boundary-indicator
+    // prefix, so observers can see at a glance that the value is a
+    // sensor-range boundary rather than an exact reading.
+    function applyBoundaryBadge(id, rawVal){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.classList.remove('boundary-ge', 'boundary-le');
+      el.removeAttribute('title');
+      const s = String(rawVal || '').trim().toUpperCase();
+      if(s.startsWith('P')){
+        el.classList.add('boundary-ge');
+        el.title = 'At or beyond sensor range (≥ ' + s.slice(1) + 'm)';
+      } else if(s.startsWith('M')){
+        el.classList.add('boundary-le');
+        el.title = 'At or below minimum reportable value (≤ ' + s.slice(1) + 'm)';
+      }
+    }
+
     function getValueByMode(data, field, mode){
       if(!data) return null;
       const suffixMap = {
@@ -879,9 +901,11 @@
 
       const rvrKey = mode === '10min' ? 'pwd_rvr_avgTenMin' : 'pwd_rvr_avgOneMin';
       setValueWithSeverity(p+'rvr', d[rvrKey] || '--', 'visibility');
+      applyBoundaryBadge(p+'rvr', d[rvrKey]);
 
       const morKey = mode === '10min' ? 'pwd_mor_avgTenMin' : 'pwd_mor_avgOneMin';
       setValueWithSeverity(p+'mor', d[morKey] || '--', 'visibility');
+      applyBoundaryBadge(p+'mor', d[morKey]);
 
       const qnh = getValueByMode(d, 'qnh', mode);
       setValue(p+'qnh', qnh);
@@ -980,7 +1004,9 @@
         'qnh': 'qnh',
         'qfe': 'qfe',
         'rvr': 'rvr',
-        'mor': 'mor'
+        'mor': 'mor',
+        'windSpeedGustMax': 'windSpeedGustMax',
+        'windSpeedGustMin': 'windSpeedGustMin'
       };
       
       const backendParam = paramMap[param] || param;
@@ -1102,14 +1128,16 @@
           'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
           'headwind': 'Head Wind', 'crosswind': 'Cross Wind',
           'rvr': 'RVR', 'mor': 'MOR', 'qnh': 'QNH', 'qfe': 'QFE',
-          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point'
+          'temperature': 'Temperature', 'humidity': 'Humidity', 'dewPoint': 'Dew Point',
+          'windSpeedGustMax': 'Wind Speed Gust (Max)', 'windSpeedGustMin': 'Wind Speed Gust (Min)'
         };
         const displayName = labelMap[param] || param.toUpperCase();
 
         const unitMap = {
           'windDirection': '°', 'windSpeed': 'kt', 'headwind': 'kt', 'crosswind': 'kt',
           'rvr': 'm', 'mor': 'm', 'qnh': 'hPa', 'qfe': 'hPa',
-          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C'
+          'temperature': '°C', 'humidity': '%', 'dewPoint': '°C',
+          'windSpeedGustMax': 'kt', 'windSpeedGustMin': 'kt'
         };
         const unit = unitMap[param] || '';
         const isCircular = (param === 'windDirection');
@@ -1256,7 +1284,8 @@
             : '—';
         }
 
-        const binText = currentBin === 120 ? '2-min' :
+        const binText = currentBin === 60 ? '1-min' :
+                        currentBin === 120 ? '2-min' :
                         currentBin === 600 ? '10-min' :
                         currentBin === 1800 ? '30-min' :
                         currentBin === 3600 ? '1-hour' : '3-hour';
@@ -1691,6 +1720,14 @@
       modalRwy = rwy;
       liveMode = true;
       setLiveButtonUI();
+      gustViewActive = false;
+
+      const gustBtn = document.getElementById('gustToggleBtn');
+      if (gustBtn) {
+        gustBtn.style.display = (param === 'windSpeed') ? 'inline-block' : 'none';
+        gustBtn.classList.remove('live-on');
+        gustBtn.textContent = '💨 Gust History';
+      }
 
       const labelMap = {
         'windDirection': 'Wind Direction', 'windSpeed': 'Wind Speed',
@@ -1700,7 +1737,8 @@
       };
       const displayName = labelMap[param] || param;
       
-      const binText = currentBin === 120 ? '2-min' :
+      const binText = currentBin === 60 ? '1-min' :
+                      currentBin === 120 ? '2-min' :
                       currentBin === 600 ? '10-min' :
                       currentBin === 1800 ? '30-min' :
                       currentBin === 3600 ? '1-hour' : '3-hour';
@@ -1729,6 +1767,7 @@
       modalParam = null;
       modalRwy = null;
       isHistoryLoading = false;
+      gustViewActive = false;
     };
 
     function setLiveButtonUI() {
@@ -1743,7 +1782,7 @@
       stopModalAutoRefresh();
       if (!liveMode) return;
       modalRefreshInterval = setInterval(() => {
-        if (modalParam && modalRwy) renderHistoryChart(modalParam, modalRwy);
+        if (modalParam && modalRwy) renderHistoryChart(displayParam(), modalRwy);
       }, 30000);
     }
 
@@ -1768,10 +1807,31 @@
       setLiveButtonUI();
       if (liveMode) {
         userHasZoomed = false;
-        renderHistoryChart(modalParam, modalRwy).then(startModalAutoRefresh);
+        renderHistoryChart(displayParam(), modalRwy).then(startModalAutoRefresh);
       } else {
         stopModalAutoRefresh();
       }
+    };
+
+    // Tracks what's actually rendered in the chart right now. Usually this
+    // is just modalParam, but toggling "Gust History" swaps in the gust
+    // param temporarily without disturbing modalParam (which the modal
+    // title / range buttons / live-mode refresh all key off of).
+    function displayParam() {
+      return gustViewActive ? 'windSpeedGustMax' : modalParam;
+    }
+
+    window.toggleGustView = function() {
+      if (modalParam !== 'windSpeed') return; // button is hidden otherwise, but guard anyway
+      gustViewActive = !gustViewActive;
+
+      const gustBtn = document.getElementById('gustToggleBtn');
+      if (gustBtn) {
+        gustBtn.classList.toggle('live-on', gustViewActive);
+        gustBtn.textContent = gustViewActive ? '💨 Gust History (ON)' : '💨 Gust History';
+      }
+
+      renderHistoryChart(displayParam(), modalRwy);
     };
 
     window.resetChartZoom = function() {
@@ -2806,7 +2866,7 @@
         doc.setFontSize(7);
         doc.setTextColor(150, 150, 150);
         doc.text(
-          'VOGA/MOPA DCWIS · Generated ' + utcStr + ' · Developed by Ajay (Goa)',
+          'VOGA/MOPA DCWIS · Generated ' + utcStr,
           MARGIN_MM, A4_H_MM - 6
         );
 

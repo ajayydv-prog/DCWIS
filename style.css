@@ -355,6 +355,12 @@ body.dark .wbox .click-hint {
 .red  { color:var(--val-red); }
 .sev-orange { color:var(--sev-orange) !important; }
 .sev-red { color:var(--sev-red) !important; }
+.boundary-ge {
+  cursor: help;
+}
+.boundary-le {
+  cursor: help;
+}
 .compass-cell {
   display:flex; align-items:center; justify-content:center;
   background:var(--glass-card); overflow:hidden;
