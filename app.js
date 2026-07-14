@@ -235,7 +235,7 @@
       }
       if (e.visibility) parts.push(e.visibility);
     }
-    function _metarWeatherCloudsTemp(e, parts) {
+    function _metarWeatherCloudsTemp(e, parts, decimalQnh) {
       if (e.weather) parts.push(e.weather);
       let anyCloud = false;
       ['cloud1', 'cloud2', 'cloud3', 'cloud4'].forEach(c => {
@@ -252,14 +252,18 @@
       const tt = fmtTemp(e.temperature), td = fmtTemp(e.dewpoint);
       if (tt !== null && td !== null) parts.push(tt + '/' + td);
       if (e.qnh !== undefined && e.qnh !== '') {
-        const q = Math.floor(parseFloat(e.qnh));
-        if (!isNaN(q)) parts.push('Q' + q);
+        const qRaw = parseFloat(e.qnh);
+        if (!isNaN(qRaw)) {
+          const q = decimalQnh ? qRaw.toFixed(1) : Math.floor(qRaw);
+          parts.push('Q' + q);
+        }
       }
       if (e.trend) parts.push(e.trend);
     }
 
     // Register/live format: activervr1/2 = runway number ("28","10") when active, empty when not
-    function buildMetarText(e) {
+    // decimalQnh: when true, keep QNH decimal (used for METAR HISTORY 6/12/24H popup)
+    function buildMetarText(e, decimalQnh) {
       const parts = [(e.selectedOption || 'METAR'), 'VOGA', (e.time || '----') + 'Z'];
       _metarWindCloud(e, parts);
       if (e.activervr1 && e.rvr1) {
@@ -268,7 +272,7 @@
       if (e.activervr2 && e.rvr2) {
         parts.push('R' + String(e.activervr2).padStart(2, '0') + '/' + e.rvr2);
       }
-      _metarWeatherCloudsTemp(e, parts);
+      _metarWeatherCloudsTemp(e, parts, decimalQnh);
       return parts.join(' ');
     }
 
@@ -333,7 +337,7 @@
           metarPopupBody.innerHTML = `<div class="no-data">No METAR/SPECI found in the last ${metarHistoryHours} hours.</div>`;
           return;
         }
-        const lines = entries.map(e => buildMetarText(e));
+        const lines = entries.map(e => buildMetarText(e, true));
         metarPopupBody.innerHTML = lines.map(line =>
           `<div class="metar-line">${escapeHtml(line)}</div>`
         ).join('');
