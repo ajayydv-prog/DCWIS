@@ -2090,11 +2090,9 @@
         }
 
         function drawFooter() {
-          const pageCount = doc.internal.getNumberOfPages();
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
           doc.setTextColor(140, 140, 140);
-          doc.text(`Page ${doc.internal.getCurrentPageNumber()} of ${pageCount}`, pageW - margin, pageH - 6, { align: 'right' });
           doc.text('VOGA/MOPA DCWIS — Auto-generated report', margin, pageH - 6);
         }
 
@@ -2149,6 +2147,17 @@
         });
 
         drawFooter();
+
+        // ── Page numbers: stamp after all pages exist (safe, avoids
+        // relying on any "current page" API during generation) ──────
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+          doc.setPage(p);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(140, 140, 140);
+          doc.text(`Page ${p} of ${totalPages}`, pageW - margin, pageH - 6, { align: 'right' });
+        }
 
         const fname = `VOGA_${modalRwy || ''}_${modalParam || 'param'}_history_${Date.now()}.pdf`;
         doc.save(fname);
