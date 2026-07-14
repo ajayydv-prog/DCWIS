@@ -2013,6 +2013,106 @@
       URL.revokeObjectURL(url);
     };
 
+    window.exportChartPDF = async function() {
+      if (!lastBins || lastBins.length === 0) return;
+      const btn = document.getElementById('chartPdfBtn');
+      const btnOrigText = btn ? btn.textContent : '';
+      if (btn) { btn.textContent = '⏳ Generating…'; btn.disabled = true; }
+
+      function loadScript(src) {
+        return new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = src;
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+
+      try {
+        if (!window.jspdf) {
+          await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        }
+        if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.API.autoTable) {
+          await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+        }
+        const { jsPDF } = window.jspdf;
+
+        const meta = lastChartMeta || {};
+        const paramName = meta.displayName || modalParam || 'Parameter';
+        const unit = meta.unit || '';
+        const rwyLabel = modalRwy ? `Runway ${modalRwy}` : '';
+        const hoursLabel = meta.currentHours ? `Last ${meta.currentHours} Hours` : '';
+
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW = doc.internal.pageSize.getWidth();
+
+        // ── Colorful header band ──────────────────────────────────
+        doc.setFillColor(21, 101, 192); // blue
+        doc.rect(0, 0, pageW, 24, 'F');
+        doc.setFillColor(0, 105, 92); // teal accent strip
+        doc.rect(0, 24, pageW, 2, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        doc.text('VOGA/MOPA DCWIS', 12, 11);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${paramName}${unit ? ' (' + unit + ')' : ''} — History` + (rwyLabel ? ` · ${rwyLabel}` : ''), 12, 18);
+
+        doc.setFontSize(9);
+        doc.setTextColor(230, 240, 255);
+        const genStr = new Date().toUTCString().replace('GMT', 'UTC');
+        doc.text(hoursLabel, pageW - 12, 11, { align: 'right' });
+        doc.text(genStr, pageW - 12, 18, { align: 'right' });
+
+        // ── Table rows: Date | Time (UTC) | Value | Min | Max ──────
+        const rows = lastBins.map(b => {
+          const d = new Date(b.timestamp * 1000);
+          const dateStr = d.toISOString().slice(0, 10);
+          const timeStr = d.toISOString().slice(11, 16) + 'Z';
+          const fmt = (v) => (v === undefined || v === null || v === '') ? '—' : v;
+          return [dateStr, timeStr, fmt(b.value), fmt(b.min), fmt(b.max)];
+        });
+
+        doc.autoTable({
+          startY: 30,
+          head: [['Date', 'Time (UTC)', `Value${unit ? ' (' + unit + ')' : ''}`, 'Min', 'Max']],
+          body: rows,
+          theme: 'grid',
+          styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.2, halign: 'center', lineColor: [200, 210, 225], lineWidth: 0.15 },
+          headStyles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 9.5 },
+          alternateRowStyles: { fillColor: [232, 240, 254] },
+          columnStyles: {
+            0: { fillColor: undefined },
+            2: { textColor: [21, 101, 192], fontStyle: 'bold' },
+            3: { textColor: [1, 87, 155] },
+            4: { textColor: [198, 40, 40] }
+          },
+          margin: { left: 12, right: 12 },
+          didDrawPage: (data) => {
+            const pageCount = doc.internal.getNumberOfPages();
+            doc.setFontSize(8);
+            doc.setTextColor(140, 140, 140);
+            doc.text(
+              `Page ${doc.internal.getCurrentPageNumber()} of ${pageCount}`,
+              pageW - 12, doc.internal.pageSize.getHeight() - 6, { align: 'right' }
+            );
+            doc.text('VOGA/MOPA DCWIS — Auto-generated report', 12, doc.internal.pageSize.getHeight() - 6);
+          }
+        });
+
+        const fname = `VOGA_${modalRwy || ''}_${modalParam || 'param'}_history_${Date.now()}.pdf`;
+        doc.save(fname);
+
+      } catch (err) {
+        console.error('Chart PDF generation failed:', err);
+        alert('PDF generation failed. Please try again.');
+      } finally {
+        if (btn) { btn.textContent = btnOrigText || '📕 PDF'; btn.disabled = false; }
+      }
+    };
+
     function setupClickHandlers() {
       document.querySelectorAll('.dc[data-param], .wbox[data-param]').forEach(el => {
         el.addEventListener('click', function(e) {
