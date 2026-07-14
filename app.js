@@ -2032,9 +2032,6 @@
         if (!window.jspdf) {
           await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
         }
-        if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.API.autoTable) {
-          await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js');
-        }
         const { jsPDF } = window.jspdf;
 
         const meta = lastChartMeta || {};
@@ -2045,69 +2042,120 @@
 
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        const margin = 12;
+        const usableW = pageW - margin * 2;
 
-        // ── Colorful header band ──────────────────────────────────
-        doc.setFillColor(21, 101, 192); // blue
-        doc.rect(0, 0, pageW, 24, 'F');
-        doc.setFillColor(0, 105, 92); // teal accent strip
-        doc.rect(0, 24, pageW, 2, 'F');
+        // Column layout: Date | Time (UTC) | Value | Min | Max
+        const colHeaders = ['Date', 'Time (UTC)', `Value${unit ? ' (' + unit + ')' : ''}`, 'Min', 'Max'];
+        const colWidths = [34, 30, 42, 40, 40]; // sums to 186 = usableW at 12mm margins on A4
+        const colX = [margin];
+        for (let i = 0; i < colWidths.length - 1; i++) colX.push(colX[i] + colWidths[i]);
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(15);
-        doc.text('VOGA/MOPA DCWIS', 12, 11);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`${paramName}${unit ? ' (' + unit + ')' : ''} — History` + (rwyLabel ? ` · ${rwyLabel}` : ''), 12, 18);
+        const rowH = 7;
+        const headRowH = 8.5;
+        const footerH = 10;
 
-        doc.setFontSize(9);
-        doc.setTextColor(230, 240, 255);
-        const genStr = new Date().toUTCString().replace('GMT', 'UTC');
-        doc.text(hoursLabel, pageW - 12, 11, { align: 'right' });
-        doc.text(genStr, pageW - 12, 18, { align: 'right' });
+        function drawTopBand() {
+          doc.setFillColor(21, 101, 192); // blue
+          doc.rect(0, 0, pageW, 24, 'F');
+          doc.setFillColor(0, 105, 92); // teal accent strip
+          doc.rect(0, 24, pageW, 2, 'F');
 
-        // ── Table rows: Date | Time (UTC) | Value | Min | Max ──────
-        const rows = lastBins.map(b => {
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(15);
+          doc.text('VOGA/MOPA DCWIS', margin, 11);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${paramName}${unit ? ' (' + unit + ')' : ''} — History` + (rwyLabel ? ` · ${rwyLabel}` : ''), margin, 18);
+
+          doc.setFontSize(9);
+          doc.setTextColor(230, 240, 255);
+          const genStr = new Date().toUTCString().replace('GMT', 'UTC');
+          doc.text(hoursLabel, pageW - margin, 11, { align: 'right' });
+          doc.text(genStr, pageW - margin, 18, { align: 'right' });
+        }
+
+        function drawHeaderRow(y) {
+          doc.setFillColor(21, 101, 192);
+          doc.rect(margin, y, usableW, headRowH, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9.5);
+          colHeaders.forEach((h, i) => {
+            doc.text(h, colX[i] + colWidths[i] / 2, y + headRowH / 2 + 1.2, { align: 'center' });
+          });
+          return y + headRowH;
+        }
+
+        function drawFooter() {
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(140, 140, 140);
+          doc.text(`Page ${doc.internal.getCurrentPageNumber()} of ${pageCount}`, pageW - margin, pageH - 6, { align: 'right' });
+          doc.text('VOGA/MOPA DCWIS — Auto-generated report', margin, pageH - 6);
+        }
+
+        function fmt(v) { return (v === undefined || v === null || v === '') ? '—' : String(v); }
+
+        drawTopBand();
+        let y = drawHeaderRow(30);
+        let rowIndex = 0;
+
+        lastBins.forEach(b => {
+          if (y + rowH > pageH - margin - footerH) {
+            drawFooter();
+            doc.addPage();
+            y = drawHeaderRow(margin);
+            rowIndex = 0;
+          }
+
           const d = new Date(b.timestamp * 1000);
           const dateStr = d.toISOString().slice(0, 10);
           const timeStr = d.toISOString().slice(11, 16) + 'Z';
-          const fmt = (v) => (v === undefined || v === null || v === '') ? '—' : v;
-          return [dateStr, timeStr, fmt(b.value), fmt(b.min), fmt(b.max)];
+          const cells = [dateStr, timeStr, fmt(b.value), fmt(b.min), fmt(b.max)];
+
+          // Alternating row background
+          doc.setFillColor(rowIndex % 2 === 0 ? 255 : 232, rowIndex % 2 === 0 ? 255 : 240, rowIndex % 2 === 0 ? 255 : 254);
+          doc.rect(margin, y, usableW, rowH, 'F');
+
+          // Cell borders
+          doc.setDrawColor(200, 210, 225);
+          doc.setLineWidth(0.15);
+          doc.rect(margin, y, usableW, rowH, 'S');
+          for (let i = 1; i < colX.length; i++) {
+            doc.line(colX[i], y, colX[i], y + rowH);
+          }
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          const textCellColors = [
+            [40, 40, 40],   // date
+            [40, 40, 40],   // time
+            [21, 101, 192], // value - blue
+            [1, 87, 155],   // min - dark blue
+            [198, 40, 40]   // max - red
+          ];
+          cells.forEach((c, i) => {
+            doc.setTextColor(textCellColors[i][0], textCellColors[i][1], textCellColors[i][2]);
+            if (i >= 2) doc.setFont('helvetica', 'bold'); else doc.setFont('helvetica', 'normal');
+            doc.text(c, colX[i] + colWidths[i] / 2, y + rowH / 2 + 1.1, { align: 'center' });
+          });
+
+          y += rowH;
+          rowIndex++;
         });
 
-        doc.autoTable({
-          startY: 30,
-          head: [['Date', 'Time (UTC)', `Value${unit ? ' (' + unit + ')' : ''}`, 'Min', 'Max']],
-          body: rows,
-          theme: 'grid',
-          styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.2, halign: 'center', lineColor: [200, 210, 225], lineWidth: 0.15 },
-          headStyles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 9.5 },
-          alternateRowStyles: { fillColor: [232, 240, 254] },
-          columnStyles: {
-            0: { fillColor: undefined },
-            2: { textColor: [21, 101, 192], fontStyle: 'bold' },
-            3: { textColor: [1, 87, 155] },
-            4: { textColor: [198, 40, 40] }
-          },
-          margin: { left: 12, right: 12 },
-          didDrawPage: (data) => {
-            const pageCount = doc.internal.getNumberOfPages();
-            doc.setFontSize(8);
-            doc.setTextColor(140, 140, 140);
-            doc.text(
-              `Page ${doc.internal.getCurrentPageNumber()} of ${pageCount}`,
-              pageW - 12, doc.internal.pageSize.getHeight() - 6, { align: 'right' }
-            );
-            doc.text('VOGA/MOPA DCWIS — Auto-generated report', 12, doc.internal.pageSize.getHeight() - 6);
-          }
-        });
+        drawFooter();
 
         const fname = `VOGA_${modalRwy || ''}_${modalParam || 'param'}_history_${Date.now()}.pdf`;
         doc.save(fname);
 
       } catch (err) {
         console.error('Chart PDF generation failed:', err);
-        alert('PDF generation failed. Please try again.');
+        alert('PDF generation failed: ' + (err && err.message ? err.message : String(err)));
       } finally {
         if (btn) { btn.textContent = btnOrigText || '📕 PDF'; btn.disabled = false; }
       }
