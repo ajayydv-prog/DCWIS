@@ -10,6 +10,15 @@
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2/dist/chartjs-plugin-zoom.min.js"></script>
   <link rel="stylesheet" href="style.css?v=__BUILD_VERSION__">
+
+  <!-- PWA: installable app support -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#04090f">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DCWIS">
 </head>
 <body>
   <!-- TOP BAR, RUNWAY BAR, MAIN PANELS -->
@@ -19,6 +28,7 @@
     <div class="top-btns">
       <div id="status">⬤ LIVE</div>
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
+      <button class="icon-btn" id="notif-btn" onclick="toggleNotifications()" title="Enable native alert notifications">🔕</button>
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
       <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Satellite Cloud Analysis">☁️</button>
       <button class="icon-btn" id="trend-toggle-btn" onclick="toggleTrendView()" title="Trend Dashboard (1H graphs)">📈</button>
@@ -76,7 +86,7 @@
               <span class="click-hint">📊 Click to see history</span>
             </div>
           </div>
-          <div class="compass-cell"><canvas id="compass-28"></canvas></div>
+          <div class="compass-cell"><canvas id="compass-28"></canvas><canvas id="particles-28" class="wind-particles-canvas"></canvas></div>
         </div>
         <div class="range-row">
           <div class="rr"><span class="rl">WS 2min</span><span class="rv" id="r28-ws2">—</span></div>
@@ -131,7 +141,7 @@
               <span class="click-hint">📊 Click to see history</span>
             </div>
           </div>
-          <div class="compass-cell"><canvas id="compass-10"></canvas></div>
+          <div class="compass-cell"><canvas id="compass-10"></canvas><canvas id="particles-10" class="wind-particles-canvas"></canvas></div>
         </div>
         <div class="range-row">
           <div class="rr"><span class="rl">WS 2min</span><span class="rv" id="r10-ws2">—</span></div>
@@ -298,5 +308,5 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260714-3"></script>
+  <script src="app.js?v=20260715-1"></script>
 </body>

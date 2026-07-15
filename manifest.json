@@ -1,0 +1,17 @@
+{
+  "name": "VOGA-MOPA DCWIS",
+  "short_name": "DCWIS",
+  "description": "Digital Compact Weather Information System — live AWOS data for VOGA (Dabolim) and VOGO/Mopa airports",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04090f",
+  "theme_color": "#04090f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

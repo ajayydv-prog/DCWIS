@@ -17,6 +17,7 @@
     const modes = { '28': 'instant', '10': 'instant' };
     const wsExtremeModes = { '28': '1min', '10': '1min' };
     const compassDirs = { '28': null, '10': null };
+    const windSpeedCurrent = { '28': 0, '10': 0 }; // latest numeric wind speed (kt), feeds particle animation
     const RUNWAY_HEADING = { '28': 280, '10': 100 };
     let isDark = true;
     let autoRefreshInterval = null;
@@ -581,6 +582,104 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  LIVE WIND FLOW ANIMATION (particle overlay on each compass)
+    //
+    //  Renders on a separate transparent canvas layered on top of the
+    //  compass canvas — drawCompass() itself is untouched. Direction is
+    //  read from compassCurrentAngle (the same eased angle the needle
+    //  already animates to), speed scales with windSpeedCurrent (kt).
+    //  Particles are stored in path-fraction coordinates (not pixels) so
+    //  they stay correctly placed across any canvas resize.
+    // ═══════════════════════════════════════════════════════════════
+    const WIND_PARTICLE_COUNT = 11;
+    const windParticles = { '28': [], '10': [] };
+
+    function makeWindParticle(){
+      return {
+        t: Math.random() * 2.6 - 1.3,   // position along travel line, -1.3..1.3
+        o: Math.random() * 1.4 - 0.7,   // perpendicular offset (fraction of r)
+        jitter: 0.65 + Math.random() * 0.7 // per-particle speed variance
+      };
+    }
+
+    function ensureWindParticles(rwy){
+      if(windParticles[rwy].length === 0){
+        for(let i=0;i<WIND_PARTICLE_COUNT;i++) windParticles[rwy].push(makeWindParticle());
+      }
+    }
+
+    function drawWindParticles(rwy){
+      const canvas = document.getElementById('particles-'+rwy);
+      const compassCanvas = document.getElementById('compass-'+rwy);
+      if(!canvas || !compassCanvas) return;
+      const parent = canvas.parentElement;
+      const w = parent.clientWidth || 200, h = parent.clientHeight || 90;
+      if(canvas.width !== w) canvas.width = w;
+      if(canvas.height !== h) canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,w,h);
+
+      const windDeg = compassCurrentAngle[rwy];
+      const speedKt = windSpeedCurrent[rwy] || 0;
+      ensureWindParticles(rwy);
+
+      // Below ~2kt treat as calm — leave the canvas clear rather than
+      // implying movement that isn't there.
+      if(windDeg === null || isNaN(windDeg) || speedKt < 2){
+        return;
+      }
+
+      const cx = w/2, cy = h/2, r = Math.min(w,h)*0.38;
+      if(r < 4) return;
+
+      // Travel direction = reciprocal of the "wind FROM" bearing the
+      // needle points at, i.e. the direction the air is actually moving.
+      const travelA = ((windDeg + 180) - 90) * Math.PI/180;
+      const dx = Math.cos(travelA), dy = Math.sin(travelA);
+      const px = -dy, py = dx;
+
+      const speedFrac = Math.min(0.045, 0.006 + speedKt * 0.0011);
+      const isDarkMode = document.body.classList.contains('dark');
+      const col = isDarkMode ? '0,229,255' : '0,119,204';
+      const tailLen = r * (0.10 + Math.min(speedKt,40)/40 * 0.16);
+
+      windParticles[rwy].forEach(pt => {
+        pt.t += speedFrac * pt.jitter;
+        if(pt.t > 1.3){
+          pt.t = -1.3;
+          pt.o = Math.random() * 1.4 - 0.7;
+          pt.jitter = 0.65 + Math.random() * 0.7;
+        }
+        const x = cx + dx*pt.t*r*1.3 + px*pt.o*r;
+        const y = cy + dy*pt.t*r*1.3 + py*pt.o*r;
+        const dist = Math.hypot(x-cx, y-cy);
+        if(dist > r) return; // clip to the compass circle
+
+        const fade = 1 - Math.abs(pt.o); // dimmer near the circle's edge
+        const alpha = Math.max(0.12, 0.6 * fade);
+        const tx = x - dx*tailLen, ty = y - dy*tailLen;
+        ctx.strokeStyle = `rgba(${col},${alpha.toFixed(2)})`;
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(tx,ty);
+        ctx.lineTo(x,y);
+        ctx.stroke();
+      });
+    }
+
+    let windParticleLoopStarted = false;
+    function startWindParticleLoop(){
+      if(windParticleLoopStarted) return;
+      windParticleLoopStarted = true;
+      (function loop(){
+        drawWindParticles('28');
+        drawWindParticles('10');
+        requestAnimationFrame(loop);
+      })();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  RESIZE
     // ═══════════════════════════════════════════════════════════════
     function resizeLayout(){
@@ -878,6 +977,7 @@
 
       const ws = getValueByMode(d, 'windSpeed', mode);
       setValueWithSeverity(p+'ws', ws, 'windSpeed');
+      windSpeedCurrent[rwy] = parseLeadingNumber(ws) ?? 0;
 
       const { hw, cw } = getHeadCrossWind(d, mode);
       const hwEl = document.getElementById(p+'hw');
@@ -2251,6 +2351,10 @@
       fetchData();
       startAutoRefresh();
 
+      registerServiceWorker();
+      updateNotifBtnUI();
+      startWindParticleLoop();
+
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { closeHistory(); closeArchive(); }
       });
@@ -2304,6 +2408,86 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  PWA INSTALL + NATIVE ALERT NOTIFICATIONS (no backend involved)
+    //
+    //  Two independent pieces:
+    //  1. Service worker registration → makes the dashboard installable
+    //     (Add to Home Screen / desktop install icon) and caches only
+    //     the static app shell (see service-worker.js — it explicitly
+    //     never touches live data requests).
+    //  2. Native OS notifications fired directly from THIS page whenever
+    //     checkAlerts() detects a new threshold breach, using the same
+    //     data this tab already polls every second. This works while the
+    //     tab/installed app is open (foreground or backgrounded) with no
+    //     push server. It cannot wake up a fully-closed app — that would
+    //     require a real Web Push backend, which is out of scope here.
+    // ═══════════════════════════════════════════════════════════════
+    let swRegistration = null;
+    let notificationsEnabled = false;
+    try { notificationsEnabled = localStorage.getItem('dcwis_notif_enabled') === '1'; } catch(e) {}
+
+    function registerServiceWorker(){
+      if(!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.register('service-worker.js')
+        .then(reg => { swRegistration = reg; updateNotifBtnUI(); })
+        .catch(err => console.error('Service worker registration failed:', err));
+    }
+
+    function updateNotifBtnUI(){
+      const btn = document.getElementById('notif-btn');
+      if(!btn) return;
+      if(!('Notification' in window)){
+        btn.style.display = 'none';
+        return;
+      }
+      const active = notificationsEnabled && Notification.permission === 'granted';
+      btn.textContent = active ? '🔔' : '🔕';
+      btn.classList.toggle('notif-active', active);
+      btn.title = active
+        ? 'Native alert notifications ON — click to disable'
+        : 'Enable native alert notifications for threshold breaches';
+    }
+
+    async function sendBrowserNotification(title, body, tag){
+      if(!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+      const options = {
+        body,
+        icon: 'icons/icon-192.png',
+        badge: 'icons/icon-192.png',
+        tag: tag || 'dcwis-alert',
+        renotify: true,
+        vibrate: [200,100,200]
+      };
+      try {
+        if(swRegistration){
+          swRegistration.showNotification(title, options);
+        } else {
+          new Notification(title, options);
+        }
+      } catch(e){ console.error('Notification failed:', e); }
+    }
+
+    window.toggleNotifications = async function(){
+      if(!('Notification' in window)){
+        alert('This browser does not support notifications.');
+        return;
+      }
+      if(notificationsEnabled && Notification.permission === 'granted'){
+        notificationsEnabled = false;
+        try { localStorage.setItem('dcwis_notif_enabled', '0'); } catch(e) {}
+        updateNotifBtnUI();
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      notificationsEnabled = (perm === 'granted');
+      try { localStorage.setItem('dcwis_notif_enabled', notificationsEnabled ? '1' : '0'); } catch(e) {}
+      updateNotifBtnUI();
+      if(notificationsEnabled){
+        sendBrowserNotification('VOGA-MOPA DCWIS', 'Native breach alerts are now active on this device.', 'dcwis-test');
+      }
+    };
+
     // Alert state tracking
     const alertStates = {};
     let alertDismissed = false;
@@ -2344,12 +2528,13 @@
         const breached = isAlertBreached(def, val);
         const wasBreached = !!alertStates[def.id];
         alertStates[def.id] = breached;
+        const dispVal = val !== null ? (def.useAbs ? Math.abs(val) : val) : '—';
+        const unit = { crosswind:'kt', rvr:'m', windSpeed:'kt' }[def.type] || '';
         if (breached && !wasBreached) {
           playAlertSequence(def.level);
+          sendBrowserNotification(`⚠ ${def.label}`, `${dispVal}${unit} — threshold breached`, def.id);
         }
         if (breached) {
-          const dispVal = val !== null ? (def.useAbs ? Math.abs(val) : val) : '—';
-          const unit = { crosswind:'kt', rvr:'m', windSpeed:'kt' }[def.type] || '';
           activeAlerts.push(`⚠ ${def.label}: ${dispVal}${unit}`);
         }
       });
