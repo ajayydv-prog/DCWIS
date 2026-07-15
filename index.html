@@ -30,6 +30,7 @@
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
       <button class="icon-btn" id="notif-btn" onclick="toggleNotifications()" title="Enable native alert notifications">🔕</button>
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
+      <button class="icon-btn" id="radar-btn" onclick="openRadarModal()" title="Live Rain Radar">📡</button>
       <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Satellite Cloud Analysis">☁️</button>
       <button class="icon-btn" id="trend-toggle-btn" onclick="toggleTrendView()" title="Trend Dashboard (1H graphs)">📈</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
@@ -238,6 +239,24 @@
     </div>
   </div>
 
+  <!-- ─── LIVE RAIN RADAR MODAL ─── -->
+  <div id="radarModal">
+    <div id="radarBox">
+      <div id="radar-header">
+        <div id="radar-header-left">
+          <div class="radar-title">📡 Live Rain Radar</div>
+          <div class="radar-subtitle" id="radar-time-hdr">Loading…</div>
+        </div>
+        <button class="radar-close" onclick="closeRadarModal()">&times;</button>
+      </div>
+      <div id="radarContent">
+        <img id="radarImg" alt="Live rain radar">
+        <div id="radarLoadingMsg" class="radar-status-msg">Loading radar image…</div>
+        <div id="radarErrorMsg" class="radar-status-msg radar-error" style="display:none;">⚠ Could not load radar image. Check your connection and try again.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="ArchiveModal">
     <div class="modal-box" id="ArchiveModalBox" style="max-width:700px;">
       <div class="modal-header">
@@ -308,5 +327,5 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260715-1"></script>
+  <script src="app.js?v=20260715-2"></script>
 </body>

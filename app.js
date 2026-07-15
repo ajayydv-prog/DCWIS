@@ -2356,7 +2356,7 @@
       startWindParticleLoop();
 
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { closeHistory(); closeArchive(); }
+        if (e.key === 'Escape') { closeHistory(); closeArchive(); closeRadarModal(); }
       });
       modal.addEventListener('click', function(e) {
         if (e.target === this) closeHistory();
@@ -3385,6 +3385,54 @@
 
     document.getElementById('cloudModal').addEventListener('click', function(e) {
       if (e.target === this) closeCloudInfo();
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    //  LIVE RAIN RADAR MODAL
+    //  Opens a popup covering 80% of the viewport showing the radar
+    //  image. A fresh cache-busting query param is appended on every
+    //  open so the browser always fetches the latest image instead of
+    //  ever showing a stale cached copy.
+    // ═══════════════════════════════════════════════════════════════
+    const RADAR_IMAGE_BASE = 'https://lh3.googleusercontent.com/d/101Ahh08Ykc2uIpCAS6hR1RXpgbGMfYiC=w1078-h2156?authuser=0';
+
+    window.openRadarModal = function(){
+      const modal = document.getElementById('radarModal');
+      const img = document.getElementById('radarImg');
+      const loadingMsg = document.getElementById('radarLoadingMsg');
+      const errorMsg = document.getElementById('radarErrorMsg');
+      const timeHdr = document.getElementById('radar-time-hdr');
+
+      modal.classList.add('active');
+      img.style.display = 'none';
+      errorMsg.style.display = 'none';
+      loadingMsg.style.display = 'block';
+      loadingMsg.textContent = 'Loading radar image…';
+      timeHdr.textContent = 'Fetching latest…';
+
+      const freshUrl = `${RADAR_IMAGE_BASE}&cb=${Date.now()}`;
+
+      img.onload = function(){
+        loadingMsg.style.display = 'none';
+        errorMsg.style.display = 'none';
+        img.style.display = 'block';
+        timeHdr.textContent = 'Updated ' + new Date().toUTCString();
+      };
+      img.onerror = function(){
+        loadingMsg.style.display = 'none';
+        img.style.display = 'none';
+        errorMsg.style.display = 'block';
+        timeHdr.textContent = 'Unavailable';
+      };
+      img.src = freshUrl;
+    };
+
+    window.closeRadarModal = function(){
+      document.getElementById('radarModal').classList.remove('active');
+    };
+
+    document.getElementById('radarModal').addEventListener('click', function(e) {
+      if (e.target === this) closeRadarModal();
     });
 
     // ═══════════════════════════════════════════════════════════════
