@@ -594,6 +594,17 @@ body.dark .rvr-trend-deter { color:#ff1744; border-color:#ff1744; background:rgb
   50%      { box-shadow:0 0 0 3px rgba(255,82,82,0); }
 }
 
+/* ── AMBIENT WEATHER EFFECT (derived from current METAR/SPECI weather code) ──
+   Sits above the dashboard content but stays fully non-interactive and low-
+   opacity by design — it's atmospheric flavour only, never a substitute for
+   the actual RVR/MOR/cloud-base numeric readouts, which are unaffected. */
+#weatherFxCanvas {
+  position:fixed; top:0; left:0; width:100vw; height:100vh;
+  pointer-events:none; z-index:3;
+  opacity:0; transition:opacity 1.6s ease;
+}
+#weatherFxCanvas.wfx-active { opacity:1; }
+
 /* ── ALERT OVERLAY ── */
 #alertOverlay {
   position:fixed; top:0; left:0; width:100vw; height:100vh;

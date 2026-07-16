@@ -310,12 +310,144 @@
           metarDisplay.style.color = '';
           metarDisplay.style.opacity = '1';
           metarDisplay.classList.remove('fade');
+          applyWeatherEffect(latest.weather);
         })
         .catch(err => {
           console.error('METAR fetch error:', err);
           metarDisplay.textContent = '⚠ METAR unavailable';
           metarDisplay.style.color = '#ff4444';
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  AMBIENT WEATHER EFFECT — derived from the live METAR/SPECI
+    //  "weather" group (e.g. RA, +RA, TSRA, FG, BR, HZ). Purely a subtle
+    //  full-screen atmosphere layer — canvas is pointer-events:none and
+    //  every effect is drawn at low alpha so the actual data (RVR, MOR,
+    //  cloud base, etc.) stays fully legible underneath at all times.
+    //  This NEVER substitutes for or alters the real numeric readouts.
+    // ═══════════════════════════════════════════════════════════════
+    function classifyWeatherEffect(code){
+      if(!code || typeof code !== 'string') return { type:'none', intensity:1 };
+      const c = code.toUpperCase();
+      if(c.includes('TS')) return { type:'storm', intensity: c.includes('+') ? 1.3 : 1 };
+      if(c.includes('RA') || c.includes('SH')){
+        const intensity = c.includes('+') ? 1.4 : (c.includes('-') ? 0.55 : 1);
+        return { type:'rain', intensity };
+      }
+      if(c.includes('DZ')) return { type:'rain', intensity:0.4 };
+      if(c.includes('FG')) return { type:'fog', intensity:1 };
+      if(c.includes('BR') || c.includes('HZ')) return { type:'fog', intensity:0.6 };
+      if(c.includes('DU') || c.includes('SA') || c.includes('SS') || c.includes('DS')) return { type:'dust', intensity:0.8 };
+      return { type:'none', intensity:1 };
+    }
+
+    let currentWeatherFx = { type:'none', intensity:1 };
+    let rainDrops = [];
+    let stormFlashAlpha = 0;
+    let fogPulsePhase = 0;
+    let fogOffset = 0;
+    const RAIN_DROP_COUNT = 90;
+
+    function makeRainDrop(w,h){
+      return {
+        x: Math.random()*w,
+        y: Math.random()*h,
+        len: 10 + Math.random()*18,
+        speed: 4 + Math.random()*5
+      };
+    }
+    function ensureRainDrops(w,h){
+      if(rainDrops.length !== RAIN_DROP_COUNT){
+        rainDrops = [];
+        for(let i=0;i<RAIN_DROP_COUNT;i++) rainDrops.push(makeRainDrop(w,h));
+      }
+    }
+
+    function drawWeatherFx(){
+      const canvas = document.getElementById('weatherFxCanvas');
+      if(canvas){
+        const w = window.innerWidth, h = window.innerHeight;
+        if(canvas.width !== w) canvas.width = w;
+        if(canvas.height !== h) canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,w,h);
+
+        const fx = currentWeatherFx;
+        const isDark = document.body.classList.contains('dark');
+
+        if(fx.type === 'rain' || fx.type === 'storm'){
+          ensureRainDrops(w,h);
+          const col = isDark ? '190,210,230' : '90,120,150';
+          rainDrops.forEach(d => {
+            d.y += d.speed * fx.intensity;
+            d.x += 0.6 * fx.intensity;
+            if(d.y > h){ d.y = -20; d.x = Math.random()*w; }
+            ctx.strokeStyle = `rgba(${col},0.28)`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(d.x, d.y);
+            ctx.lineTo(d.x - d.len*0.15, d.y - d.len);
+            ctx.stroke();
+          });
+          if(fx.type === 'storm'){
+            if(Math.random() < 0.006) stormFlashAlpha = 0.5;
+            if(stormFlashAlpha > 0.01){
+              ctx.fillStyle = `rgba(255,255,255,${stormFlashAlpha})`;
+              ctx.fillRect(0,0,w,h);
+              stormFlashAlpha *= 0.82;
+            } else {
+              stormFlashAlpha = 0;
+            }
+          }
+        } else if(fx.type === 'fog' || fx.type === 'dust'){
+          const base = fx.type === 'dust'
+            ? (isDark ? '150,120,80' : '170,140,100')
+            : (isDark ? '200,210,220' : '210,220,230');
+          fogPulsePhase += 0.006;
+          const pulse = 0.88 + 0.14 * Math.sin(fogPulsePhase);
+          fogOffset += w * 0.0018 * fx.intensity;
+          const baseAlpha = Math.min(0.22, 0.11 * fx.intensity + 0.07) * pulse;
+
+          // Three soft mist layers drifting at different speeds/depths —
+          // this is what reads as "flowing" rather than a static dim.
+          const layers = [
+            { yFrac:0.28, speedMul:1.00, sizeMul:0.60, alphaMul:1.00 },
+            { yFrac:0.55, speedMul:0.65, sizeMul:0.78, alphaMul:0.70 },
+            { yFrac:0.80, speedMul:1.35, sizeMul:0.55, alphaMul:0.85 }
+          ];
+          layers.forEach((L, idx) => {
+            const blobW = w * L.sizeMul;
+            const wrapW = w + blobW;
+            const localOffset = (fogOffset * L.speedMul + idx*wrapW/3) % wrapW;
+            const x = localOffset - blobW/2;
+            const y = h * L.yFrac;
+            const rad = blobW * 0.6;
+            [x, x - wrapW].forEach(px => {
+              if(px + rad < 0 || px - rad > w) return;
+              const grad = ctx.createRadialGradient(px, y, 0, px, y, rad);
+              grad.addColorStop(0, `rgba(${base},${(baseAlpha*L.alphaMul).toFixed(3)})`);
+              grad.addColorStop(1, `rgba(${base},0)`);
+              ctx.fillStyle = grad;
+              ctx.fillRect(0,0,w,h);
+            });
+          });
+        }
+      }
+      requestAnimationFrame(drawWeatherFx);
+    }
+
+    let weatherFxLoopStarted = false;
+    function startWeatherFxLoop(){
+      if(weatherFxLoopStarted) return;
+      weatherFxLoopStarted = true;
+      drawWeatherFx();
+    }
+
+    function applyWeatherEffect(code){
+      currentWeatherFx = classifyWeatherEffect(code);
+      const canvas = document.getElementById('weatherFxCanvas');
+      if(canvas) canvas.classList.toggle('wfx-active', currentWeatherFx.type !== 'none');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -2342,6 +2474,12 @@
     }
 
     window.addEventListener('load', ()=>{
+      // Visual draw loops go first and are defensively isolated — a failure
+      // anywhere else in this bootstrap must never be able to prevent the
+      // wind-particle / weather-fx canvases from starting to render.
+      try { startWindParticleLoop(); } catch(e) { console.error('startWindParticleLoop failed:', e); }
+      try { startWeatherFxLoop(); } catch(e) { console.error('startWeatherFxLoop failed:', e); }
+
       document.body.classList.add('dark');
       document.querySelector('[onclick="toggleTheme()"]').textContent = '☀';
       
@@ -2351,9 +2489,8 @@
       fetchData();
       startAutoRefresh();
 
-      registerServiceWorker();
-      updateNotifBtnUI();
-      startWindParticleLoop();
+      try { registerServiceWorker(); } catch(e) { console.error('registerServiceWorker failed:', e); }
+      try { updateNotifBtnUI(); } catch(e) { console.error('updateNotifBtnUI failed:', e); }
 
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { closeHistory(); closeArchive(); closeRadarModal(); }
