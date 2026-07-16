@@ -1940,7 +1940,7 @@
       const btn = document.getElementById('trend-toggle-btn');
       if (btn) {
         btn.classList.toggle('active', trendViewActive);
-        btn.textContent = trendViewActive ? '📡' : '📈';
+        btn.textContent = trendViewActive ? '🔢' : '📈';
         btn.title = trendViewActive ? 'Back to Live View' : 'Trend Dashboard (1H graphs)';
       }
 
