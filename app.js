@@ -328,67 +328,39 @@
     //  This NEVER substitutes for or alters the real numeric readouts.
     // ═══════════════════════════════════════════════════════════════
     function classifyWeatherEffect(code){
-      if(!code || typeof code !== 'string') return { type:'none' };
+      if(!code || typeof code !== 'string') return { type:'none', intensity:1 };
       const c = code.toUpperCase();
-      const strength = c.includes('+') ? 'heavy' : (c.includes('-') ? 'light' : 'moderate');
-
-      if(c.includes('TS')){
-        return { type:'storm', density:150, speed:1.35, opacity:0.42, streakLen:1.35, gust:0.28 };
+      if(c.includes('TS')) return { type:'storm', intensity: c.includes('+') ? 1.3 : 1 };
+      if(c.includes('RA') || c.includes('SH')){
+        const intensity = c.includes('+') ? 1.4 : (c.includes('-') ? 0.55 : 1);
+        return { type:'rain', intensity };
       }
-      if(c.includes('SH') && c.includes('RA')){
-        // Rain showers — bursty/gusty character (intensity waxes and wanes)
-        const presets = {
-          light:    { density:55,  speed:0.85, opacity:0.22, streakLen:0.90, gust:0.24 },
-          moderate: { density:100, speed:1.05, opacity:0.32, streakLen:1.10, gust:0.28 },
-          heavy:    { density:165, speed:1.30, opacity:0.44, streakLen:1.40, gust:0.34 }
-        };
-        return Object.assign({ type:'rain' }, presets[strength]);
-      }
-      if(c.includes('RA')){
-        // Steady rain — no gustiness, constant character
-        const presets = {
-          light:    { density:42,  speed:0.72, opacity:0.18, streakLen:0.80, gust:0 },
-          moderate: { density:80,  speed:0.95, opacity:0.26, streakLen:1.00, gust:0 },
-          heavy:    { density:140, speed:1.25, opacity:0.38, streakLen:1.30, gust:0.05 }
-        };
-        return Object.assign({ type:'rain' }, presets[strength]);
-      }
-      if(c.includes('DZ')){
-        // Drizzle — fine, slow, short, faint — never long streaks
-        const presets = {
-          light:    { density:16, speed:0.32, opacity:0.09, streakLen:0.30, gust:0 },
-          moderate: { density:26, speed:0.40, opacity:0.13, streakLen:0.36, gust:0 },
-          heavy:    { density:40, speed:0.48, opacity:0.18, streakLen:0.42, gust:0 }
-        };
-        return Object.assign({ type:'rain' }, presets[strength]);
-      }
+      if(c.includes('DZ')) return { type:'rain', intensity:0.4 };
       if(c.includes('FG')) return { type:'fog', intensity:1 };
       if(c.includes('BR') || c.includes('HZ')) return { type:'fog', intensity:0.6 };
       if(c.includes('DU') || c.includes('SA') || c.includes('SS') || c.includes('DS')) return { type:'dust', intensity:0.8 };
-      return { type:'none' };
+      return { type:'none', intensity:1 };
     }
 
-    let currentWeatherFx = { type:'none' };
+    let currentWeatherFx = { type:'none', intensity:1 };
     let rainDrops = [];
-    let rainDropsDensity = 0;
     let stormFlashAlpha = 0;
     let fogPulsePhase = 0;
     let fogOffset = 0;
-    let gustPhase = 0;
+    const RAIN_DROP_COUNT = 90;
 
     function makeRainDrop(w,h){
       return {
         x: Math.random()*w,
         y: Math.random()*h,
-        lenJitter: 0.75 + Math.random()*0.5,
-        speedJitter: 0.80 + Math.random()*0.4
+        len: 10 + Math.random()*18,
+        speed: 4 + Math.random()*5
       };
     }
-    function ensureRainDrops(w, density){
-      if(rainDrops.length !== density){
+    function ensureRainDrops(w,h){
+      if(rainDrops.length !== RAIN_DROP_COUNT){
         rainDrops = [];
-        for(let i=0;i<density;i++) rainDrops.push(makeRainDrop(w, window.innerHeight));
-        rainDropsDensity = density;
+        for(let i=0;i<RAIN_DROP_COUNT;i++) rainDrops.push(makeRainDrop(w,h));
       }
     }
 
@@ -405,28 +377,17 @@
         const isDark = document.body.classList.contains('dark');
 
         if(fx.type === 'rain' || fx.type === 'storm'){
-          ensureRainDrops(w, fx.density);
-
-          // Gustiness — showers/storms visibly wax and wane; steady rain
-          // (gust=0) stays flat and constant, which is itself a visual cue.
-          gustPhase += 0.012;
-          const gustMul = fx.gust > 0 ? (1 + fx.gust * Math.sin(gustPhase)) : 1;
-
+          ensureRainDrops(w,h);
           const col = isDark ? '190,210,230' : '90,120,150';
-          const baseAlpha = fx.opacity * gustMul;
-          const baseLen = Math.max(2.5, 14 * fx.streakLen);
-          const baseSpeed = 3.2 * fx.speed * gustMul;
-
           rainDrops.forEach(d => {
-            d.y += baseSpeed * d.speedJitter;
-            d.x += 0.55 * fx.speed;
+            d.y += d.speed * fx.intensity;
+            d.x += 0.6 * fx.intensity;
             if(d.y > h){ d.y = -20; d.x = Math.random()*w; }
-            const len = baseLen * d.lenJitter;
-            ctx.strokeStyle = `rgba(${col},${Math.max(0.04, baseAlpha).toFixed(3)})`;
-            ctx.lineWidth = fx.type === 'storm' ? 1.3 : (fx.streakLen < 0.5 ? 0.9 : 1.1);
+            ctx.strokeStyle = `rgba(${col},0.28)`;
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(d.x, d.y);
-            ctx.lineTo(d.x - len*0.15, d.y - len);
+            ctx.lineTo(d.x - d.len*0.15, d.y - d.len);
             ctx.stroke();
           });
           if(fx.type === 'storm'){
@@ -487,43 +448,6 @@
       currentWeatherFx = classifyWeatherEffect(code);
       const canvas = document.getElementById('weatherFxCanvas');
       if(canvas) canvas.classList.toggle('wfx-active', currentWeatherFx.type !== 'none');
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    //  METAR SCROLLING BOARD — airport/platform-style ticker.
-    //  #metar-display keeps its existing id/role (fetchMETAR, copyMetar,
-    //  snapshot, etc. all still read/write its textContent exactly as
-    //  before) — this only adds a continuous CSS transform on top, so
-    //  none of that existing logic needs to change.
-    // ═══════════════════════════════════════════════════════════════
-    let metarScrollX = 0;
-    let metarScrollLastTs = null;
-    const METAR_SCROLL_SPEED = 55; // px/sec — comfortable reading pace
-
-    function animateMetarTicker(ts){
-      const viewport = document.getElementById('metar-ticker-viewport');
-      const el = metarDisplay;
-      if(viewport && el){
-        if(metarScrollLastTs === null) metarScrollLastTs = ts;
-        const dt = Math.min(0.1, (ts - metarScrollLastTs) / 1000); // clamp huge gaps (tab backgrounded)
-        metarScrollLastTs = ts;
-        metarScrollX -= METAR_SCROLL_SPEED * dt;
-        const textWidth = el.scrollWidth || 0;
-        if(metarScrollX < -textWidth){
-          metarScrollX = viewport.clientWidth;
-        }
-        el.style.transform = `translateX(${metarScrollX}px)`;
-      }
-      requestAnimationFrame(animateMetarTicker);
-    }
-
-    let metarTickerStarted = false;
-    function startMetarTicker(){
-      if(metarTickerStarted) return;
-      metarTickerStarted = true;
-      const viewport = document.getElementById('metar-ticker-viewport');
-      metarScrollX = viewport ? viewport.clientWidth : 300; // enter from the right edge
-      requestAnimationFrame(animateMetarTicker);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -827,113 +751,53 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0,0,w,h);
 
-      const cx = w/2, cy = h/2, r = Math.min(w,h)*0.38;
-      if(r < 4) return;
-
       const windDeg = compassCurrentAngle[rwy];
       const speedKt = windSpeedCurrent[rwy] || 0;
       ensureWindParticles(rwy);
 
-      // Below ~2kt treat as calm — no particle streaks implying movement
-      // that isn't there. The plane still draws (a plane on approach
-      // exists regardless of whether we're rendering wind streaks).
-      if(!(windDeg === null || isNaN(windDeg) || speedKt < 2)){
-        // Travel direction = reciprocal of the "wind FROM" bearing the
-        // needle points at, i.e. the direction the air is actually moving.
-        const travelA = ((windDeg + 180) - 90) * Math.PI/180;
-        const dx = Math.cos(travelA), dy = Math.sin(travelA);
-        const px = -dy, py = dx;
-
-        const speedFrac = Math.min(0.045, 0.006 + speedKt * 0.0011);
-        const isDarkMode = document.body.classList.contains('dark');
-        const col = isDarkMode ? '0,229,255' : '0,119,204';
-        const tailLen = r * (0.10 + Math.min(speedKt,40)/40 * 0.16);
-
-        windParticles[rwy].forEach(pt => {
-          pt.t += speedFrac * pt.jitter;
-          if(pt.t > 1.3){
-            pt.t = -1.3;
-            pt.o = Math.random() * 1.4 - 0.7;
-            pt.jitter = 0.65 + Math.random() * 0.7;
-          }
-          const x = cx + dx*pt.t*r*1.3 + px*pt.o*r;
-          const y = cy + dy*pt.t*r*1.3 + py*pt.o*r;
-          const dist = Math.hypot(x-cx, y-cy);
-          if(dist > r) return; // clip to the compass circle
-
-          const fade = 1 - Math.abs(pt.o); // dimmer near the circle's edge
-          const alpha = Math.max(0.12, 0.6 * fade);
-          const tx = x - dx*tailLen, ty = y - dy*tailLen;
-          ctx.strokeStyle = `rgba(${col},${alpha.toFixed(2)})`;
-          ctx.lineWidth = 1.6;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(tx,ty);
-          ctx.lineTo(x,y);
-          ctx.stroke();
-        });
+      // Below ~2kt treat as calm — leave the canvas clear rather than
+      // implying movement that isn't there.
+      if(windDeg === null || isNaN(windDeg) || speedKt < 2){
+        return;
       }
 
-      drawPlane(ctx, cx, cy, r, rwy);
-    }
+      const cx = w/2, cy = h/2, r = Math.min(w,h)*0.38;
+      if(r < 4) return;
 
-    // ═══════════════════════════════════════════════════════════════
-    //  RUNWAY PLANE — a static, professionally-proportioned top-down
-    //  aircraft silhouette sitting on the runway strip, aligned with
-    //  this panel's landing heading. Purely a visual identifier (no
-    //  animation, no wind-driven movement) — clean and unobtrusive.
-    // ═══════════════════════════════════════════════════════════════
-    // ═══════════════════════════════════════════════════════════════
-    //  RUNWAY PLANE — a single large outline (stroke only, no fill) of
-    //  a top-down aircraft silhouette, sized to the compass circle so
-    //  the runway strip sits inside it. Static, aligned with this
-    //  panel's landing heading. Purely a framing visual — never
-    //  competes with the compass ticks/runway strip underneath.
-    // ═══════════════════════════════════════════════════════════════
-    function drawPlane(ctx, cx, cy, r, rwy){
-      const angA = (280-90) * Math.PI/180; // runway bearing, matches drawCompass's strip
-      const heading = (rwy === '28') ? angA : (angA + Math.PI); // static, faces this panel's landing direction
+      // Travel direction = reciprocal of the "wind FROM" bearing the
+      // needle points at, i.e. the direction the air is actually moving.
+      const travelA = ((windDeg + 180) - 90) * Math.PI/180;
+      const dx = Math.cos(travelA), dy = Math.sin(travelA);
+      const px = -dy, py = dx;
 
-      const L = r * 0.92; // half-length scale unit — sized so the whole shape frames the compass circle
-
+      const speedFrac = Math.min(0.045, 0.006 + speedKt * 0.0011);
       const isDarkMode = document.body.classList.contains('dark');
-      const strokeCol = isDarkMode ? 'rgba(230,240,250,0.55)' : 'rgba(20,35,50,0.55)';
+      const col = isDarkMode ? '0,229,255' : '0,119,204';
+      const tailLen = r * (0.10 + Math.min(speedKt,40)/40 * 0.16);
 
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(heading);
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = Math.max(0.8, L*0.028);
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
+      windParticles[rwy].forEach(pt => {
+        pt.t += speedFrac * pt.jitter;
+        if(pt.t > 1.3){
+          pt.t = -1.3;
+          pt.o = Math.random() * 1.4 - 0.7;
+          pt.jitter = 0.65 + Math.random() * 0.7;
+        }
+        const x = cx + dx*pt.t*r*1.3 + px*pt.o*r;
+        const y = cy + dy*pt.t*r*1.3 + py*pt.o*r;
+        const dist = Math.hypot(x-cx, y-cy);
+        if(dist > r) return; // clip to the compass circle
 
-      // One continuous outline tracing nose → main wing → tail wing →
-      // tail tip → mirrored back up the other side → closing at the nose.
-      ctx.beginPath();
-      ctx.moveTo(L*1.00, 0);
-      ctx.lineTo(L*0.72, L*0.05);
-      ctx.lineTo(L*0.30, L*0.07);
-      ctx.lineTo(L*-0.10, L*0.62);
-      ctx.lineTo(L*-0.28, L*0.62);
-      ctx.lineTo(L*-0.42, L*0.10);
-      ctx.lineTo(L*-0.65, L*0.08);
-      ctx.lineTo(L*-0.85, L*0.23);
-      ctx.lineTo(L*-0.95, L*0.23);
-      ctx.lineTo(L*-1.00, L*0.06);
-      ctx.lineTo(L*-1.08, 0);
-      ctx.lineTo(L*-1.00, -L*0.06);
-      ctx.lineTo(L*-0.95, -L*0.23);
-      ctx.lineTo(L*-0.85, -L*0.23);
-      ctx.lineTo(L*-0.65, -L*0.08);
-      ctx.lineTo(L*-0.42, -L*0.10);
-      ctx.lineTo(L*-0.28, -L*0.62);
-      ctx.lineTo(L*-0.10, -L*0.62);
-      ctx.lineTo(L*0.30, -L*0.07);
-      ctx.lineTo(L*0.72, -L*0.05);
-      ctx.closePath();
-      ctx.stroke();
-
-      ctx.restore();
+        const fade = 1 - Math.abs(pt.o); // dimmer near the circle's edge
+        const alpha = Math.max(0.12, 0.6 * fade);
+        const tx = x - dx*tailLen, ty = y - dy*tailLen;
+        ctx.strokeStyle = `rgba(${col},${alpha.toFixed(2)})`;
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(tx,ty);
+        ctx.lineTo(x,y);
+        ctx.stroke();
+      });
     }
 
     let windParticleLoopStarted = false;
@@ -2076,7 +1940,7 @@
       const btn = document.getElementById('trend-toggle-btn');
       if (btn) {
         btn.classList.toggle('active', trendViewActive);
-        btn.textContent = trendViewActive ? '📡' : '📈';
+        btn.textContent = trendViewActive ? '🔢' : '📈';
         btn.title = trendViewActive ? 'Back to Live View' : 'Trend Dashboard (1H graphs)';
       }
 
@@ -2615,7 +2479,6 @@
       // wind-particle / weather-fx canvases from starting to render.
       try { startWindParticleLoop(); } catch(e) { console.error('startWindParticleLoop failed:', e); }
       try { startWeatherFxLoop(); } catch(e) { console.error('startWeatherFxLoop failed:', e); }
-      try { startMetarTicker(); } catch(e) { console.error('startMetarTicker failed:', e); }
 
       document.body.classList.add('dark');
       document.querySelector('[onclick="toggleTheme()"]').textContent = '☀';
