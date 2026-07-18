@@ -490,60 +490,6 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  METAR SCROLLING BOARD — airport/platform-style ticker.
-    //  #metar-display keeps its existing id/role (fetchMETAR, copyMetar,
-    //  snapshot, etc. all still read/write its textContent exactly as
-    //  before) — a MutationObserver mirrors that text into a hidden
-    //  duplicate copy placed right after it, and the two are scrolled
-    //  together as one continuously-wrapping strip. This means content
-    //  is ALWAYS on screen — no "fully exits, then waits to re-enter"
-    //  gap between passes.
-    // ═══════════════════════════════════════════════════════════════
-    let metarScrollX = 0;
-    let metarScrollLastTs = null;
-    const METAR_SCROLL_SPEED = 55; // px/sec — comfortable reading pace
-
-    function syncMetarTickerCopy(){
-      const copy = document.getElementById('metar-display-copy');
-      if(copy && metarDisplay){
-        copy.textContent = metarDisplay.textContent;
-        copy.style.cssText = metarDisplay.style.cssText;
-        copy.className = metarDisplay.className;
-      }
-    }
-
-    function animateMetarTicker(ts){
-      const track = document.getElementById('metar-ticker-track');
-      const el = metarDisplay;
-      if(track && el){
-        if(metarScrollLastTs === null) metarScrollLastTs = ts;
-        const dt = Math.min(0.1, (ts - metarScrollLastTs) / 1000); // clamp huge gaps (tab backgrounded)
-        metarScrollLastTs = ts;
-        const gapPx = 70; // must match the CSS gap on #metar-ticker-track
-        const unitWidth = el.scrollWidth + gapPx;
-        if(unitWidth > 0){
-          metarScrollX -= METAR_SCROLL_SPEED * dt;
-          if(metarScrollX <= -unitWidth) metarScrollX += unitWidth; // seamless wrap — the duplicate copy is already right there
-          track.style.transform = `translateX(${metarScrollX}px)`;
-        }
-      }
-      requestAnimationFrame(animateMetarTicker);
-    }
-
-    let metarTickerStarted = false;
-    function startMetarTicker(){
-      if(metarTickerStarted) return;
-      metarTickerStarted = true;
-      metarScrollX = 0; // start fully visible immediately, not off-screen
-      syncMetarTickerCopy();
-      if(metarDisplay){
-        const obs = new MutationObserver(syncMetarTickerCopy);
-        obs.observe(metarDisplay, { childList:true, characterData:true, subtree:true, attributes:true, attributeFilter:['style','class'] });
-      }
-      requestAnimationFrame(animateMetarTicker);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     //  METAR/SPECI HISTORY POPUP — register-based, 6H / 12H / 24H
     // ═══════════════════════════════════════════════════════════════
     window.openMetarPopup = async function(hours, btn) {
@@ -2631,7 +2577,6 @@
       // wind-particle / weather-fx canvases from starting to render.
       try { startWindParticleLoop(); } catch(e) { console.error('startWindParticleLoop failed:', e); }
       try { startWeatherFxLoop(); } catch(e) { console.error('startWeatherFxLoop failed:', e); }
-      try { startMetarTicker(); } catch(e) { console.error('startMetarTicker failed:', e); }
 
       document.body.classList.add('dark');
       document.querySelector('[onclick="toggleTheme()"]').textContent = '☀';
