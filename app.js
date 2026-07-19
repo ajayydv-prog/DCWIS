@@ -3485,106 +3485,90 @@
     });
 
     // ═══════════════════════════════════════════════════════════════
-    //  CLOUD INFO MODAL (satellite-derived cloud analysis)
+    //  RADAR PRECIPITATION OUTLOOK MODAL (replaces the retired satellite
+    //  cloud-analysis feature — same /cloud endpoint, but the backend
+    //  file it reads is now written by radar.py's cell-tracking output
+    //  instead of the old satellite pipeline. server.py is untouched.)
     // ═══════════════════════════════════════════════════════════════
-    const CLOUD_AMOUNT_ICON = {
-      'SKC': '☀️', 'CLR': '☀️', 'FEW': '🌤️', 'SCT': '⛅', 'BKN': '🌥️', 'OVC': '☁️'
-    };
-    const CLOUD_TYPE_NAME = {
-      'CU': 'Cumulus', 'SC': 'Stratocumulus', 'AC': 'Altocumulus', 'AS': 'Altostratus',
-      'CI': 'Cirrus', 'CS': 'Cirrostratus', 'CC': 'Cirrocumulus', 'NS': 'Nimbostratus',
-      'ST': 'Stratus', 'CB': 'Cumulonimbus', 'TCU': 'Towering Cumulus',
-      'SC/AC': 'Stratocumulus / Altocumulus', 'NSC': 'No Significant Cloud',
-      'NSC': 'No Significant Cloud', 'CLR': 'Clear'
-    };
-
-    function cloudRow(lbl, val, cls) {
-      return `<div class="cloud-row"><span class="cloud-lbl">${lbl}</span><span class="cloud-val ${cls||''}">${val}</span></div>`;
+    function radarCategoryDisplay(cat){
+      if(!cat || cat === 'no_significant_echo') return { label:'None', cls:'none', lightning:false };
+      const lightning = cat.includes('lightning_likely');
+      const base = cat.replace('_lightning_likely','');
+      let cls = 'light';
+      if(base.startsWith('heavy')) cls = 'heavy';
+      else if(base.startsWith('moderate')) cls = 'moderate';
+      const kindWord = base.includes('shower') ? 'Shower' : (base.includes('rain') ? 'Rain' : '');
+      const intensityWord = cls.charAt(0).toUpperCase()+cls.slice(1);
+      const label = kindWord ? `${intensityWord} ${kindWord}` : intensityWord;
+      return { label, cls, lightning };
     }
 
-    function buildCloudHTML(c) {
-      const amount = c.cloud_amount || '—';
-      const icon = CLOUD_AMOUNT_ICON[amount] || '☁️';
-      const typeName = CLOUD_TYPE_NAME[c.cloud_type] || c.cloud_type || '—';
-      const ctbtRaw  = c.raw_analysis?.ctbt;
-      const ctbtTypeName = CLOUD_TYPE_NAME[ctbtRaw?.dominant_cloud_type] || ctbtRaw?.dominant_cloud_type || '—';
+    function formatRadarTime(isoStr){
+      if(!isoStr) return '—';
+      try {
+        const d = new Date(isoStr);
+        if(isNaN(d.getTime())) return isoStr;
+        return d.toUTCString().replace(':00 GMT','Z').replace(' GMT','Z');
+      } catch(e){ return isoStr; }
+    }
 
-      const obsDate = c.unix_ts ? new Date(c.unix_ts * 1000) : null;
-      const ageMin = obsDate ? Math.round((Date.now() - obsDate.getTime()) / 60000) : null;
-      const staleWarning = (ageMin !== null && ageMin > 20)
-        ? `<div class="cloud-stale-note">⚠ Last satellite pass ${ageMin} min ago — may not reflect current sky.</div>` : '';
+    function mergeCellsForDisplay(tracks, vicinity){
+      // Tracks carry heading (direction of motion); vicinity entries don't.
+      // A track's cell very often also appears in the vicinity list (same
+      // physical cell, within 20km) — dedupe those by proximity so each
+      // real cell shows once, keeping the richer (heading-bearing) version.
+      const merged = tracks.map(t => ({
+        range_km: t.range_km, bearing: t.bearing, category: t.category,
+        heading: t.heading || null, dbz: t.dbz
+      }));
+      (vicinity || []).forEach(v => {
+        const isDup = merged.some(m => m.bearing === v.bearing && Math.abs(m.range_km - v.range_km) < 1.5);
+        if(!isDup){
+          merged.push({ range_km: v.range_km, bearing: v.bearing, category: v.category, heading: null, dbz: v.dbz });
+        }
+      });
+      merged.sort((a,b) => (a.range_km ?? 1e9) - (b.range_km ?? 1e9));
+      return merged;
+    }
 
-      const remarksHTML = (c.remarks && c.remarks.length)
-        ? `<div class="cloud-remark-box">📌 ${c.remarks.map(escapeHtml).join(' · ')}</div>` : '';
+    function buildCellCard(c){
+      const cat = radarCategoryDisplay(c.category);
+      return `
+        <div class="ro-cell-card">
+          <div class="ro-cell-top">
+            <div class="ro-cell-loc">${c.bearing || '—'} · ${c.range_km ?? '—'} km</div>
+            <span class="ro-badge ${cat.cls}">${cat.label}${cat.lightning ? ' ⚡' : ''}</span>
+          </div>
+          <div class="ro-cell-detail-row"><span>Heading</span><b>${c.heading || '—'}</b></div>
+          <div class="ro-cell-detail-row"><span>Reflectivity</span><b>${c.dbz ?? '—'} dBZ</b></div>
+        </div>
+      `;
+    }
 
-      const fs = c.fetch_status || {};
-      const channelPill = (name, key) => {
-        const ok = fs[key] === 'ok';
-        return `<div class="cloud-channel-pill">
-          <span class="cloud-channel-name">${name}</span>
-          <span class="cloud-channel-status ${ok ? 'ok' : 'bad'}">${ok ? '✔ OK' : '✘ FAIL'}</span>
-        </div>`;
-      };
+    function buildRadarOutlookHTML(data){
+      const headline = data.headline || 'No outlook available.';
+      const tracks = Array.isArray(data.tracks) ? data.tracks : [];
+      const vicinity = Array.isArray(data.vicinity) ? data.vicinity : [];
+      const merged = mergeCellsForDisplay(tracks, vicinity);
 
-      const conf = typeof c.confidence_pct === 'number' ? c.confidence_pct : null;
+      const gridHTML = merged.length
+        ? `<div class="ro-cell-grid">${merged.map(buildCellCard).join('')}</div>`
+        : `<div class="ro-empty">Nothing detected nearby right now.</div>`;
 
-      // CTBT detection details — tcu_tops support added
-      const det = ctbtRaw?.detections || {};
-      const cbFrac   = det.deep_convection?.fraction ?? 0;
-      const tcuFrac  = det.tcu_tops?.fraction ?? 0;
-      const ciFrac   = det.high_cloud?.fraction ?? 0;
-      const totalCol = ctbtRaw?.total_colored_fraction ?? 0;
-
-      const ctbtDetailHTML = ctbtRaw ? `
-        <div class="cloud-section-hdr">CTBT Channel Detail</div>
-        <div class="cloud-grid" style="grid-template-columns:1fr 1fr 1fr;">
-          ${cloudRow('CB tops', (cbFrac*100).toFixed(1)+'%', cbFrac>0.05?'flag-yes':'flag-no')}
-          ${cloudRow('TCU tops', (tcuFrac*100).toFixed(1)+'%', tcuFrac>0.05?'flag-yes':'flag-no')}
-          ${cloudRow('CI tops', (ciFrac*100).toFixed(1)+'%', '')}
-        </div>` : '';
+      const framesUsed = data.frames_used ?? '—';
+      const latestFrame = formatRadarTime(data.latest_frame_time);
+      const generatedAt = formatRadarTime(data.generated_at);
 
       return `
-        <div class="cloud-hero">
-          <div class="cloud-hero-icon">${icon}</div>
-          <div class="cloud-hero-main">
-            <div class="cloud-hero-amount">${amount} &nbsp;·&nbsp; ${c.oktas ?? '—'}/8 oktas</div>
-            <div class="cloud-hero-sub">${typeName}${c.est_cloud_base_ft ? ' · Base ' + c.est_cloud_base_ft : ''}</div>
-          </div>
+        <div class="ro-headline">
+          <span class="ro-headline-icon">🌧️</span>
+          <span class="ro-headline-text">${headline}</span>
         </div>
-
-        ${remarksHTML}
-
-        <div class="cloud-grid">
-          ${cloudRow('Moisture Level', c.moisture_level || '—')}
-          ${cloudRow('Amount Source', (c.amount_source || '—') + ' channel')}
-          ${cloudRow('Cumulonimbus (CB)', c.cb_flag ? 'DETECTED' : 'Not detected', c.cb_flag ? 'flag-yes' : 'flag-no')}
-          ${cloudRow('Towering Cu (TCU)', c.tcu_flag ? 'POSSIBLE' : 'Not detected', c.tcu_flag ? 'flag-yes' : 'flag-no')}
-          ${cloudRow('METAR Group', c.metar_cloud_group || '—')}
-          ${cloudRow('Dominant Type (CTBT)', ctbtTypeName)}
+        <div class="ro-grid-wrap">
+          <div class="ro-section-hdr">Nearby Cells — nearest first</div>
+          ${gridHTML}
         </div>
-
-        <div class="cloud-remark-box" style="color:#f0a500">
-          ⚠ Satellite analysis detects dominant cloud layer only. 
-          Multiple layers require observer confirmation.
-        </div>
-
-        ${ctbtDetailHTML}
-
-        <div class="cloud-section-hdr">Estimate Confidence</div>
-        <div class="cloud-confidence-bar-wrap">
-          <div class="cloud-confidence-track"><div class="cloud-confidence-fill" style="width:${conf ?? 0}%"></div></div>
-          <div class="cloud-confidence-pct">${conf !== null ? conf + '%' : '—'}</div>
-        </div>
-
-        <div class="cloud-section-hdr">Satellite Channels</div>
-        <div class="cloud-channels">
-          ${channelPill('IR', 'ir1')}
-          ${channelPill('VIS', 'vis')}
-          ${channelPill('WV', 'wv')}
-          ${channelPill('CTBT', 'ctbt')}
-        </div>
-
-        ${staleWarning}
+        <div class="ro-footer">Radar frame: ${latestFrame} · ${framesUsed} frame(s) analyzed · Generated ${generatedAt}</div>
       `;
     }
 
@@ -3598,19 +3582,18 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         lastCloudData = data;
-        const obsStr = data.obs_time_utc || '—';
-        timeHdr.textContent = `${data.icao || 'VOGA'} / ${data.location || 'Mopa, Goa'} — ${obsStr}`;
-        content.innerHTML = buildCloudHTML(data);
+        timeHdr.textContent = `MOPA radar — ${formatRadarTime(data.latest_frame_time)}`;
+        content.innerHTML = buildRadarOutlookHTML(data);
       } catch (err) {
-        console.error('Cloud info fetch failed:', err);
+        console.error('Radar outlook fetch failed:', err);
         timeHdr.textContent = 'Unavailable';
-        content.innerHTML = `<div class="cloud-error-note">⚠ Could not load cloud analysis.<br>Backend / pipeline may be unreachable.</div>`;
+        content.innerHTML = `<div class="ro-empty" style="color:#ff5252;">⚠ Could not load radar outlook.<br>Backend / radar pipeline may be unreachable.</div>`;
       }
     }
 
     window.openCloudInfo = function() {
       document.getElementById('cloudModal').classList.add('active');
-      document.getElementById('cloudContent').innerHTML = `<div class="cloud-error-note" style="color:#8fa8bd;">Loading…</div>`;
+      document.getElementById('cloudContent').innerHTML = `<div class="ro-empty">Loading…</div>`;
       fetchAndRenderCloudInfo();
     };
 

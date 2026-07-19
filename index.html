@@ -31,7 +31,7 @@
       <button class="icon-btn" id="notif-btn" onclick="toggleNotifications()" title="Enable native alert notifications">🔕</button>
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
       <button class="icon-btn" id="radar-btn" onclick="openRadarModal()" title="Live Rain Radar">📡</button>
-      <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Satellite Cloud Analysis">☁️</button>
+      <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Radar Precipitation Outlook">🌧️</button>
       <button class="icon-btn" id="trend-toggle-btn" onclick="toggleTrendView()" title="Trend Dashboard (1H graphs)">📈</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
@@ -231,7 +231,7 @@
     <div id="cloudBox">
       <div id="cloud-header">
         <div id="cloud-header-left">
-          <div class="cloud-title">☁️ Satellite Cloud Analysis</div>
+          <div class="cloud-title">🌧️ Radar Precipitation Outlook</div>
           <div class="cloud-subtitle" id="cloud-time-hdr">Loading…</div>
         </div>
         <button class="cloud-close" onclick="closeCloudInfo()">&times;</button>
@@ -328,5 +328,5 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260715-11"></script>
+  <script src="app.js?v=20260719-1"></script>
 </body>
