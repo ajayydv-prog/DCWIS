@@ -427,6 +427,23 @@ body.dark .dc .click-hint {
 #Archive-btn:hover {
   background:rgba(0,200,83,0.28);
 }
+#AW-btn {
+  background:rgba(239,83,80,0.14);
+  border:1px solid #ef5350;
+  color:#ff8a80;
+  font-size:clamp(7px,0.8vw,10px);
+  padding:2px 8px;
+  border-radius:12px;
+  cursor:pointer;
+  font-family:'Inter',sans-serif;
+  font-weight:700;
+  transition: all 0.2s;
+  white-space:nowrap;
+  letter-spacing:0.3px;
+}
+#AW-btn:hover {
+  background:rgba(239,83,80,0.28);
+}
 #metar-container {
   flex:1;
   display:flex; align-items:center;
@@ -1000,7 +1017,9 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
    ══════════════════════════════════════════ */
 @media print {
   /* पूरी स्क्रीन के बजाय केवल मॉडल दिखाएँ */
-  body > *:not(#snapshotModal) { display:none !important; }
+  body > *:not(#snapshotModal):not(#AWModal) { display:none !important; }
+  #snapshotModal:not(.active) { display:none !important; }
+  #AWModal:not(.active) { display:none !important; }
   #snapshotModal {
     position:static !important;
     display:block !important;
@@ -1137,6 +1156,55 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
   .snap-metar-box { margin-top:6px !important; }
 }
 
+/* ══════════════════════════════════════════
+   PRINT - AW REPORT (A5 / half-A4 page)
+   The exact @page size for this popup is set with a
+   short-lived injected <style> tag by printAWReport()
+   in app.js, right before window.print() — that keeps
+   it from fighting with the A4 @page rule used above.
+   ══════════════════════════════════════════ */
+@media print {
+  #AWModal.active {
+    position:static !important;
+    display:block !important;
+    padding:0 !important;
+    background:none !important;
+  }
+  #AWModalBox {
+    max-width:none !important; max-height:none !important;
+    overflow:visible !important;
+    background:#ffffff !important;
+    border:none !important; box-shadow:none !important;
+    border-radius:0 !important; padding:0 !important;
+    width:100% !important;
+  }
+  #AWModal .modal-header-actions,
+  #AWModal .modal-close,
+  #AWModal .modal-print,
+  .aw-freshness { display:none !important; }
+  #AWModal .modal-header {
+    border-bottom:2px solid #000 !important;
+    padding-bottom:6px !important; margin-bottom:8px !important;
+  }
+  #AWModal .modal-header h2 { color:#000 !important; font-size:15px !important; }
+  #AWModal .modal-header h2 small { color:#333 !important; }
+  .aw-report { border:1px solid #000 !important; border-radius:0 !important; background:#fff !important; }
+  .aw-header {
+    background:#ffffff !important; color:#000 !important;
+    border-bottom:2px solid #000 !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .aw-meta { background:#fff !important; color:#000 !important; border-bottom:1px solid #000 !important; }
+  .aw-table td { border:1px solid #000 !important; color:#000 !important; }
+  .aw-table .aw-label { background:#fff !important; color:#000 !important; }
+  .aw-table .aw-value { background:#fff !important; color:#000 !important; }
+  .aw-phenomenon .aw-value { color:#000 !important; font-weight:800 !important; }
+  .aw-urgent .aw-label, .aw-urgent .aw-value {
+    background:#fff !important; color:#000 !important; border:2px solid #000 !important;
+  }
+  .aw-sign, .aw-footer { color:#000 !important; border-color:#000 !important; }
+}
+
 /* ── HISTORY MODAL (बाकी स्क्रीन स्टाइल) ── */
 .modal-overlay {
   position:fixed; top:0; left:0;
@@ -1195,6 +1263,22 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
   line-height:1;
 }
 .modal-close:hover { opacity:1; }
+.modal-header-actions {
+  display:flex; align-items:center; gap:6px;
+  flex-shrink:0;
+}
+.modal-print {
+  background:rgba(0,200,83,0.14);
+  border:1px solid #00c853;
+  color:#00e676;
+  font-size:15px;
+  cursor:pointer;
+  padding:4px 9px;
+  border-radius:8px;
+  line-height:1;
+  transition:all 0.2s;
+}
+.modal-print:hover { background:rgba(0,200,83,0.28); }
 .modal-chart-wrap {
   flex:1; min-height:240px;
   position:relative;
@@ -1401,6 +1485,62 @@ body.dark .range-btn.active {
 }
 .metar-popup-body .loading-msg {
   height:auto; padding:20px;
+}
+
+/* AW (Aerodrome Warning) popup */
+#AWModalBox {
+  max-width: 640px;
+  overflow: hidden;
+}
+#AWContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.aw-report {
+  border:1px solid var(--modal-border);
+  border-radius:10px;
+  overflow:hidden;
+  background:var(--bg2);
+}
+.aw-header {
+  background:var(--hdr2-bg); color:#ffffff;
+  font-size:clamp(13px,1.7vw,19px); font-weight:800;
+  text-transform:uppercase; letter-spacing:0.4px;
+  text-align:center; padding:14px 16px;
+  font-family:'Orbitron',sans-serif;
+}
+.aw-meta {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 16px; background:var(--bg3);
+  border-bottom:1px solid var(--modal-border);
+  font-size:clamp(11px,1.1vw,13px); font-weight:700; color:var(--val-cyan);
+  font-family:'Inter',sans-serif;
+}
+.aw-table { width:100%; border-collapse:collapse; font-size:clamp(11px,1.1vw,13px); font-family:'Inter',sans-serif; }
+.aw-table td { border:1px solid var(--modal-border); padding:9px 12px; vertical-align:middle; }
+.aw-table .aw-label { font-weight:700; width:44%; background:var(--bg3); color:var(--val-cyan); }
+.aw-table .aw-value { width:56%; background:var(--bg2); font-weight:700; color:var(--val-white); }
+.aw-phenomenon .aw-value { color:var(--val-red); }
+.aw-urgent .aw-label { background:var(--hdr2-bg); color:#ffffff; }
+.aw-urgent .aw-value { color:var(--val-cyan); }
+.aw-sign {
+  text-align:right; font-size:clamp(10px,1vw,12px); font-weight:700; color:var(--sub);
+  padding:10px 16px; border-top:1px solid var(--modal-border); font-family:'Inter',sans-serif;
+}
+.aw-footer {
+  text-align:center; font-size:clamp(9px,0.9vw,11px); font-weight:700; color:var(--sub);
+  padding:8px; letter-spacing:0.3px; font-family:'Inter',sans-serif;
+}
+.aw-empty, .aw-error {
+  padding:26px; text-align:center; color:var(--sub);
+  font-size:clamp(13px,1.2vw,16px); font-family:'Inter',sans-serif;
+}
+.aw-error { color:var(--val-red); }
+.aw-freshness {
+  text-align:center; font-size:clamp(9px,0.85vw,11px); font-weight:600;
+  color:var(--sub); padding:8px 0 2px; font-family:'Inter',sans-serif;
 }
 
 /* Archive popup */

@@ -653,6 +653,254 @@
     });
 
     // ═══════════════════════════════════════════════════════════════
+    //  AW — Live Aerodrome Warning (ported from aerodrome_warning_monitor.py)
+    //  Fetches https://olbs.amsschennai.gov.in/nsweb/FlightBriefing/showwatchwarn.php
+    //  client-side. That site sends no CORS headers, so a direct fetch()
+    //  from the browser is blocked — we go through a public CORS proxy,
+    //  trying several in order in case one is down or rate-limited.
+    // ═══════════════════════════════════════════════════════════════
+    const AW_STATION = 'VOGA';
+    const AW_TARGET_URL = 'https://olbs.amsschennai.gov.in/nsweb/FlightBriefing/showwatchwarn.php';
+    const AW_PROXIES = [
+      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+      u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+      u => `https://thingproxy.freeboard.io/fetch/${u}`
+    ];
+
+    async function AWFetchHTML(){
+      let lastErr = null;
+      for (const buildUrl of AW_PROXIES){
+        try {
+          const res = await fetch(buildUrl(AW_TARGET_URL), { cache:'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const text = await res.text();
+          if (text && text.length > 200) return text;
+          throw new Error('empty/short response');
+        } catch(e){
+          lastErr = e;
+          console.warn('AW: proxy failed, trying next —', e.message);
+        }
+      }
+      throw lastErr || new Error('all proxies failed');
+    }
+
+    // Mirrors BeautifulSoup's get_text(separator='\n') behaviour closely
+    // enough — parse_warning_text below flattens all whitespace anyway,
+    // so exact line boundaries don't matter, only that text isn't glued
+    // together across tags.
+    function AWWalkText(node, parts){
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE){
+          const t = child.textContent.replace(/\s+/g, ' ').trim();
+          if (t) parts.push(t);
+        } else if (child.nodeType === Node.ELEMENT_NODE){
+          if (child.tagName === 'BR') parts.push('\n');
+          AWWalkText(child, parts);
+        }
+      });
+    }
+    function AWDivText(div){
+      const parts = [];
+      AWWalkText(div, parts);
+      return parts.join('\n');
+    }
+
+    function AWParseWarningText(text){
+      const flat = text.replace(/\s+/g, ' ').trim();
+      const header = flat.match(/WARNING\s+FOR\s+(\w+)\s*-\s*(\d{8})\s+(\d{2}:\d{2})/);
+      if (!header) return null;
+
+      let detailLine = flat.slice(header.index + header[0].length).replace(/^[\s-]+/, '');
+      if (!detailLine) return null;
+
+      const data = { station: header[1], issue_date: header[2] };
+
+      // Pattern: VOGA 301700Z AD WRNG 3 VALID 301730/302130
+      // The site inconsistently omits the trailing "Z" on issue time,
+      // so it's optional here (same fix as in the Python monitor).
+      const detailPattern = /(\w+)\s+(\d{6}Z?)\s+AD\s+WRNG\s+(\d+)\s+VALID\s+(\d{6})\/(\d{6})/;
+      const m = detailLine.match(detailPattern);
+      if (!m) return null;
+      data.icao = m[1];
+      data.issue_time_z = m[2];
+      data.warning_number = m[3];
+      data.valid_from = m[4];
+      data.valid_to = m[5];
+
+      const validMatch = detailLine.match(/VALID\s+\d{6}\/\d{6}\s+/);
+      if (validMatch){
+        const remaining = detailLine.slice(validMatch.index + validMatch[0].length);
+        const obsMatch = remaining.match(/\s+(FCST|OBS)\s+/i);
+        if (obsMatch){
+          data.phenomenon = remaining.slice(0, obsMatch.index).trim();
+          data.obs_type = obsMatch[1].toUpperCase();
+          data.changes = remaining.slice(obsMatch.index + obsMatch[0].length).trim().replace(/=+$/, '');
+        } else {
+          data.phenomenon = remaining.trim();
+          data.obs_type = '';
+          data.changes = '';
+        }
+      } else {
+        data.phenomenon = detailLine;
+        data.obs_type = '';
+        data.changes = '';
+      }
+      if (!data.phenomenon) data.phenomenon = 'N/A';
+      return data;
+    }
+
+    function AWExtractStationWarnings(html, station){
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const divs = doc.querySelectorAll('div.adwarning');
+      const results = [];
+      divs.forEach(div => {
+        const text = AWDivText(div);
+        if (text.includes(station)){
+          const data = AWParseWarningText(text);
+          if (data) results.push(data);
+        }
+      });
+      return results;
+    }
+
+    function AWFormatDate(yyyymmdd){
+      if (yyyymmdd && yyyymmdd.length === 8){
+        return `${yyyymmdd.slice(6,8)} / ${yyyymmdd.slice(4,6)} / ${yyyymmdd.slice(0,4)}`;
+      }
+      return yyyymmdd || '';
+    }
+
+    function AWChangeLabel(changes){
+      const up = (changes || '').toUpperCase();
+      if (up.includes('NC')) return 'NC';
+      if (up.includes('INTSF') || up.includes('INT')) return 'INTSF';
+      if (up.includes('WKN')) return 'WKN';
+      return changes || 'NC';
+    }
+
+    // Builds the same report layout as generate_html_report() in
+    // aerodrome_warning_monitor.py (title logic, field order, labels).
+    function AWBuildReportHTML(data){
+      const phenomenon = data.phenomenon || '';
+      const hasTs = phenomenon.includes('TS') || phenomenon.includes('TSRA');
+      const hasLight = /SFC\s+WSPD\s+\d+KT/.test(phenomenon);
+      const titleParts = [];
+      if (hasTs) titleParts.push('THUNDERSTORM');
+      if (hasLight) titleParts.push('LIGHT AIRCRAFT');
+      const title = titleParts.length
+        ? `AERODROME WARNING FOR ${titleParts.join(' AND ')}`
+        : 'AERODROME WARNING';
+
+      const dated = AWFormatDate(data.issue_date);
+      const validity = `${data.valid_from || ''} / ${data.valid_to || ''} UTC`;
+      const changeLabel = AWChangeLabel(data.changes);
+
+      return `
+        <div class="aw-report">
+          <div class="aw-header">${escapeHtml(title)}</div>
+          <div class="aw-meta"><span>Dated: ${escapeHtml(dated)}</span><span>WRNG ${escapeHtml(data.warning_number || '')}</span></div>
+          <table class="aw-table">
+            <tr><td class="aw-label">Location Indicator of Aerodrome</td><td class="aw-value">${escapeHtml(data.station || '')}</td></tr>
+            <tr><td class="aw-label">Date &amp; Time of Issue</td><td class="aw-value">${escapeHtml(data.issue_time_z || '')}</td></tr>
+            <tr><td class="aw-label">Identification of Type of Message</td><td class="aw-value">AD WRNG ${escapeHtml(data.warning_number || '')}</td></tr>
+            <tr class="aw-urgent"><td class="aw-label">Validity Period</td><td class="aw-value">${escapeHtml(validity)}</td></tr>
+            <tr class="aw-phenomenon"><td class="aw-label">Phenomenon</td><td class="aw-value">${escapeHtml(phenomenon)}</td></tr>
+            <tr><td class="aw-label">Observed or Forecast Phenomenon</td><td class="aw-value">${escapeHtml(data.obs_type || '')}</td></tr>
+            <tr><td class="aw-label">Changes in Intensity</td><td class="aw-value">${escapeHtml(changeLabel)}</td></tr>
+          </table>
+          <div class="aw-sign">DUTY MET (MWO MUMBAI)</div>
+          <div class="aw-footer">ISSUED BY METEOROLOGICAL WATCH OFFICE (MUMBAI)</div>
+        </div>`;
+    }
+
+    let AWLastData = null;
+
+    // Primary source: GitHub Actions scrapes OLBS server-side every ~10 min
+    // and commits the parsed result here — no CORS, no proxy, no gov-site
+    // IP blocking (confirmed working from Actions runners).
+    const AW_JSON_URL = 'https://raw.githubusercontent.com/ajayydv-prog/DCWIS/main/data/voga_warning.json';
+
+    async function AWFetchJSON(){
+      const res = await fetch(AW_JSON_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
+    function AWFreshnessLine(generatedUtc){
+      const d = new Date(generatedUtc);
+      if (isNaN(d.getTime())) return '';
+      const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+      const label = mins < 1 ? 'just now' : (mins === 1 ? '1 min ago' : `${mins} min ago`);
+      return `<div class="aw-freshness">Last checked: ${label}</div>`;
+    }
+
+    window.openAWPopup = async function(){
+      const modal = document.getElementById('AWModal');
+      const content = document.getElementById('AWContent');
+      modal.classList.add('active');
+      content.innerHTML = `<div class="loading-msg" style="height:auto;padding:24px;"><span class="spinner"></span> Fetching live aerodrome warning for ${AW_STATION}...</div>`;
+      AWLastData = null;
+
+      // ── Primary: GitHub-hosted JSON ──
+      try {
+        const payload = await AWFetchJSON();
+        if (payload.has_warning && payload.warning){
+          AWLastData = payload.warning;
+          content.innerHTML = AWBuildReportHTML(payload.warning) + AWFreshnessLine(payload.generated_utc);
+        } else {
+          content.innerHTML = `<div class="aw-empty">No active aerodrome warning for ${AW_STATION} right now.</div>` + AWFreshnessLine(payload.generated_utc);
+        }
+        return;
+      } catch (e){
+        console.warn('AW: GitHub JSON fetch failed, falling back to live proxy scrape —', e.message);
+      }
+
+      // ── Fallback: scrape OLBS directly through CORS proxies ──
+      try {
+        const html = await AWFetchHTML();
+        const warnings = AWExtractStationWarnings(html, AW_STATION);
+        if (!warnings.length){
+          content.innerHTML = `<div class="aw-empty">No active aerodrome warning for ${AW_STATION} right now.</div>`;
+          return;
+        }
+        const latest = warnings.reduce((a, b) =>
+          (parseInt(b.warning_number || 0, 10) >= parseInt(a.warning_number || 0, 10) ? b : a));
+        AWLastData = latest;
+        content.innerHTML = AWBuildReportHTML(latest);
+      } catch (e){
+        console.error('AW fetch/parse failed:', e);
+        content.innerHTML = `<div class="aw-error">⚠ Could not load the warning right now — GitHub data and all fallback proxies failed.<br>Try again in a moment.</div>`;
+      }
+    };
+
+    window.closeAW = function(){
+      document.getElementById('AWModal').classList.remove('active');
+    };
+
+    document.getElementById('AWModal').addEventListener('click', function(e){
+      if (e.target === this) closeAW();
+    });
+
+    // Prints only this popup, forced to A5 for the duration of the job
+    // (A5 = exactly half of A4) — the tag is added right before printing
+    // and removed right after so it never affects any other print flow.
+    window.printAWReport = function(){
+      if (!AWLastData) return;
+      const pageStyle = document.createElement('style');
+      pageStyle.id = 'aw-print-page-size';
+      pageStyle.textContent = '@page { size: A5 portrait; margin: 8mm; }';
+      document.head.appendChild(pageStyle);
+
+      const cleanup = () => {
+        pageStyle.remove();
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+    };
+
+    // ═══════════════════════════════════════════════════════════════
     //  COMPASS
     // ═══════════════════════════════════════════════════════════════
     function drawCompass(rwy, windDeg){

@@ -193,6 +193,7 @@
     <div class="dev-row">
       <div class="dev">DEVELOPED BY: AJAY (GOA)</div>
       <button id="Archive-btn" onclick="openArchivePopup()">Archive</button>
+      <button id="AW-btn" onclick="openAWPopup()">AW</button>
     </div>
     <div id="metar-container">
       <div id="metar-display">Loading METAR...</div>
@@ -266,6 +267,22 @@
       </div>
       <div id="ArchiveContent">
         <div class="loading-msg"><span class="spinner"></span> Loading historical data...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AW (AERODROME WARNING) MODAL ─── -->
+  <div class="modal-overlay" id="AWModal">
+    <div class="modal-box" id="AWModalBox">
+      <div class="modal-header">
+        <h2 id="AWTitle">Aerodrome Warning <small>VOGA · live from MWO Mumbai (OLBS)</small></h2>
+        <div class="modal-header-actions">
+          <button class="modal-print" id="AWPrintBtn" onclick="printAWReport()" title="Print (A5 · half A4 page)">🖨️</button>
+          <button class="modal-close" onclick="closeAW()">&times;</button>
+        </div>
+      </div>
+      <div id="AWContent">
+        <div class="loading-msg"><span class="spinner"></span> Fetching live aerodrome warning...</div>
       </div>
     </div>
   </div>
