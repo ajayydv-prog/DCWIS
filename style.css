@@ -1173,36 +1173,35 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
   #AWModalBox {
     max-width:none !important; max-height:none !important;
     overflow:visible !important;
-    background:#ffffff !important;
     border:none !important; box-shadow:none !important;
     border-radius:0 !important; padding:0 !important;
     width:100% !important;
+    background:#ffffff !important;
   }
   #AWModal .modal-header-actions,
   #AWModal .modal-close,
   #AWModal .modal-print,
   .aw-freshness { display:none !important; }
   #AWModal .modal-header {
-    border-bottom:2px solid #000 !important;
+    border-bottom:2px solid #0d47a1 !important;
     padding-bottom:6px !important; margin-bottom:8px !important;
   }
-  #AWModal .modal-header h2 { color:#000 !important; font-size:15px !important; }
-  #AWModal .modal-header h2 small { color:#333 !important; }
-  .aw-report { border:1px solid #000 !important; border-radius:0 !important; background:#fff !important; }
-  .aw-header {
-    background:#ffffff !important; color:#000 !important;
-    border-bottom:2px solid #000 !important;
-    -webkit-print-color-adjust:exact; print-color-adjust:exact;
-  }
-  .aw-meta { background:#fff !important; color:#000 !important; border-bottom:1px solid #000 !important; }
-  .aw-table td { border:1px solid #000 !important; color:#000 !important; }
-  .aw-table .aw-label { background:#fff !important; color:#000 !important; }
-  .aw-table .aw-value { background:#fff !important; color:#000 !important; }
-  .aw-phenomenon .aw-value { color:#000 !important; font-weight:800 !important; }
+  #AWModal .modal-header h2 { color:#0d47a1 !important; font-size:15px !important; }
+  #AWModal .modal-header h2 small { color:#0077cc !important; }
+
+  /* No background fill anywhere — only text keeps its colour, so ink
+     is spent on letters, not on filled boxes. */
+  .aw-report { background:#ffffff !important; border:1px solid #0d47a1 !important; border-radius:0 !important; }
+  .aw-header { background:#ffffff !important; color:#0d47a1 !important; border-bottom:2px solid #0d47a1 !important; font-weight:800 !important; }
+  .aw-meta { background:#ffffff !important; color:#0077cc !important; border-bottom:1px solid #0d47a1 !important; }
+  .aw-table td { background:#ffffff !important; border:1px solid #0d47a1 !important; }
+  .aw-table .aw-label { background:#ffffff !important; color:#0077cc !important; }
+  .aw-table .aw-value { background:#ffffff !important; color:#1a2a3a !important; }
+  .aw-phenomenon .aw-value { color:#d32f2f !important; font-weight:800 !important; }
   .aw-urgent .aw-label, .aw-urgent .aw-value {
-    background:#fff !important; color:#000 !important; border:2px solid #000 !important;
+    background:#ffffff !important; color:#0d47a1 !important; border:2px solid #0d47a1 !important;
   }
-  .aw-sign, .aw-footer { color:#000 !important; border-color:#000 !important; }
+  .aw-sign, .aw-footer { background:#ffffff !important; color:#0077cc !important; border-color:#0d47a1 !important; }
 }
 
 /* ── HISTORY MODAL (बाकी स्क्रीन स्टाइल) ── */
