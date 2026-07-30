@@ -882,15 +882,129 @@
       if (e.target === this) closeAW();
     });
 
-    // Prints only this popup, forced to A5 for the duration of the job
-    // (A5 = exactly half of A4) — the tag is added right before printing
-    // and removed right after so it never affects any other print flow.
+    // Builds the exact same self-contained HTML document that
+    // aerodrome_warning_monitor.py's generate_html_report() writes to
+    // disk — same classes, same colours, same @page rule. Printing this
+    // in its own tab means the dashboard's CSS (flexbox, dark theme,
+    // modal overlay, etc.) never gets involved, so it can't interfere.
+    function AWBuildStandaloneHTML(data){
+      const phenomenon = data.phenomenon || '';
+      const hasTs = phenomenon.includes('TS') || phenomenon.includes('TSRA');
+      const hasLight = /SFC\s+WSPD\s+\d+KT/.test(phenomenon);
+      const titleParts = [];
+      if (hasTs) titleParts.push('THUNDERSTORM');
+      if (hasLight) titleParts.push('LIGHT AIRCRAFT');
+      const title = titleParts.length
+        ? `AERODROME WARNING FOR ${titleParts.join(' AND ')}`
+        : 'AERODROME WARNING';
+
+      const dated = AWFormatDate(data.issue_date);
+      const validity = `${data.valid_from || ''} / ${data.valid_to || ''} UTC`;
+      const changeLabel = AWChangeLabel(data.changes);
+      const station = data.station || '';
+
+      return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Aerodrome Warning - ${escapeHtml(station)}</title>
+    <style>
+        @page { size: A3 landscape; margin: 0.8cm; }
+        * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+        body { font-family:'Segoe UI', Arial, sans-serif; margin:0; padding:0; background:#ffffff; }
+        .container { width:100%; margin:0 auto; background:#ffffff; border:1px solid #c9ccd1; }
+        .accent-bar { height:8px; width:100%; background:#7a1f1f; }
+        .header { background:#23365c; color:#ffffff; font-size:32px; font-weight:bold; text-transform:uppercase; padding:28px 20px; letter-spacing:0.5px; text-align:center; border-bottom:4px solid #7a1f1f; }
+        .meta-row { display:flex; justify-content:space-between; align-items:center; padding:20px 35px; background:#eceef2; border-bottom:1px solid #c9ccd1; }
+        .meta-row .dated { font-size:22px; font-weight:bold; color:#23365c; text-align:left; }
+        .warning-box { padding:35px 40px; }
+        table { width:100%; border-collapse:collapse; font-size:23px; margin:0 0 45px 0; }
+        td, th { border:1px solid #c9ccd1; padding:24px 20px; text-align:center; vertical-align:middle; }
+        .label { font-weight:bold; width:42%; background:#eceef2; color:#23365c; }
+        .value { width:58%; background:#ffffff; font-weight:bold; color:#1a1a1a; }
+        .phenomenon-row .value { font-weight:bold; color:#7a1f1f; }
+        .urgent-row .label { background:#23365c; color:#ffffff; }
+        .urgent-row .value { font-weight:bold; color:#23365c; background:#dde3ee; }
+        .signature-row { display:flex; justify-content:flex-end; align-items:flex-end; padding:0 40px 15px 40px; }
+        .signature { text-align:right; font-size:19px; font-weight:bold; color:#23365c; border-top:2px solid #7a1f1f; padding-top:12px; min-width:280px; }
+        .footer-strip { text-align:center; font-size:12px; font-weight:bold; color:#23365c; padding:10px 20px 20px 20px; letter-spacing:0.5px; }
+        @media print {
+            body { background:#ffffff !important; }
+            .container { border:1px solid #000000 !important; }
+            .accent-bar { display:none !important; }
+            .header { background:#ffffff !important; color:#7a1f1f !important; border:2px solid #000000 !important; border-bottom:2px solid #000000 !important; }
+            .meta-row { background:#ffffff !important; border-bottom:1px solid #000000 !important; }
+            .meta-row .dated { color:#000000 !important; }
+            td, th { border:1px solid #000000 !important; }
+            .label { background:#ffffff !important; color:#000000 !important; font-weight:bold !important; }
+            .value { background:#ffffff !important; color:#000000 !important; }
+            .phenomenon-row .value { color:#7a1f1f !important; font-weight:bold !important; }
+            .urgent-row .label { background:#ffffff !important; color:#000000 !important; border:2px solid #000000 !important; }
+            .urgent-row .value { background:#ffffff !important; color:#000000 !important; font-weight:bold !important; border:2px solid #000000 !important; }
+            .signature { color:#000000 !important; border-top:1.5px solid #000000 !important; }
+            .footer-strip { color:#000000 !important; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="accent-bar"></div>
+    <div class="header">${escapeHtml(title)}</div>
+    <div class="meta-row">
+        <div class="dated">Dated: ${escapeHtml(dated)}</div>
+    </div>
+    <div class="warning-box">
+        <table>
+            <tr><td class="label">Location Indicator of Aerodrome</td><td class="value">${escapeHtml(station)}</td></tr>
+            <tr><td class="label">Date &amp; Time of Issue</td><td class="value">${escapeHtml(data.issue_time_z || '')}</td></tr>
+            <tr><td class="label">Identification of Type of Message</td><td class="value">AD WRNG ${escapeHtml(data.warning_number || '')}</td></tr>
+            <tr class="urgent-row"><td class="label">Validity Period</td><td class="value">${escapeHtml(validity)}</td></tr>
+            <tr class="phenomenon-row"><td class="label">Phenomenon</td><td class="value">${escapeHtml(phenomenon)}</td></tr>
+            <tr>
+                <td class="label">Observed or Forecast Phenomenon</td>
+                <td class="value">${escapeHtml(data.obs_type || '')}</td>
+            </tr>
+            <tr>
+                <td class="label">Changes in Intensity</td>
+                <td class="value">${escapeHtml(changeLabel)}</td>
+            </tr>
+        </table>
+        <div class="signature-row">
+            <div class="signature">Signature :- DUTY OFFICER / DUTY MET</div>
+        </div>
+    </div>
+    <div class="footer-strip">ISSUED BY METEOROLOGICAL WATCH OFFICE (MUMBAI)</div>
+</div>
+</body>
+</html>`;
+    }
+
+    // Opens the standalone report in its own tab (clean print, no
+    // dashboard CSS involved) and triggers print automatically. If the
+    // browser blocks the popup, falls back to downloading the same HTML
+    // so it can still be opened/printed manually.
     window.printAWReport = function(){
       if (!AWLastData) return;
-      // No custom @page size needed — the sheet stays plain A4 (matches
-      // every printer reliably) and the CSS print rules below constrain
-      // the report itself to the top half of that A4 sheet.
-      window.print();
+      const html = AWBuildStandaloneHTML(AWLastData);
+      const win = window.open('', '_blank');
+      if (win){
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.onload = () => { win.focus(); win.print(); };
+        // Some browsers fire onload before write() settles — try once more shortly after.
+        setTimeout(() => { try { win.focus(); win.print(); } catch(e){} }, 300);
+      } else {
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `VOGA_Warning_${AWLastData.warning_number || ''}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
     };
 
     // ═══════════════════════════════════════════════════════════════

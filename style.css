@@ -1156,70 +1156,11 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
   .snap-metar-box { margin-top:6px !important; }
 }
 
-/* ══════════════════════════════════════════
-   PRINT - AW REPORT (top half of a plain A4 sheet)
-   Paper stays A4 (the default @page rule above, or the
-   printer's own default if no @page rule is honoured at
-   all) — that's the one thing every browser/printer agrees
-   on. Instead of gambling on a custom @page size, the report
-   itself is capped to roughly half the A4 sheet's height, so
-   it always lands in the top half regardless of paper-size
-   handling. Cut/fold the sheet in half afterwards if needed.
-   ══════════════════════════════════════════ */
-@media print {
-  #AWModal.active {
-    position:static !important;
-    display:block !important;
-    width:auto !important;
-    height:auto !important;
-    max-width:none !important;
-    padding:0 !important;
-    background:none !important;
-  }
-  #AWModalBox {
-    /* .modal-box is display:flex on screen — that flex layout is what
-       was quietly resizing the table narrower and clipping its right
-       border in print. Force plain block layout here instead. */
-    display:block !important;
-    max-width:none !important;
-    /* ~half of an A4 sheet's printable height (297mm sheet minus the
-       10mm/12mm @page margins above ≈ 277mm usable → half ≈ 135mm). */
-    max-height:135mm !important;
-    overflow:hidden !important;
-    border:none !important; box-shadow:none !important;
-    border-radius:0 !important; padding:0 !important;
-    width:100% !important;
-    background:#ffffff !important;
-  }
-  /* The whole title bar ("Aerodrome Warning · VOGA · live from...")
-     is a screen-only header — the printed report already has its own
-     heading (below, inside .aw-report), so drop this entirely. */
-  #AWModal .modal-header { display:none !important; }
-  #AWContent {
-    display:block !important;
-    flex:none !important;
-    min-height:0 !important;
-    height:auto !important;
-    overflow:visible !important;
-    padding:0 !important;
-  }
-
-  /* No background fill anywhere — only text keeps its colour, so ink
-     is spent on letters, not on filled boxes. */
-  .aw-report { background:#ffffff !important; border:1px solid #0d47a1 !important; border-radius:0 !important; }
-  .aw-header { background:#ffffff !important; color:#0d47a1 !important; border-bottom:2px solid #0d47a1 !important; font-weight:800 !important; }
-  .aw-meta { background:#ffffff !important; color:#0077cc !important; border-bottom:1px solid #0d47a1 !important; flex-wrap:wrap !important; }
-  .aw-table { width:100% !important; table-layout:fixed !important; border-collapse:collapse !important; }
-  .aw-table td { word-break:break-word !important; }
-  .aw-table td { background:#ffffff !important; border:1px solid #0d47a1 !important; }
-  .aw-table .aw-label { background:#ffffff !important; color:#0077cc !important; }
-  .aw-table .aw-value { background:#ffffff !important; color:#1a2a3a !important; }
-  .aw-phenomenon .aw-value { color:#d32f2f !important; font-weight:800 !important; }
-  .aw-urgent .aw-label, .aw-urgent .aw-value {
-    background:#ffffff !important; color:#0d47a1 !important; border:2px solid #0d47a1 !important;
-  }
-  .aw-sign, .aw-footer { background:#ffffff !important; color:#0077cc !important; border-color:#0d47a1 !important; }
-}
+/* Note: the AW report is no longer printed from inside this modal.
+   printAWReport() in app.js opens a completely standalone HTML document
+   (matching aerodrome_warning_monitor.py's own generate_html_report
+   output) in a new tab and prints that instead — it avoids fighting
+   with this dashboard's flexbox/dark-theme CSS entirely. */
 
 /* ── HISTORY MODAL (बाकी स्क्रीन स्टाइल) ── */
 .modal-overlay {
