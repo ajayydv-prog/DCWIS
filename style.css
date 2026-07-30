@@ -1177,6 +1177,10 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
     background:none !important;
   }
   #AWModalBox {
+    /* .modal-box is display:flex on screen — that flex layout is what
+       was quietly resizing the table narrower and clipping its right
+       border in print. Force plain block layout here instead. */
+    display:block !important;
     max-width:none !important;
     /* ~half of an A4 sheet's printable height (297mm sheet minus the
        10mm/12mm @page margins above ≈ 277mm usable → half ≈ 135mm). */
@@ -1187,22 +1191,25 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
     width:100% !important;
     background:#ffffff !important;
   }
-  #AWModal .modal-header-actions,
-  #AWModal .modal-close,
-  #AWModal .modal-print,
-  .aw-freshness { display:none !important; }
-  #AWModal .modal-header {
-    border-bottom:2px solid #0d47a1 !important;
-    padding-bottom:6px !important; margin-bottom:8px !important;
+  /* The whole title bar ("Aerodrome Warning · VOGA · live from...")
+     is a screen-only header — the printed report already has its own
+     heading (below, inside .aw-report), so drop this entirely. */
+  #AWModal .modal-header { display:none !important; }
+  #AWContent {
+    display:block !important;
+    flex:none !important;
+    min-height:0 !important;
+    height:auto !important;
+    overflow:visible !important;
+    padding:0 !important;
   }
-  #AWModal .modal-header h2 { color:#0d47a1 !important; font-size:15px !important; }
-  #AWModal .modal-header h2 small { color:#0077cc !important; }
 
   /* No background fill anywhere — only text keeps its colour, so ink
      is spent on letters, not on filled boxes. */
   .aw-report { background:#ffffff !important; border:1px solid #0d47a1 !important; border-radius:0 !important; }
   .aw-header { background:#ffffff !important; color:#0d47a1 !important; border-bottom:2px solid #0d47a1 !important; font-weight:800 !important; }
   .aw-meta { background:#ffffff !important; color:#0077cc !important; border-bottom:1px solid #0d47a1 !important; flex-wrap:wrap !important; }
+  .aw-table { width:100% !important; table-layout:fixed !important; border-collapse:collapse !important; }
   .aw-table td { word-break:break-word !important; }
   .aw-table td { background:#ffffff !important; border:1px solid #0d47a1 !important; }
   .aw-table .aw-label { background:#ffffff !important; color:#0077cc !important; }
