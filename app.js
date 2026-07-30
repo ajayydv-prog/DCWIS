@@ -909,25 +909,30 @@
     <meta charset="UTF-8">
     <title>Aerodrome Warning - ${escapeHtml(station)}</title>
     <style>
-        @page { size: A3 landscape; margin: 0.8cm; }
+        /* Plain A4 — the one page size every browser/printer honours
+           reliably. The .container below is sized to comfortably sit
+           within the TOP HALF of that sheet (roughly 135mm tall out of
+           the ~277mm usable height), instead of gambling on a custom
+           @page size. Cut/fold the sheet in half afterwards if needed. */
+        @page { size: A4; margin: 10mm; }
         * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
         body { font-family:'Segoe UI', Arial, sans-serif; margin:0; padding:0; background:#ffffff; }
-        .container { width:100%; margin:0 auto; background:#ffffff; border:1px solid #c9ccd1; }
-        .accent-bar { height:8px; width:100%; background:#7a1f1f; }
-        .header { background:#23365c; color:#ffffff; font-size:32px; font-weight:bold; text-transform:uppercase; padding:28px 20px; letter-spacing:0.5px; text-align:center; border-bottom:4px solid #7a1f1f; }
-        .meta-row { display:flex; justify-content:space-between; align-items:center; padding:20px 35px; background:#eceef2; border-bottom:1px solid #c9ccd1; }
-        .meta-row .dated { font-size:22px; font-weight:bold; color:#23365c; text-align:left; }
-        .warning-box { padding:35px 40px; }
-        table { width:100%; border-collapse:collapse; font-size:23px; margin:0 0 45px 0; }
-        td, th { border:1px solid #c9ccd1; padding:24px 20px; text-align:center; vertical-align:middle; }
+        .container { width:100%; max-height:135mm; overflow:hidden; margin:0 auto; background:#ffffff; border:1px solid #c9ccd1; }
+        .accent-bar { height:4px; width:100%; background:#7a1f1f; }
+        .header { background:#23365c; color:#ffffff; font-size:16px; font-weight:bold; text-transform:uppercase; padding:10px 14px; letter-spacing:0.4px; text-align:center; border-bottom:2px solid #7a1f1f; }
+        .meta-row { display:flex; justify-content:space-between; align-items:center; padding:8px 16px; background:#eceef2; border-bottom:1px solid #c9ccd1; }
+        .meta-row .dated { font-size:12px; font-weight:bold; color:#23365c; text-align:left; }
+        .warning-box { padding:10px 14px; }
+        table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; margin:0; }
+        td, th { border:1px solid #c9ccd1; padding:6px 8px; text-align:center; vertical-align:middle; word-break:break-word; }
         .label { font-weight:bold; width:42%; background:#eceef2; color:#23365c; }
         .value { width:58%; background:#ffffff; font-weight:bold; color:#1a1a1a; }
         .phenomenon-row .value { font-weight:bold; color:#7a1f1f; }
         .urgent-row .label { background:#23365c; color:#ffffff; }
         .urgent-row .value { font-weight:bold; color:#23365c; background:#dde3ee; }
-        .signature-row { display:flex; justify-content:flex-end; align-items:flex-end; padding:0 40px 15px 40px; }
-        .signature { text-align:right; font-size:19px; font-weight:bold; color:#23365c; border-top:2px solid #7a1f1f; padding-top:12px; min-width:280px; }
-        .footer-strip { text-align:center; font-size:12px; font-weight:bold; color:#23365c; padding:10px 20px 20px 20px; letter-spacing:0.5px; }
+        .signature-row { display:flex; justify-content:flex-end; align-items:flex-end; padding:8px 14px 4px; }
+        .signature { text-align:right; font-size:10px; font-weight:bold; color:#23365c; border-top:1.5px solid #7a1f1f; padding-top:5px; min-width:200px; }
+        .footer-strip { text-align:center; font-size:8px; font-weight:bold; color:#23365c; padding:5px 10px; letter-spacing:0.3px; }
         @media print {
             body { background:#ffffff !important; }
             .container { border:1px solid #000000 !important; }
