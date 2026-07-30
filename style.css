@@ -1157,11 +1157,14 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
 }
 
 /* ══════════════════════════════════════════
-   PRINT - AW REPORT (A5 / half-A4 page)
-   The exact @page size for this popup is set with a
-   short-lived injected <style> tag by printAWReport()
-   in app.js, right before window.print() — that keeps
-   it from fighting with the A4 @page rule used above.
+   PRINT - AW REPORT (top half of a plain A4 sheet)
+   Paper stays A4 (the default @page rule above, or the
+   printer's own default if no @page rule is honoured at
+   all) — that's the one thing every browser/printer agrees
+   on. Instead of gambling on a custom @page size, the report
+   itself is capped to roughly half the A4 sheet's height, so
+   it always lands in the top half regardless of paper-size
+   handling. Cut/fold the sheet in half afterwards if needed.
    ══════════════════════════════════════════ */
 @media print {
   #AWModal.active {
@@ -1174,8 +1177,11 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
     background:none !important;
   }
   #AWModalBox {
-    max-width:none !important; max-height:none !important;
-    overflow:visible !important;
+    max-width:none !important;
+    /* ~half of an A4 sheet's printable height (297mm sheet minus the
+       10mm/12mm @page margins above ≈ 277mm usable → half ≈ 135mm). */
+    max-height:135mm !important;
+    overflow:hidden !important;
     border:none !important; box-shadow:none !important;
     border-radius:0 !important; padding:0 !important;
     width:100% !important;

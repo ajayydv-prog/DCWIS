@@ -809,7 +809,7 @@
             <tr><td class="aw-label">Observed or Forecast Phenomenon</td><td class="aw-value">${escapeHtml(data.obs_type || '')}</td></tr>
             <tr><td class="aw-label">Changes in Intensity</td><td class="aw-value">${escapeHtml(changeLabel)}</td></tr>
           </table>
-          <div class="aw-sign">DUTY MET (MWO MUMBAI)</div>
+          <div class="aw-sign">Signature :- DUTY OFFICER / DUTY MET</div>
           <div class="aw-footer">ISSUED BY METEOROLOGICAL WATCH OFFICE (MUMBAI)</div>
         </div>`;
     }
@@ -887,16 +887,9 @@
     // and removed right after so it never affects any other print flow.
     window.printAWReport = function(){
       if (!AWLastData) return;
-      const pageStyle = document.createElement('style');
-      pageStyle.id = 'aw-print-page-size';
-      pageStyle.textContent = '@page { size: A5 portrait; margin: 8mm; }';
-      document.head.appendChild(pageStyle);
-
-      const cleanup = () => {
-        pageStyle.remove();
-        window.removeEventListener('afterprint', cleanup);
-      };
-      window.addEventListener('afterprint', cleanup);
+      // No custom @page size needed — the sheet stays plain A4 (matches
+      // every printer reliably) and the CSS print rules below constrain
+      // the report itself to the top half of that A4 sheet.
       window.print();
     };
 
