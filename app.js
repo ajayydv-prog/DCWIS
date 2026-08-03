@@ -1,4 +1,4 @@
-    // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
     //  CONFIGURATION
     // ═══════════════════════════════════════════════════════════════
     const API_BASE = 'https://www.ajayydv.shop';
@@ -1274,21 +1274,13 @@
     //  RESIZE
     // ═══════════════════════════════════════════════════════════════
     function resizeLayout(){
-      document.querySelectorAll('.panel').forEach(panel=>{
-        const pb=panel.querySelector('.pb');
-        if(!pb) return;
-        const totalH=pb.getBoundingClientRect().height;
-        if(totalH<10) return;
-        const windRow=pb.querySelector('.wind-row');
-        const rangeRow=pb.querySelector('.range-row');
-        const dataRows=pb.querySelectorAll('.data-row');
-        const windH=Math.round(totalH*0.32);
-        const rangeH = rangeRow ? Math.max(rangeRow.getBoundingClientRect().height, 30) : 30;
-        const remaining=totalH-windH-rangeH;
-        const perData=Math.floor(remaining/dataRows.length);
-        if(windRow) windRow.style.height=Math.max(windH, 70)+'px';
-        dataRows.forEach(r=>r.style.height=Math.max(perData, 55)+'px');
-      });
+      // Row heights (wind-row / range-row / data-rows) are sized by
+      // proportional flex-grow in CSS now, so they always fill the panel
+      // exactly on any screen size or orientation — no JS math needed.
+      // We still need to redraw the canvas-based widgets here because a
+      // canvas's drawing buffer doesn't auto-scale with its CSS box; it
+      // has to be re-measured and repainted whenever its container resizes
+      // (e.g. after an orientation change or a mobile URL-bar show/hide).
       ['28','10'].forEach(rwy=>{
         const cell=document.getElementById('compass-'+rwy)?.parentElement;
         if(cell) drawCompass(rwy, compassCurrentAngle[rwy] ?? compassDirs[rwy]);
@@ -2943,6 +2935,14 @@
       
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
+      // Rotating the phone changes width/height at slightly different
+      // times across browsers, so give layout a moment to settle before
+      // re-measuring; also listen on visualViewport for the case where
+      // the mobile URL bar/keyboard shows or hides without a resize event.
+      window.addEventListener('orientationchange', ()=> setTimeout(resizeLayout, 200));
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', resizeLayout);
+      }
       setupClickHandlers();
       fetchData();
       startAutoRefresh();
