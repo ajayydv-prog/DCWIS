@@ -83,11 +83,20 @@ html,body {
   display:flex; flex-direction:column;
   transition: background 0.3s, color 0.3s;
 }
+/* Use the dynamic viewport height where supported so mobile browser
+   URL/toolbars showing or hiding never leave a sliver clipped or an
+   empty gap at the bottom — the layout always matches what's actually
+   visible right now on the phone. */
+@supports (height: 100dvh) {
+  html,body { height:100dvh; }
+}
 #topbar {
   display:flex; align-items:center;
   background:var(--top-bg);
   border-bottom:3px solid var(--hdr-bg);
   padding:0 clamp(6px,1.5vw,20px);
+  padding-left:max(clamp(6px,1.5vw,20px), env(safe-area-inset-left));
+  padding-right:max(clamp(6px,1.5vw,20px), env(safe-area-inset-right));
   height:clamp(36px,5vh,48px); flex-shrink:0;
   gap:clamp(6px,1vw,14px);
   box-shadow: var(--shadow);
@@ -136,7 +145,8 @@ html,body {
   padding:0 clamp(4px,1.2vw,14px); gap:clamp(3px,0.8vw,10px);
   border-right:1px solid var(--border);
 }
-.rwybar-half:last-child { border-right:none; }
+.rwybar-half:first-child { padding-left:max(clamp(4px,1.2vw,14px), env(safe-area-inset-left)); }
+.rwybar-half:last-child { border-right:none; padding-right:max(clamp(4px,1.2vw,14px), env(safe-area-inset-right)); }
 .stn-lbl {
   font-family:'Orbitron',sans-serif;
   font-size:clamp(8px,1vw,12px); color:var(--val-white); font-weight:700; letter-spacing:1px;
@@ -161,6 +171,8 @@ html,body {
 #main {
   flex:1; display:grid; grid-template-columns:1fr 1fr;
   min-height:0; gap:0;
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
 }
 .panel {
   display:flex; flex-direction:column;
@@ -215,8 +227,8 @@ body.trend-mode #trendView { display:grid; }
 
 .wind-row {
   display:grid; grid-template-columns:0.82fr 0.82fr minmax(80px,17vw);
-  flex-shrink:0; border-bottom:2px solid var(--border);
-  min-height:70px;
+  flex:32 1 0; min-height:0; overflow:hidden;
+  border-bottom:2px solid var(--border);
 }
 .wind-col { display:flex; flex-direction:column; }
 .wbox {
@@ -227,7 +239,8 @@ body.trend-mode #trendView { display:grid; }
   border-right:1px solid var(--border);
   background:var(--bg);
   transition:background 0.3s;
-  min-height:30px;
+  min-height:0;
+  overflow:hidden;
   position:relative;
   cursor:pointer;
 }
@@ -293,7 +306,7 @@ body.dark .wbox .click-hint {
   background:var(--compass-bg); overflow:hidden;
   border-left:1px solid var(--border);
   transition:background 0.3s;
-  min-height:70px;
+  min-height:0;
 }
 .compass-cell canvas { display:block; width:100%; height:100%; }
 .wind-particles-canvas {
@@ -303,7 +316,7 @@ body.dark .wbox .click-hint {
 .range-row {
   display:grid; grid-template-columns:42% 58%;
   border-bottom:2px solid var(--border);
-  min-height:clamp(22px,2.8vh,34px); flex-shrink:0;
+  flex:8 1 0; min-height:0; overflow:hidden;
   background:var(--range-bg); transition:background 0.3s;
 }
 .rr {
@@ -326,9 +339,8 @@ body.dark .wbox .click-hint {
   min-width:0; overflow:hidden; text-overflow:ellipsis; flex-shrink:1;
 }
 .data-row {
-  display:grid; flex-shrink:0;
+  display:grid; flex:15 1 0; min-height:0;
   border-bottom:1px solid var(--border);
-  min-height:55px;
 }
 .data-row.c2 { grid-template-columns:42% 58%; }
 .data-row.c3 { grid-template-columns:42% 29% 29%; }
@@ -394,6 +406,8 @@ body.dark .dc .click-hint {
 #footer {
   background:var(--top-bg); border-top:2px solid var(--hdr-bg);
   padding:2px clamp(6px,1.5vw,18px);
+  padding-left:max(clamp(6px,1.5vw,18px), env(safe-area-inset-left));
+  padding-right:max(clamp(6px,1.5vw,18px), env(safe-area-inset-right));
   display:flex; align-items:center; justify-content:space-between;
   flex-shrink:0; min-height:clamp(28px,4vh,40px);
   gap:10px;
@@ -1545,14 +1559,15 @@ body.dark .range-btn.active {
   color:var(--sub); font-size:13px; padding:14px; text-align:center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (orientation: portrait) {
   #main { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
   .panel { border-right:none; border-bottom:2px solid var(--panel-border); }
   .panel:last-child { border-bottom:none; }
+}
+@media (max-width: 768px) {
   .brand { font-size:clamp(10px,3vw,16px); }
   #clock { font-size:clamp(10px,2.6vw,17px); }
-  .wind-row { grid-template-columns:0.82fr 0.82fr minmax(70px,24vw); min-height:60px; }
-  .compass-cell { min-height:60px; }
+  .wind-row { grid-template-columns:0.82fr 0.82fr minmax(70px,24vw); }
   .dch { font-size:clamp(10px,2.5vw,16px); }
   .dcv { font-size:clamp(20px,5vw,36px); }
   .wval { font-size:clamp(18px,5.5vw,36px); }
@@ -1570,15 +1585,12 @@ body.dark .range-btn.active {
   .metar-popup-box { padding:14px 16px; }
 }
 @media (max-width: 480px) {
-  .wind-row { grid-template-columns:0.82fr 0.82fr minmax(55px,26vw); min-height:50px; }
-  .compass-cell { min-height:50px; }
+  .wind-row { grid-template-columns:0.82fr 0.82fr minmax(55px,26vw); }
   .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
   .dcv { font-size:clamp(18px,5vw,30px); }
   .wval { font-size:clamp(16px,5vw,30px); }
-  .range-row { min-height:18px; }
   .rl { font-size:clamp(7px,1.5vw,10px); }
   .rv { font-size:clamp(8px,1.8vw,14px); }
-  .data-row { min-height:45px; }
   .rwy-sel { font-size:8px; max-width:60px; padding:1px 3px; }
   .rwy-num { font-size:11px; min-width:28px; padding:1px 4px; }
   .stn-lbl { font-size:7px; }
@@ -1609,8 +1621,7 @@ body.dark .range-btn.active {
   .metar-popup-body .metar-line { font-size:10px; padding:4px 6px; }
 }
 @media (max-width: 360px) {
-  .wind-row { grid-template-columns:0.82fr 0.82fr minmax(48px,28vw); min-height:45px; }
-  .compass-cell { min-height:45px; }
+  .wind-row { grid-template-columns:0.82fr 0.82fr minmax(48px,28vw); }
   .wval { font-size:14px; }
   .dcv { font-size:14px; }
   .dch { font-size:7px; }
@@ -1618,13 +1629,14 @@ body.dark .range-btn.active {
   #metar-display { font-size:7px; padding:1px 4px; }
 }
 @media (orientation: landscape) and (max-height:500px) {
-  .wind-row { min-height:50px; }
-  .compass-cell { min-height:50px; }
-  .wval { font-size:clamp(16px,3vw,30px); }
-  .dch { font-size:clamp(8px,1.2vw,14px); }
-  .dcv { font-size:clamp(18px,3vw,32px); }
-  .data-row { min-height:40px; }
-  .range-row { min-height:16px; }
+  .wlbl { font-size:clamp(8px,2.6vh,13px); line-height:1.15; }
+  .wsub { font-size:clamp(6px,1.5vh,10px); }
+  .wval { font-size:clamp(14px,6.5vh,28px); }
+  .wbox { padding:1px 4px; }
+  .rl { font-size:clamp(6px,1.7vh,10px); }
+  .rv { font-size:clamp(7px,2.1vh,14px); }
+  .dch { font-size:clamp(7px,2vh,13px); padding:2px 3px; }
+  .dcv { font-size:clamp(14px,5.5vh,26px); }
   #metar-display { font-size:clamp(10px,1.5vw,16px); }
   .modal-chart-wrap { min-height:120px; }
 }
