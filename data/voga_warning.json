@@ -1,16 +1,5 @@
 {
-  "generated_utc": "2026-08-10T01:08:23.724240+00:00",
-  "has_warning": true,
-  "warning": {
-    "station": "VOGA",
-    "issue_date": "20260809",
-    "icao": "VOGA",
-    "issue_time_z": "092030Z",
-    "warning_number": "4",
-    "valid_from": "092100",
-    "valid_to": "100100",
-    "phenomenon": "FBL TSRA WITH SFC WSPD 17KT MAX27 FROM WNW",
-    "obs_type": "FCST",
-    "changes": "NC"
-  }
+  "generated_utc": "2026-08-10T01:13:25.281479+00:00",
+  "has_warning": false,
+  "warning": null
 }
