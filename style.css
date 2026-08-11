@@ -326,12 +326,12 @@ body.dark .wbox .click-hint {
 }
 .rr:first-child { border-right:1px solid var(--border); }
 .rl {
-  font-size:clamp(8px,1.1vw,14px);
+  font-size:clamp(10px,1.3vw,16px);
   color:var(--val-white); white-space:nowrap; font-weight:600;
   flex-shrink:0;
 }
 .rv {
-  font-size:clamp(10px,1.5vw,22px);
+  font-size:clamp(16px,2.6vw,34px);
   font-weight:700;
   color:var(--range-val);
   font-family:'Inter',sans-serif;
@@ -1589,8 +1589,8 @@ body.dark .range-btn.active {
   .dch { font-size:clamp(8px,2.2vw,12px); padding:2px; }
   .dcv { font-size:clamp(18px,5vw,30px); }
   .wval { font-size:clamp(16px,5vw,30px); }
-  .rl { font-size:clamp(7px,1.5vw,10px); }
-  .rv { font-size:clamp(8px,1.8vw,14px); }
+  .rl { font-size:clamp(8px,1.6vw,12px); }
+  .rv { font-size:clamp(12px,3vw,20px); }
   .rwy-sel { font-size:8px; max-width:60px; padding:1px 3px; }
   .rwy-num { font-size:11px; min-width:28px; padding:1px 4px; }
   .stn-lbl { font-size:7px; }
@@ -1633,8 +1633,8 @@ body.dark .range-btn.active {
   .wsub { font-size:clamp(6px,1.5vh,10px); }
   .wval { font-size:clamp(14px,6.5vh,28px); }
   .wbox { padding:1px 4px; }
-  .rl { font-size:clamp(6px,1.7vh,10px); }
-  .rv { font-size:clamp(7px,2.1vh,14px); }
+  .rl { font-size:clamp(7px,1.8vh,11px); }
+  .rv { font-size:clamp(11px,3.2vh,20px); }
   .dch { font-size:clamp(7px,2vh,13px); padding:2px 3px; }
   .dcv { font-size:clamp(14px,5.5vh,26px); }
   #metar-display { font-size:clamp(10px,1.5vw,16px); }
