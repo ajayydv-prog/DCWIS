@@ -1,14 +1,14 @@
 {
-  "generated_utc": "2026-08-14T08:38:47.241458+00:00",
+  "generated_utc": "2026-08-14T08:49:07.226959+00:00",
   "has_warning": true,
   "warning": {
     "station": "VOGA",
     "issue_date": "20260814",
     "icao": "VOGA",
-    "issue_time_z": "140445Z",
-    "warning_number": "01",
-    "valid_from": "140515",
-    "valid_to": "140915",
+    "issue_time_z": "140845Z",
+    "warning_number": "2",
+    "valid_from": "140915",
+    "valid_to": "141315",
     "phenomenon": "SFC WSPD 17KT MAX27 FROM W",
     "obs_type": "FCST",
     "changes": "NC"
