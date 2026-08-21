@@ -1,5 +1,16 @@
 {
-  "generated_utc": "2026-08-21T16:02:26.827840+00:00",
-  "has_warning": false,
-  "warning": null
+  "generated_utc": "2026-08-21T16:07:28.366272+00:00",
+  "has_warning": true,
+  "warning": {
+    "station": "VOGA",
+    "issue_date": "20260821",
+    "icao": "VOGA",
+    "issue_time_z": "211600Z",
+    "warning_number": "3",
+    "valid_from": "211630",
+    "valid_to": "212030",
+    "phenomenon": "MOD TS",
+    "obs_type": "FCST",
+    "changes": "NC"
+  }
 }
