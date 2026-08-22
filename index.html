@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2/dist/chartjs-plugin-zoom.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=__BUILD_VERSION__">
+  <link rel="stylesheet" href="style.css?v=20260822-flight">
 
   <!-- PWA: installable app support -->
   <link rel="manifest" href="manifest.json">
@@ -32,6 +32,7 @@
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
       <button class="icon-btn" id="radar-btn" onclick="openRadarModal()" title="Live Rain Radar">📡</button>
       <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Radar Precipitation Outlook">🌧️</button>
+      <button class="icon-btn" id="flight-btn" onclick="openFlightInfo()" title="Live Flight Arrivals/Departures">✈️</button>
       <button class="icon-btn" id="trend-toggle-btn" onclick="toggleTrendView()" title="Trend Dashboard (1H graphs)">📈</button>
       <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
     </div>
@@ -241,6 +242,22 @@
     </div>
   </div>
 
+  <!-- ─── FLIGHT INFO MODAL ─── -->
+  <div id="flightModal">
+    <div id="flightBox">
+      <div id="flight-header">
+        <div id="flight-header-left">
+          <div class="flight-title">✈️ Flight Arrivals / Departures</div>
+          <div class="flight-subtitle" id="flight-time-hdr">Loading…</div>
+        </div>
+        <button class="flight-close" onclick="closeFlightInfo()">&times;</button>
+      </div>
+      <div id="flightContent">
+        <div class="fl-empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── LIVE RAIN RADAR MODAL ─── -->
   <div id="radarModal">
     <div id="radarBox">
@@ -345,5 +362,5 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260719-1"></script>
+  <script src="app.js?v=20260822-flight"></script>
 </body>

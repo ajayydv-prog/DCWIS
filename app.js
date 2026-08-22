@@ -2951,7 +2951,7 @@
       try { updateNotifBtnUI(); } catch(e) { console.error('updateNotifBtnUI failed:', e); }
 
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { closeHistory(); closeArchive(); closeRadarModal(); }
+        if (e.key === 'Escape') { closeHistory(); closeArchive(); closeRadarModal(); closeFlightInfo(); }
       });
       modal.addEventListener('click', function(e) {
         if (e.target === this) closeHistory();
@@ -4011,6 +4011,216 @@
 
     document.getElementById('radarModal').addEventListener('click', function(e) {
       if (e.target === this) closeRadarModal();
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FLIGHT ARRIVALS/DEPARTURES MODAL
+    // ═══════════════════════════════════════════════════════════════
+    const FLIGHT_ENDPOINT = 'https://www.ajayydv.shop/data/flight';
+    let flightRefreshTimer = null;
+
+    function flMinutesLabel(mins){
+      if(mins === null || mins === undefined || isNaN(mins)) return '—';
+      const m = Math.round(mins);
+      if(m < 0) return Math.abs(m) + 'm ago';
+      if(m < 60) return 'in ' + m + 'm';
+      const h = Math.floor(m/60), rem = m % 60;
+      return 'in ' + h + 'h' + (rem ? ' ' + rem + 'm' : '');
+    }
+
+    function flStatusBadge(status){
+      const s = (status || '').trim().toUpperCase();
+      if(!s) return '<span class="fl-badge fl-badge-none">SCHEDULED</span>';
+      if(s === 'BOARDING') return '<span class="fl-badge fl-badge-board">BOARDING</span>';
+      if(s === 'FCL') return '<span class="fl-badge fl-badge-fcl">FINAL CALL</span>';
+      if(s.includes('DELAY')) return '<span class="fl-badge fl-badge-delay">'+escapeHtml(s)+'</span>';
+      if(s.includes('CANCEL')) return '<span class="fl-badge fl-badge-cancel">'+escapeHtml(s)+'</span>';
+      if(s.includes('LAND') || s.includes('DEPART')) return '<span class="fl-badge fl-badge-done">'+escapeHtml(s)+'</span>';
+      return '<span class="fl-badge fl-badge-none">'+escapeHtml(s)+'</span>';
+    }
+
+    // Flight time/date display: keep the local/IST value exactly as supplied
+    // by the backend, and ALWAYS show the corresponding UTC value in brackets.
+    // Supports HH:MM, HHMM and ISO datetime strings. If a date is supplied,
+    // the UTC date is shown as well.
+    function flUtcFromTime(value, dateValue){
+      if(value === null || value === undefined) return null;
+      const raw = String(value).trim();
+      if(!raw || raw === '--:--' || raw === '----' || raw === '—') return null;
+
+      // Full ISO / date-time with timezone or Z.
+      if(/[T ]/.test(raw) && /\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(raw)){
+        const d = new Date(raw);
+        if(!isNaN(d.getTime())) return d;
+      }
+
+      // HH:MM / HHMM. Interpret it on the supplied date (or today) in IST,
+      // then convert to UTC. This is correct for Goa/India flight timings.
+      const m = raw.match(/^(\d{1,2}):?(\d{2})$/);
+      if(m){
+        const hh = Number(m[1]), mm = Number(m[2]);
+        if(hh > 23 || mm > 59) return null;
+        let y, mo, da;
+        const ds = String(dateValue || '').trim();
+        let dm = ds.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+        if(dm){ y=+dm[1]; mo=+dm[2]; da=+dm[3]; }
+        else {
+          const now = new Date();
+          y=now.getFullYear(); mo=now.getMonth()+1; da=now.getDate();
+        }
+        // Date.UTC for 18:30 IST => 13:00 UTC.
+        return new Date(Date.UTC(y, mo-1, da, hh-5, mm-30, 0));
+      }
+      return null;
+    }
+
+    function flUtcLabel(value, dateValue, includeDate=false){
+      const d = flUtcFromTime(value, dateValue);
+      if(!d) return '';
+      const dd = String(d.getUTCDate()).padStart(2,'0');
+      const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+      const yyyy = d.getUTCFullYear();
+      const hh = String(d.getUTCHours()).padStart(2,'0');
+      const mm = String(d.getUTCMinutes()).padStart(2,'0');
+      return includeDate ? `${dd} ${mo} ${yyyy} ${hh}:${mm} UTC` : `${hh}:${mm} UTC`;
+    }
+
+    function flDisplayTime(value, dateValue, includeDate=false){
+      const raw = String(value ?? '').trim();
+      if(!raw || raw === '--:--' || raw === '----' || raw === '—') return '—';
+      const utc = flUtcLabel(raw, dateValue, includeDate);
+      return utc ? `${raw} <span class="fl-utc-time">(${escapeHtml(utc)})</span>` : escapeHtml(raw);
+    }
+
+    function flTimeBlock(f){
+      const est = f.estimated_time && f.estimated_time !== '--:--';
+      const act = f.actual_time && f.actual_time !== '--:--';
+      const primary = act ? f.actual_time : (est ? f.estimated_time : f.scheduled_time);
+      const showSched = (act || est) && primary !== f.scheduled_time;
+      const dateValue = f.date || f.flight_date || f.scheduled_date || f.arrival_date || f.departure_date || '';
+      return `<span class="fl-time-primary">${flDisplayTime(primary, dateValue)}</span>` +
+             (showSched ? `<span class="fl-time-sched">sch ${flDisplayTime(f.scheduled_time, dateValue)}</span>` : '');
+    }
+
+    function flHeroCard(f, label, cls){
+      if(!f){
+        return `<div class="fl-hero-card ${cls}"><div class="fl-hero-lbl">${label}</div><div class="fl-hero-empty">No flight in window</div></div>`;
+      }
+      return `<div class="fl-hero-card ${cls}">
+        <div class="fl-hero-lbl">${label}</div>
+        <div class="fl-hero-flight">${escapeHtml(f.flight_no || '—')}</div>
+        <div class="fl-hero-loc">${escapeHtml(f.location || '—')}</div>
+        <div class="fl-hero-time">${flTimeBlock(f)} <span class="fl-hero-countdown">${flMinutesLabel(f.minutes_from_now)}</span></div>
+        <div class="fl-hero-meta">${flStatusBadge(f.status)} <span class="fl-hero-gate">Gate/Belt ${escapeHtml(f.gate_belt || '—')}</span></div>
+      </div>`;
+    }
+
+    function flRow(f){
+      return `<div class="fl-row">
+        <div class="fl-row-time">${flTimeBlock(f)}</div>
+        <div class="fl-row-main">
+          <div class="fl-row-flight">${escapeHtml(f.flight_no || '—')}</div>
+          <div class="fl-row-loc">${escapeHtml(f.location || '—')}</div>
+        </div>
+        <div class="fl-row-gate">${escapeHtml(f.gate_belt || '—')}</div>
+        <div class="fl-row-badge">${flStatusBadge(f.status)}</div>
+        <div class="fl-row-countdown">${flMinutesLabel(f.minutes_from_now)}</div>
+      </div>`;
+    }
+
+    function flAgeLabel(sec){
+      if(sec === null || sec === undefined || isNaN(sec)) return '—';
+      const s = Math.round(sec);
+      if(s < 60) return s + 's ago';
+      return Math.round(s/60) + 'm ago';
+    }
+
+    function buildFlightHTML(data){
+      const arrivals = Array.isArray(data.arrivals) ? data.arrivals : [];
+      const departures = Array.isArray(data.departures) ? data.departures : [];
+      const nextArr = arrivals[0] || null;
+      const nextDep = departures[0] || null;
+      const windowHours = data.window_hours ?? '—';
+
+      const arrList = arrivals.length
+        ? arrivals.map(flRow).join('')
+        : `<div class="fl-empty">No arrivals in the next ${escapeHtml(String(windowHours))}h.</div>`;
+      const depList = departures.length
+        ? departures.map(flRow).join('')
+        : `<div class="fl-empty">No departures in the next ${escapeHtml(String(windowHours))}h.</div>`;
+
+      const staleNote = data.stale
+        ? `<div class="fl-stale-note">⚠ Data may be stale — last updated ${flAgeLabel(data.data_age_seconds)}.</div>`
+        : '';
+
+      return `
+        <div class="fl-hero-grid">
+          ${flHeroCard(nextArr, '🛬 NEXT ARRIVAL', 'arr')}
+          ${flHeroCard(nextDep, '🛫 NEXT DEPARTURE', 'dep')}
+        </div>
+        ${staleNote}
+        <div class="fl-lists-grid">
+          <div class="fl-list-col">
+            <div class="fl-list-hdr arr">Arrivals (${data.counts ? data.counts.arrivals : arrivals.length})</div>
+            ${arrList}
+          </div>
+          <div class="fl-list-col">
+            <div class="fl-list-hdr dep">Departures (${data.counts ? data.counts.departures : departures.length})</div>
+            ${depList}
+          </div>
+        </div>
+        <div class="fl-footer">Source: ${escapeHtml(data.source || '—')} · Updated ${flAgeLabel(data.data_age_seconds)} · ${escapeHtml(data.generated_at_ist || '')}${data.generated_at_ist ? ` <span class="fl-footer-utc">(${escapeHtml((() => { const d=new Date(data.generated_at_ist); return !isNaN(d.getTime()) ? d.toISOString().replace('T',' ').slice(0,16)+' UTC' : ''; })())})</span>` : ''}</div>
+      `;
+    }
+
+    async function fetchAndRenderFlightInfo(){
+      const content = document.getElementById('flightContent');
+      const timeHdr = document.getElementById('flight-time-hdr');
+      if(!content || !timeHdr) return;
+      try {
+        const res = await fetch(FLIGHT_ENDPOINT + '?t=' + Date.now(), { cache: 'no-store' });
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        const nextArr = (data.arrivals && data.arrivals[0]) || null;
+        const nextDep = (data.departures && data.departures[0]) || null;
+        const arrTime = nextArr ? flDisplayTime(nextArr.scheduled_time, nextArr.date || nextArr.flight_date || nextArr.arrival_date || '') : '';
+        const depTime = nextDep ? flDisplayTime(nextDep.scheduled_time, nextDep.date || nextDep.flight_date || nextDep.departure_date || '') : '';
+        const arrLbl = nextArr ? `🛬 ${nextArr.flight_no || '—'} · ${arrTime} (${flMinutesLabel(nextArr.minutes_from_now)})` : '🛬 No upcoming arrival';
+        const depLbl = nextDep ? `🛫 ${nextDep.flight_no || '—'} · ${depTime} (${flMinutesLabel(nextDep.minutes_from_now)})` : '🛫 No upcoming departure';
+        timeHdr.innerHTML = `${arrLbl}   |   ${depLbl}`;
+
+        content.innerHTML = buildFlightHTML(data);
+      } catch (err) {
+        console.error('Flight info fetch failed:', err);
+        timeHdr.textContent = 'Unavailable';
+        content.innerHTML = `<div class="fl-empty" style="color:#ff5252;">⚠ Could not load flight data.<br>Backend may be unreachable.</div>`;
+      }
+    }
+
+    window.openFlightInfo = function(){
+      const modal = document.getElementById('flightModal');
+      if(!modal) return;
+      modal.classList.add('active');
+      document.getElementById('flightContent').innerHTML = `<div class="fl-empty">Loading…</div>`;
+      fetchAndRenderFlightInfo();
+      if(flightRefreshTimer) clearInterval(flightRefreshTimer);
+      flightRefreshTimer = setInterval(() => {
+        if(modal.classList.contains('active')) fetchAndRenderFlightInfo();
+      }, 60000);
+    };
+
+    window.closeFlightInfo = function(){
+      const modal = document.getElementById('flightModal');
+      if(modal) modal.classList.remove('active');
+      if(flightRefreshTimer) {
+        clearInterval(flightRefreshTimer);
+        flightRefreshTimer = null;
+      }
+    };
+
+    document.getElementById('flightModal')?.addEventListener('click', function(e){
+      if (e.target === this) closeFlightInfo();
     });
 
     // ═══════════════════════════════════════════════════════════════
