@@ -1327,7 +1327,7 @@
       if(cfg.reverse){
         if(num < cfg.highMax) return 'sev-red';
         if(num < cfg.normalMax) return 'sev-orange';
-        return null;
+        return paramKey === 'visibility' ? 'sev-green' : null;
       } else {
         if(num > cfg.highMax) return 'sev-red';
         if(num > cfg.normalMax) return 'sev-orange';
@@ -1339,7 +1339,7 @@
       setValue(id, newVal);
       const el = document.getElementById(id);
       if(!el) return;
-      el.classList.remove('sev-orange', 'sev-red');
+      el.classList.remove('sev-orange', 'sev-red', 'sev-green');
       const sevClass = getSeverityClass(paramKey, newVal);
       if(sevClass) el.classList.add(sevClass);
     }
@@ -1451,6 +1451,10 @@
       if(raw === undefined || raw === null) return false;
       return String(raw).trim().toUpperCase().startsWith('P');
     }
+
+    // TEMP: fog-chance prediction badge disabled for both runways.
+    // To re-enable, set the relevant runway to true.
+    const FOG_RISK_ENABLED = { '10': false, '28': false };
 
     let fogRiskActive = {};
     let visWarnActive = {};
@@ -1623,8 +1627,8 @@
       setValue(p+'dew', dew);
 
       renderVisibilityBadge(rwy, 'visflag'+rwy, d[morKey], d[rvrKey]);
-      if (rwy === '10') {
-        renderFogRiskBadge(rwy, 'fogrisk10', temp, dew, ws);
+      if (FOG_RISK_ENABLED[rwy]) {
+        renderFogRiskBadge(rwy, 'fogrisk'+rwy, temp, dew, ws);
       }
       const qnhTrendRef = updateQnhBufferAndGetReference(rwy, d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded);
       renderPressureTrend('trend'+rwy+'-qnh', d.qnh_instant_rounded ?? d.qnh_avgOneMin_rounded, qnhTrendRef);
@@ -3091,8 +3095,8 @@
     const ALERT_DEFS = [
       { id: 'cw28',  label: 'RWY 28 CROSSWIND', rwy: '28', type: 'crosswind',   limit: 15, dir: 'above', useAbs: true,  level: 'critical' },
       { id: 'cw10',  label: 'RWY 10 CROSSWIND', rwy: '10', type: 'crosswind',   limit: 15, dir: 'above', useAbs: true,  level: 'critical' },
-      { id: 'rvr28', label: 'RWY 28 RVR',       rwy: '28', type: 'rvr',        limit: 550, dir: 'below', useAbs: false, level: 'critical' },
-      { id: 'rvr10', label: 'RWY 10 RVR',       rwy: '10', type: 'rvr',        limit: 550, dir: 'below', useAbs: false, level: 'critical' },
+      { id: 'rvr28', label: 'RWY 28 RVR',       rwy: '28', type: 'rvr',        limit: 550, dir: 'below', useAbs: false, level: 'critical', borderAlert: false },
+      { id: 'rvr10', label: 'RWY 10 RVR',       rwy: '10', type: 'rvr',        limit: 550, dir: 'below', useAbs: false, level: 'critical', borderAlert: false },
       { id: 'ws28',  label: 'RWY 28 WIND SPEED',rwy: '28', type: 'windSpeed',  limit: 25,  dir: 'above', useAbs: false, level: 'warn' },
       { id: 'ws10',  label: 'RWY 10 WIND SPEED',rwy: '10', type: 'windSpeed',  limit: 25,  dir: 'above', useAbs: false, level: 'warn' },
     ];
@@ -3117,6 +3121,7 @@
     function checkAlerts() {
       if (alertDismissed) return;
       const activeAlerts = [];
+      let borderAlertActive = false;
       ALERT_DEFS.forEach(def => {
         const data = latestData[def.rwy];
         const val = getAlertValue(def, data);
@@ -3131,19 +3136,24 @@
         }
         if (breached) {
           activeAlerts.push(`⚠ ${def.label}: ${dispVal}${unit}`);
+          if (def.borderAlert !== false) borderAlertActive = true;
         }
       });
 
       if (activeAlerts.length > 0) {
-        alertOverlay.classList.add('alert-active');
         alertBanner.classList.add('banner-active');
         alertBanner.innerHTML = activeAlerts.join('&emsp;|&emsp;') +
           `&emsp;<span onclick="dismissAlert()" style="cursor:pointer;opacity:0.7;font-size:0.85em">✕ Dismiss</span>`;
       } else {
-        alertOverlay.classList.remove('alert-active');
         alertBanner.classList.remove('banner-active');
         alertBanner.innerHTML = '';
         alertDismissed = false;
+      }
+
+      if (borderAlertActive) {
+        alertOverlay.classList.add('alert-active');
+      } else {
+        alertOverlay.classList.remove('alert-active');
       }
     }
 

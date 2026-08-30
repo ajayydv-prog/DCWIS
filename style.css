@@ -31,6 +31,7 @@
   --panel-border: #90b8d8;
   --sev-orange: #e65100;
   --sev-red: #c62828;
+  --sev-green: #00c853;
   --metar-bg: #e8f0f8;
   --modal-overlay: rgba(0,0,0,0.65);
   --modal-bg: #f0f4f8;
@@ -68,6 +69,7 @@ body.dark {
   --panel-border: #1a3a5a;
   --sev-orange: #ff9800;
   --sev-red: #ff1744;
+  --sev-green: #00e676;
   --metar-bg: #0a1628;
   --modal-overlay: rgba(0,0,0,0.82);
   --modal-bg: #0b1825;
@@ -294,6 +296,7 @@ body.dark .wbox .click-hint {
 .red  { color:var(--val-red); }
 .sev-orange { color:var(--sev-orange) !important; }
 .sev-red { color:var(--sev-red) !important; }
+.sev-green { color:var(--sev-green) !important; }
 .boundary-ge {
   cursor: help;
 }
