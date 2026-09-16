@@ -1,16 +1,5 @@
 {
-  "generated_utc": "2026-09-16T18:59:19.632251+00:00",
-  "has_warning": true,
-  "warning": {
-    "station": "VOGA",
-    "issue_date": "20260916",
-    "icao": "VOGA",
-    "issue_time_z": "161430",
-    "warning_number": "1",
-    "valid_from": "161500",
-    "valid_to": "161900",
-    "phenomenon": "MOD TS WITH SFC WSPD 17KT MAX27 FROM NW",
-    "obs_type": "FCST",
-    "changes": "NC"
-  }
+  "generated_utc": "2026-09-16T19:04:21.467723+00:00",
+  "has_warning": false,
+  "warning": null
 }
