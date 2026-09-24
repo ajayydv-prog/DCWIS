@@ -1,5 +1,16 @@
 {
-  "generated_utc": "2026-09-24T17:42:29.729134+00:00",
-  "has_warning": false,
-  "warning": null
+  "generated_utc": "2026-09-24T17:47:31.513599+00:00",
+  "has_warning": true,
+  "warning": {
+    "station": "VOGA",
+    "issue_date": "20260924",
+    "icao": "VOGA",
+    "issue_time_z": "241745",
+    "warning_number": "03",
+    "valid_from": "241815",
+    "valid_to": "242215",
+    "phenomenon": "MOD TSRA",
+    "obs_type": "FCST",
+    "changes": "NC"
+  }
 }
