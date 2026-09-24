@@ -20,6 +20,21 @@
     const windSpeedCurrent = { '28': 0, '10': 0 }; // latest numeric wind speed (kt), feeds particle animation
     const RUNWAY_HEADING = { '28': 280, '10': 100 };
     let isDark = true;
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SETTINGS — state + persistence (localStorage, per device)
+    // ═══════════════════════════════════════════════════════════════
+    const SETTINGS_KEY = 'dcwis_settings_v1';
+    const DEFAULT_SETTINGS = { theme:'dark', wxAnim:false, windParticles:true, notif:true, sound:true, cw:15, rvr:550, ws:25 };
+    const SET_LIMITS = { cw:{min:5,max:40,unit:'kt'}, rvr:{min:50,max:2000,unit:'m'}, ws:{min:10,max:60,unit:'kt'} };
+    const S = Object.assign({}, DEFAULT_SETTINGS, (() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch(e) { return {}; } })());
+    Object.keys(SET_LIMITS).forEach(k => {
+      let v = parseInt(S[k], 10); if (isNaN(v)) v = DEFAULT_SETTINGS[k];
+      S[k] = Math.min(SET_LIMITS[k].max, Math.max(SET_LIMITS[k].min, v));
+    });
+    ['wxAnim','windParticles','notif','sound'].forEach(k => S[k] = !!S[k]);
+    if (S.theme !== 'light') S.theme = 'dark';
+    function saveSettings(){ try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S)); } catch(e) {} }
     let autoRefreshInterval = null;
     let metarInterval = null;
     let chartInstance = null;
@@ -118,7 +133,8 @@
     window.toggleTheme = function(){
       isDark = !isDark;
       document.body.classList.toggle('dark', isDark);
-      document.querySelector('[onclick="toggleTheme()"]').textContent = isDark ? '☀' : '🌙';
+      S.theme = isDark ? 'dark' : 'light'; saveSettings();
+      try { syncSettingsUI(); } catch(e) {}
       ['28','10'].forEach(r => {
         drawCompass(r, compassCurrentAngle[r] ?? compassDirs[r]);
         drawQnhSparkline(r);
@@ -394,6 +410,11 @@
 
     function drawWeatherFx(){
       const canvas = document.getElementById('weatherFxCanvas');
+      if(!S.wxAnim){
+        if(canvas){ canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); canvas.classList.remove('wfx-active'); }
+        weatherFxLoopStarted = false;
+        return;
+      }
       if(canvas){
         const w = window.innerWidth, h = window.innerHeight;
         if(canvas.width !== w) canvas.width = w;
@@ -486,7 +507,7 @@
     function applyWeatherEffect(code){
       currentWeatherFx = classifyWeatherEffect(code);
       const canvas = document.getElementById('weatherFxCanvas');
-      if(canvas) canvas.classList.toggle('wfx-active', currentWeatherFx.type !== 'none');
+      if(canvas) canvas.classList.toggle('wfx-active', S.wxAnim && currentWeatherFx.type !== 'none');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1264,6 +1285,11 @@
       if(windParticleLoopStarted) return;
       windParticleLoopStarted = true;
       (function loop(){
+        if(!S.windParticles){
+          ['28','10'].forEach(r => { const c = document.getElementById('particles-'+r); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); });
+          windParticleLoopStarted = false;
+          return;
+        }
         drawWindParticles('28');
         drawWindParticles('10');
         requestAnimationFrame(loop);
@@ -2934,8 +2960,9 @@
       try { startWindParticleLoop(); } catch(e) { console.error('startWindParticleLoop failed:', e); }
       try { startWeatherFxLoop(); } catch(e) { console.error('startWeatherFxLoop failed:', e); }
 
-      document.body.classList.add('dark');
-      document.querySelector('[onclick="toggleTheme()"]').textContent = '☀';
+      isDark = (S.theme !== 'light');
+      document.body.classList.toggle('dark', isDark);
+      try { initSettings(); } catch(e) { console.error('initSettings failed:', e); }
       
       resizeLayout();
       window.addEventListener('resize', resizeLayout);
@@ -2955,7 +2982,7 @@
       try { updateNotifBtnUI(); } catch(e) { console.error('updateNotifBtnUI failed:', e); }
 
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { closeHistory(); closeArchive(); closeRadarModal(); closeFlightInfo(); }
+        if (e.key === 'Escape') { closeHistory(); closeArchive(); closeRadarModal(); closeFlightInfo(); closeSettings(); }
       });
       modal.addEventListener('click', function(e) {
         if (e.target === this) closeHistory();
@@ -2998,6 +3025,7 @@
       } catch(e) {}
     }
     function playAlertSequence(level) {
+      if (!S.sound) return;
       if (level === 'critical') {
         // Two short high beeps
         playAlert(880, 0.22, 'square');
@@ -3023,8 +3051,7 @@
     //     require a real Web Push backend, which is out of scope here.
     // ═══════════════════════════════════════════════════════════════
     let swRegistration = null;
-    let notificationsEnabled = false;
-    try { notificationsEnabled = localStorage.getItem('dcwis_notif_enabled') === '1'; } catch(e) {}
+    let notificationsEnabled = S.notif;
 
     function registerServiceWorker(){
       if(!('serviceWorker' in navigator)) return;
@@ -3033,20 +3060,7 @@
         .catch(err => console.error('Service worker registration failed:', err));
     }
 
-    function updateNotifBtnUI(){
-      const btn = document.getElementById('notif-btn');
-      if(!btn) return;
-      if(!('Notification' in window)){
-        btn.style.display = 'none';
-        return;
-      }
-      const active = notificationsEnabled && Notification.permission === 'granted';
-      btn.textContent = active ? '🔔' : '🔕';
-      btn.classList.toggle('notif-active', active);
-      btn.title = active
-        ? 'Native alert notifications ON — click to disable'
-        : 'Enable native alert notifications for threshold breaches';
-    }
+    function updateNotifBtnUI(){ syncSettingsUI(); }
 
     async function sendBrowserNotification(title, body, tag){
       if(!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
@@ -3067,25 +3081,6 @@
       } catch(e){ console.error('Notification failed:', e); }
     }
 
-    window.toggleNotifications = async function(){
-      if(!('Notification' in window)){
-        alert('This browser does not support notifications.');
-        return;
-      }
-      if(notificationsEnabled && Notification.permission === 'granted'){
-        notificationsEnabled = false;
-        try { localStorage.setItem('dcwis_notif_enabled', '0'); } catch(e) {}
-        updateNotifBtnUI();
-        return;
-      }
-      const perm = await Notification.requestPermission();
-      notificationsEnabled = (perm === 'granted');
-      try { localStorage.setItem('dcwis_notif_enabled', notificationsEnabled ? '1' : '0'); } catch(e) {}
-      updateNotifBtnUI();
-      if(notificationsEnabled){
-        sendBrowserNotification('VOGA-MOPA DCWIS', 'Native breach alerts are now active on this device.', 'dcwis-test');
-      }
-    };
 
     // Alert state tracking
     const alertStates = {};
@@ -3100,6 +3095,202 @@
       { id: 'ws28',  label: 'RWY 28 WIND SPEED',rwy: '28', type: 'windSpeed',  limit: 25,  dir: 'above', useAbs: false, level: 'warn' },
       { id: 'ws10',  label: 'RWY 10 WIND SPEED',rwy: '10', type: 'windSpeed',  limit: 25,  dir: 'above', useAbs: false, level: 'warn' },
     ];
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SETTINGS — thresholds, popup UI, apply/reset
+    // ═══════════════════════════════════════════════════════════════
+    function applyThresholds(){
+      THRESHOLDS.crosswind.limit = S.cw;
+      THRESHOLDS.crosswind.label = S.cw + 'kt crosswind limit';
+      THRESHOLDS.rvr.limit = S.rvr;
+      THRESHOLDS.rvr.label = S.rvr === 550 ? 'CAT I RVR min (550m)' : 'RVR alert limit (' + S.rvr + 'm)';
+      ALERT_DEFS.forEach(d => {
+        if (d.type === 'crosswind') d.limit = S.cw;
+        else if (d.type === 'rvr') d.limit = S.rvr;
+        else if (d.type === 'windSpeed') d.limit = S.ws;
+      });
+    }
+    applyThresholds();
+
+    function refreshThresholdViews(){
+      applyThresholds();
+      if (modal.classList.contains('active') && modalParam) renderHistoryChart(modalParam, modalRwy);
+      if (trendViewActive) { destroyAllTrendCharts(); renderAllTrendCharts(); }
+      checkAlerts();
+    }
+
+    function applyWxAnim(){
+      const c = document.getElementById('weatherFxCanvas');
+      if (S.wxAnim) { startWeatherFxLoop(); if (c) c.classList.toggle('wfx-active', currentWeatherFx.type !== 'none'); }
+      else if (c) c.classList.remove('wfx-active');
+    }
+    function applyParticles(){ if (S.windParticles) startWindParticleLoop(); }
+
+    function notifStatus(){
+      if (!('Notification' in window)) return ['Not supported in this browser', 'bad'];
+      if (!S.notif) return ['OFF', 'off'];
+      const p = Notification.permission;
+      if (p === 'granted') return ['✔ Active: native alert on every new threshold breach', 'ok'];
+      if (p === 'denied')  return ['✖ Blocked by browser: allow notifications in site settings', 'bad'];
+      return ['⏳ Permission pending: tap anywhere on the page to allow', 'warn'];
+    }
+
+    function syncSettingsUI(){
+      const $ = id => document.getElementById(id);
+      if (!$('settingsModal')) return;
+      $('set-theme').checked = (S.theme === 'dark');
+      $('set-wx').checked = S.wxAnim;
+      $('set-particles').checked = S.windParticles;
+      $('set-notif').checked = S.notif;
+      $('set-sound').checked = S.sound;
+      let custom = false;
+      Object.keys(SET_LIMITS).forEach(k => {
+        const inp = $('set-' + k);
+        if (document.activeElement !== inp) inp.value = S[k];
+        const mod = S[k] !== DEFAULT_SETTINGS[k];
+        inp.classList.toggle('modified', mod);
+        custom = custom || mod;
+      });
+      $('set-custom-note').style.display = custom ? 'block' : 'none';
+      const b = $('settings-btn'); if (b) b.classList.toggle('custom', custom);
+      const [txt, cls] = notifStatus();
+      const st = $('set-notif-status'); st.textContent = txt; st.className = 'set-status st-' + cls;
+    }
+
+    function applyAllSettings(){
+      if ((S.theme !== 'light') !== isDark) window.toggleTheme();
+      applyWxAnim(); applyParticles();
+      notificationsEnabled = S.notif;
+      refreshThresholdViews();
+      syncSettingsUI();
+    }
+
+    window.setNotifPref = async function(on){
+      S.notif = on; notificationsEnabled = on;
+      if (on && 'Notification' in window && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch(e) {}
+      }
+      saveSettings(); syncSettingsUI();
+    };
+
+    window.testAlert = function(){
+      if (S.sound) playAlertSequence('critical');
+      if (('Notification' in window) && Notification.permission === 'granted' && S.notif) {
+        sendBrowserNotification('VOGA-MOPA DCWIS', 'Test alert: notifications are working.', 'dcwis-test');
+      } else {
+        alert('Notification is OFF or not allowed. Sound test only.');
+      }
+    };
+
+    window.resetSettings = function(scope){
+      const limitsOnly = (scope === 'limits');
+      const msg = limitsOnly ? 'Reset alert thresholds to defaults?\n(CW 15 kt · RVR 550 m · WS 25 kt)'
+                             : 'Reset ALL settings to defaults?\n(Dark · animation OFF · notifications ON · default thresholds)';
+      if (!confirm(msg)) return;
+      if (limitsOnly) ['cw','rvr','ws'].forEach(k => S[k] = DEFAULT_SETTINGS[k]);
+      else Object.assign(S, DEFAULT_SETTINGS);
+      saveSettings(); applyAllSettings();
+    };
+
+    window.openSettings = function(){ syncSettingsUI(); document.getElementById('settingsModal').classList.add('active'); };
+    window.closeSettings = function(){ const m = document.getElementById('settingsModal'); if (m) m.classList.remove('active'); };
+
+    function buildSettingsModal(){
+      if (document.getElementById('settingsModal')) return;
+      const sw = id => `<label class="sw"><input type="checkbox" id="${id}"><span></span></label>`;
+      const row = (t, sub, ctl) => `<div class="set-row"><div class="set-txt"><b>${t}</b><small>${sub}</small></div>${ctl}</div>`;
+      const num = (id, unit) => `<div class="num-wrap"><input type="number" class="set-num" id="${id}" inputmode="numeric"><em>${unit}</em></div>`;
+      const el = document.createElement('div');
+      el.id = 'settingsModal';
+      el.innerHTML = `
+      <div id="settingsBox">
+        <div id="settings-header">
+          <div class="set-hdr-left">
+            <div class="set-title">⚙ Settings</div>
+            <div class="set-subtitle">VOGA / MOPA DCWIS · saved on this device</div>
+          </div>
+          <button class="set-close" onclick="closeSettings()">&times;</button>
+        </div>
+        <div id="settingsContent">
+          <div class="set-grid">
+            <div class="set-card">
+              <div class="set-sec sec-disp">🎨 DISPLAY</div>
+              ${row('Dark mode', 'Off = light theme', sw('set-theme'))}
+              ${row('Weather animation', 'Rain / storm / fog overlay from METAR', sw('set-wx'))}
+              ${row('Wind particles', 'Moving particles on compass', sw('set-particles'))}
+            </div>
+            <div class="set-card">
+              <div class="set-sec sec-alert">🔔 ALERTS</div>
+              ${row('Native notifications', 'OS notification on new breach', sw('set-notif'))}
+              <div class="set-status" id="set-notif-status"></div>
+              ${row('Alert sound', 'Beep on new breach', sw('set-sound'))}
+              <div class="set-actions"><button class="set-btn b-test" onclick="testAlert()">🔊 Test alert</button></div>
+            </div>
+            <div class="set-card">
+              <div class="set-sec sec-lim">🎯 ALERT THRESHOLDS</div>
+              ${row('Crosswind', '|CW| ≥ limit · default 15 kt', num('set-cw','kt'))}
+              ${row('RVR', 'RVR &lt; limit · default 550 m', num('set-rvr','m'))}
+              ${row('Wind speed', 'WS ≥ limit · default 25 kt', num('set-ws','kt'))}
+              <div class="set-custom" id="set-custom-note">⚠ Custom limits active: alerts and chart lines use YOUR values.</div>
+              <div class="set-actions"><button class="set-btn b-reset" onclick="resetSettings('limits')">↺ Reset thresholds</button></div>
+            </div>
+            <div class="set-card set-card-wide">
+              <div class="set-sec sec-about">ℹ️ ABOUT</div>
+              <div class="set-about">
+                <div class="ab-warn">⚠ REFERENCE SITE ONLY</div>
+                This site is a <b>reference display of the Official DCWIS</b> and must be used <b>only as a reference</b>.
+                For operational decisions and official METAR/SPECI reporting, use the authorised Official DCWIS and prescribed SOPs.
+                <div class="ab-meta">Developed by: Ajay (Goa) · VOGA / MOPA · Build 20260924-settings</div>
+              </div>
+            </div>
+          </div>
+          <div class="set-footer"><button class="set-btn b-resetall" onclick="resetSettings('all')">↺ Reset all to defaults</button></div>
+        </div>
+      </div>`;
+      document.body.appendChild(el);
+      el.addEventListener('click', e => { if (e.target === el) closeSettings(); });
+      const $ = id => el.querySelector('#' + id);
+      $('set-theme').addEventListener('change', e => { if (e.target.checked !== isDark) window.toggleTheme(); });
+      $('set-wx').addEventListener('change', e => { S.wxAnim = e.target.checked; saveSettings(); applyWxAnim(); });
+      $('set-particles').addEventListener('change', e => { S.windParticles = e.target.checked; saveSettings(); applyParticles(); });
+      $('set-notif').addEventListener('change', e => window.setNotifPref(e.target.checked));
+      $('set-sound').addEventListener('change', e => { S.sound = e.target.checked; saveSettings(); });
+      Object.keys(SET_LIMITS).forEach(k => {
+        $('set-' + k).addEventListener('change', e => {
+          const L = SET_LIMITS[k]; let v = parseInt(e.target.value, 10);
+          if (isNaN(v)) v = S[k];
+          S[k] = Math.min(L.max, Math.max(L.min, v));
+          saveSettings(); refreshThresholdViews(); syncSettingsUI();
+        });
+      });
+    }
+
+    function ensureSettingsButton(){
+      document.querySelectorAll('.top-btns [onclick="toggleTheme()"], #notif-btn').forEach(b => b.remove());
+      if (document.getElementById('settings-btn')) return;
+      const b = document.createElement('button');
+      b.className = 'icon-btn'; b.id = 'settings-btn'; b.title = 'Settings'; b.textContent = '⚙️';
+      b.onclick = () => window.openSettings();
+      const tb = document.querySelector('.top-btns');
+      if (tb) tb.insertBefore(b, document.querySelector('[onclick="openSnapshot()"]'));
+    }
+
+    function initSettings(){
+      ensureSettingsButton();
+      buildSettingsModal();
+      applyWxAnim(); applyParticles();
+      syncSettingsUI();
+      // Browsers only allow the permission prompt after a user gesture,
+      // so notifications default to ON and ask on the first tap.
+      if ('Notification' in window) {
+        const h = () => {
+          document.removeEventListener('pointerdown', h, true);
+          if (S.notif && Notification.permission === 'default') Notification.requestPermission().then(syncSettingsUI).catch(()=>{});
+        };
+        document.addEventListener('pointerdown', h, true);
+      }
+    }
 
     function getAlertValue(def, data) {
       if (!data) return null;

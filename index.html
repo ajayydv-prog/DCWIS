@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>VOGA DCWIS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2/dist/chartjs-plugin-zoom.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260822-flight">
+  <link rel="stylesheet" href="style.css?v=20260924-settings">
 
   <!-- PWA: installable app support -->
   <link rel="manifest" href="manifest.json">
@@ -27,8 +27,7 @@
     <div id="clock">—</div>
     <div class="top-btns">
       <div id="status">⬤ LIVE</div>
-      <button class="icon-btn" onclick="toggleTheme()">🌙</button>
-      <button class="icon-btn" id="notif-btn" onclick="toggleNotifications()" title="Enable native alert notifications">🔕</button>
+      <button class="icon-btn" id="settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
       <button class="icon-btn" onclick="openSnapshot()" title="Station Snapshot / Print Report">🖨</button>
       <button class="icon-btn" id="radar-btn" onclick="openRadarModal()" title="Live Rain Radar">📡</button>
       <button class="icon-btn" id="cloud-info-btn" onclick="openCloudInfo()" title="Radar Precipitation Outlook">🌧️</button>
@@ -362,5 +361,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260822-flight"></script>
-</body>
+  <!-- Settings popup (#settingsModal) is built by app.js at startup -->
+  <script src="app.js?v=20260924-settings"></script>
+</body></html>
