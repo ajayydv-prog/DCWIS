@@ -681,7 +681,7 @@ body.dark .rvr-trend-deter { color:#ff1744; border-color:#ff1744; background:rgb
 #snapshotBox {
   background:#0d1f35;
   border:2px solid #1e4a7a;
-  border-radius:16px; padding:0; max-width:820px; width:100%;
+  border-radius:16px; padding:0; max-width:940px; width:100%;
   box-shadow:0 24px 80px rgba(0,0,0,0.9); position:relative;
   max-height:94vh; overflow:hidden;
   display:flex; flex-direction:column;
@@ -989,6 +989,7 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
 .snap-btn.btn-close:hover { background:rgba(255,255,255,0.10); color:#fff; }
 /* ── 24H SUMMARY TABLES (print/PDF page) ── */
 .snap-24h-section { margin-top:14px; }
+.snap-24h-section:has(.wr-paper) { margin-top:0; }
 .snap-24h-heading {
   font-family:'Orbitron',sans-serif; font-size:clamp(10px,1vw,12px); font-weight:700;
   color:#7aaccf; letter-spacing:0.6px; text-transform:uppercase;
@@ -1056,7 +1057,7 @@ body:not(.dark) #radarContent { background:#e8f0f8; }
   /* पेज सेटअप (A4, मार्जिन 10mm) */
   @page {
     size: A4;
-    margin: 10mm 12mm;
+    margin: 5mm;
   }
 
   /* हेडर और बेसिक कलर */
@@ -1901,4 +1902,93 @@ body:not(.dark) #settingsBox { background:#ffffff; border-color:#b0c4de; }
   #settingsBox { width:100%; max-height:none; height:100%; max-width:none; border-radius:12px; }
   #settingsContent { padding:10px 12px; }
   .set-grid { grid-template-columns:1fr; gap:10px; }
+}
+
+#snapshotContent:has(.wr-paper) { padding:8px 8px; }
+
+/* ══════════════════════════════════════════
+   VOGA WEATHER REPORT (24h · 4 × 6-hour blocks)
+   ══════════════════════════════════════════ */
+.wr-paper {
+  background:#fff; color:#1d2433; border-radius:8px; overflow:hidden;
+  font-family:'Inter',Arial,sans-serif; font-size:11px; line-height:1.25;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.wr-paper * { box-sizing:border-box; }
+.wr-head {
+  background:#0b2545; color:#fff; padding:10px 12px;
+  display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.wr-title { font-family:'Orbitron',sans-serif; font-size:19px; font-weight:900; letter-spacing:1px; }
+.wr-sub   { color:#c9d6ea; font-size:11px; margin-top:3px; }
+.wr-headr { text-align:right; }
+.wr-gen   { font-weight:800; font-size:12.5px; }
+.wr-gen span { font-weight:500; color:#c9d6ea; }
+.wr-per   { color:#c9d6ea; font-size:11px; margin-top:3px; }
+.wr-overview { padding:8px 8px 2px; }
+.wr-legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:4px; color:#7c869a; font-size:9.5px; }
+.wr-legend i, .wr-lgd i { display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:-1px; border-radius:1px; }
+.wr-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:6px 8px 8px; }
+@media (max-width:640px) { .wr-grid { grid-template-columns:1fr; } }
+
+.wr-block { border:1.6px solid #2e9e5b; border-radius:8px; overflow:hidden; background:#fff; }
+.wr-block.wr-sev1 { border-color:#e59a00; }
+.wr-block.wr-sev2 { border-color:#d64045; }
+.wr-bhead { background:#2e9e5b; color:#fff; padding:7px 12px; display:flex; justify-content:space-between; align-items:center; }
+.wr-sev1 .wr-bhead { background:#e59a00; }
+.wr-sev2 .wr-bhead { background:#d64045; }
+.wr-btime b { display:block; font-size:16px; font-weight:800; letter-spacing:.3px; }
+.wr-btime small { display:block; font-size:9px; opacity:.92; margin-top:1px; }
+.wr-sevchip { background:#fff; color:#2e9e5b; font-weight:800; font-size:11px; padding:4px 14px; border-radius:6px; }
+.wr-sev1 .wr-sevchip { color:#c27d00; }
+.wr-sev2 .wr-sevchip { color:#d64045; }
+
+.wr-wxline { display:flex; align-items:center; gap:8px; background:#f4f6fa; margin:6px 6px 0; padding:4px 8px; border-radius:3px; min-height:24px; }
+.wr-wxlbl { font-weight:800; color:#7c869a; font-size:9.5px; }
+.wr-chips { display:flex; flex-wrap:wrap; gap:4px; flex:1; }
+.wr-chip-wx { color:#fff; font-weight:800; font-size:9px; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+.wr-nil { font-size:10px; color:#1d2433; }
+.wr-cnt { color:#7c869a; font-size:9px; white-space:nowrap; }
+
+.wr-lgd { display:flex; justify-content:flex-end; gap:6px; padding:5px 12px 0; font-size:9.5px; color:#1d2433; }
+.wr-lgd i { width:14px; height:3px; margin:0 4px 0 6px; vertical-align:middle; }
+.wr-graphs { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:0 6px; }
+.wr-gt { font-weight:800; font-size:9.5px; color:#0b2545; padding:2px 2px 0 4px; }
+
+.wr-t { width:calc(100% - 12px); margin:6px 6px 0; border-collapse:collapse; table-layout:fixed; border:1px solid #cfd6e2; }
+.wr-t2 { margin-bottom:8px; }
+.wr-t th, .wr-t td { border:1px solid #e1e6ef; }               /* light grid lines */
+.wr-t th { font-size:9px; font-weight:800; text-align:center; padding:4px 2px; color:#fff; background:#0b2545; border-color:rgba(255,255,255,.28); }
+.wr-t th.wr-th0, .wr-t th.wr-thA { text-align:left; padding-left:6px; width:31%; }
+.wr-t th.wr-th28 { background:#1f6fb2; }
+.wr-t th.wr-th10 { background:#7b4fb0; }
+.wr-t th.wr-thA  { background:#00796b; }
+.wr-t2 th { background:#00796b; }
+.wr-t tr.wr-sh th { background:#e6ebf3; color:#7c869a; font-size:8.5px; padding:2px; border-color:#d3dae6; }
+.wr-t td { padding:4px 2px; text-align:center; }
+.wr-t tbody tr:nth-child(odd) td { background:#f6f8fb; }
+.wr-t td.wr-l { text-align:left; padding-left:6px; font-size:9.5px; color:#1d2433; }
+.wr-t td.wr-v { font-weight:800; font-size:11.5px; color:#1d2433; }
+.wr-t td.wr-v.wr-sub { font-weight:600; font-size:9.5px; color:#7c869a; }
+.wr-t td.wr-red { color:#d64045; }
+.wr-t td.wr-amb { color:#d98a00; }
+/* strong divider between RWY 28 and RWY 10 columns (runway table only) */
+.wr-t:not(.wr-t2) tbody td:nth-child(5),
+.wr-t:not(.wr-t2) tr.wr-sh th:nth-child(5) { border-left:2.5px solid #4a5568; }
+.wr-t:not(.wr-t2) thead tr:first-child th:nth-child(3) { border-left:2.5px solid #4a5568; }
+
+.wr-foot { border-top:1px solid #e6eaf1; padding:6px 10px 8px; color:#5b6579; font-size:9px; }
+.wr-foot-h { font-weight:800; color:#0b2545; font-size:9.5px; letter-spacing:.4px; margin-bottom:3px; }
+.wr-foot ul { margin:0; padding-left:14px; }
+.wr-foot li { margin:2px 0; }
+.wr-foot-warn { color:#d64045; font-weight:700; margin-bottom:3px; }
+
+@media print {
+  html, body { background:#fff !important; }
+  #snap-header { display:none !important; }
+  .wr-paper { width:1000px; zoom:.755; border-radius:0; }
+  .wr-block { break-inside:avoid; page-break-inside:avoid; }
+  .wr-paper, .wr-paper * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  #snapshotContent { padding:0 !important; }
+  .snap-24h-section { margin-top:0 !important; }
 }

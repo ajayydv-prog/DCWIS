@@ -3528,250 +3528,544 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  24H SUMMARY — data gathering (register-based + backend history)
+    //  VOGA WEATHER REPORT — 24h as 4 × 6-hour blocks
+    //  (replaces the old "24H Summary" tables)
+    //
+    //  Data sources
+    //   • Wind speed / direction / RVR  → backend /history  (2-min bins, falls back to 5/10/30-min if the
+    //                                      backend has nothing at the finer bin)
+    //   • Headwind / Crosswind          → computed here from each runway's own wind-speed + direction bins
+    //   • Visibility / Cloud / Weather  → METAR/SPECI register
     // ═══════════════════════════════════════════════════════════════
+    const WR_BLOCK_HOURS = 6;
+    const WR_BLOCK_COUNT = 4;                       // 4 × 6h = 24h
+    const WR_BIN_CHAIN   = [120, 300, 600, 1800];   // seconds; first entry is the preferred bin
+    const WR_END_AT_BOUNDARY = false;               // false: window ends "now"   |   true: ends at the last 00/06/12/18Z boundary
+    const WR_SHOW_CURRENT_PANELS = false;           // true: also print the live RWY panels + latest METAR above the report
 
-    // Harsh-weather priority ranking (high → low severity). Each entry is
-    // checked against e.weather via simple substring/regex match, most
-    // specific (longest / most qualified) patterns first within each tier.
-    const WEATHER_PRIORITY = [
-      { rank: 1,  test: /\+TS(RA|GR)?/,            label: 'Severe Thunderstorm' },
-      { rank: 2,  test: /(?<!\+)TS(RA)?/,          label: 'Thunderstorm' },
-      { rank: 3,  test: /(\+SHRA|\+RA|GR)/,        label: 'Heavy Rain/Showers/Hail' },
-      { rank: 4,  test: /(FZRA|FZFG)/,             label: 'Freezing Rain/Fog' },
-      { rank: 5,  test: /(?<!\w)FG(?!\w)/,         label: 'Fog' },
-      { rank: 6,  test: /(SHRA|(?<!-)RA(?!\w)|DZ)/,label: 'Showers/Rain/Drizzle' },
-      { rank: 7,  test: /(BCFG|PRFG|MIFG)/,        label: 'Patchy/Shallow Fog' },
-      { rank: 8,  test: /(?<!\w)BR(?!\w)/,         label: 'Mist' },
-      { rank: 9,  test: /(?<!\w)HZ(?!\w)/,         label: 'Haze' },
-      { rank: 10, test: /(-RA|-DZ|-SHRA)/,         label: 'Light Rain/Drizzle' }
-    ];
+    const WR_C = { r28:'#1f6fb2', r10:'#7b4fb0', red:'#d64045', amb:'#e59a00', grn:'#2e9e5b',
+                   navy:'#0b2545', grey:'#7c869a', ink:'#1d2433', grid:'#e6eaf1', axis:'#c8cfdb', teal:'#00796b' };
+    const WR_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    function classifyWeatherCode(raw) {
-      if (!raw) return null;
-      const s = String(raw).trim().toUpperCase();
-      if (!s) return null;
-      for (const tier of WEATHER_PRIORITY) {
-        if (tier.test.test(s)) return tier;
-      }
-      return null;
-    }
+    const wrP2 = n => String(n).padStart(2, '0');
+    const wrHHMM = ms => { const d = new Date(ms); return wrP2(d.getUTCHours()) + wrP2(d.getUTCMinutes()); };
+    const wrISTHHMM = ms => wrHHMM(ms + 19800000);
+    const wrDay = ms => { const d = new Date(ms); return wrP2(d.getUTCDate()) + ' ' + WR_MON[d.getUTCMonth()]; };
+    const wrDayYear = ms => wrDay(ms) + ' ' + new Date(ms).getUTCFullYear();
 
-    function registerEntryTimeLabel(e) {
-      const t = String(e.time || '').padStart(4, '0');
-      return t.length >= 4 ? `${t.slice(0,2)}:${t.slice(2,4)}Z` : '—';
-    }
-
-    // Fetch + flatten the register entries needed to cover the last 24h.
-    async function fetch24hRegisterEntries() {
-      return fetchMetarHistoryFromRegister(24); // newest-first array of raw entries
-    }
-
-    // ─── Max reported wind gust (24h), restricted to entries where the
-    //     given runway's RVR was the active one (register OR archive format) ───
-    function getMaxWindGust24h(rwy, entries) {
-      let best = null;
-      entries.forEach(e => {
-        const isActiveForRwy =
-          String(e.activervr1) === rwy || String(e.activervr2) === rwy ||   // live register format
-          (rwy === '28' && e.activervr1 === '1') ||                         // archive format
-          (rwy === '10' && e.activervr2 === '1');
-        if (!isActiveForRwy) return;
-        const g = parseLeadingNumber(e.maxwind);
-        if (g === null) return;
-        if (!best || g > best.value) {
-          best = { value: g, time: registerEntryTimeLabel(e) };
-        }
-      });
-      return best; // { value, time } | null
-    }
-
-    // ─── Common airfield block: lowest visibility, lowest cloud base, harshest weather ───
-    function getCommonAirfield24h(entries) {
-      let lowestVis = null;     // { value, time, isGood }
-      let lowestCloud = null;   // { value, time, raw }
-      let harshest = null;      // { rank, label, raw, time }
-
-      const CLOUD_RE = /^(FEW|SCT|BKN|OVC)(\d{3})/;
-
-      entries.forEach(e => {
-        // Visibility
-        if (e.visibility !== undefined && e.visibility !== null && e.visibility !== '') {
-          const good = isGoodVisibilityReading(e.visibility);
-          const v = parseVisibilityForFogCheck(e.visibility);
-          if (!good && v !== null) {
-            if (!lowestVis || v < lowestVis.value) {
-              lowestVis = { value: v, time: registerEntryTimeLabel(e), isGood: false };
-            }
-          }
-        }
-        // Cloud base — lowest among FEW/SCT/BKN/OVC layers reported in this entry
-        ['cloud1','cloud2','cloud3','cloud4'].forEach(c => {
-          const raw = e[c];
-          if (!raw) return;
-          const m = CLOUD_RE.exec(String(raw).toUpperCase());
-          if (!m) return;
-          const baseFt = parseInt(m[2], 10) * 100;
-          if (!lowestCloud || baseFt < lowestCloud.value) {
-            lowestCloud = { value: baseFt, time: registerEntryTimeLabel(e), raw: raw };
-          }
-        });
-        // Harshest weather phenomenon
-        const tier = classifyWeatherCode(e.weather);
-        if (tier && (!harshest || tier.rank < harshest.rank)) {
-          harshest = { rank: tier.rank, label: tier.label, raw: e.weather, time: registerEntryTimeLabel(e) };
-        }
-      });
-
-      return { lowestVis, lowestCloud, harshest };
-    }
-
-    // ─── Per-runway 24h table rows: wind/headwind from backend history (MIN/MAX
-    //     aggregation), gust from register, and avg-based placeholders for
-    //     RVR/MOR/Temp/Humidity/Spread until the backend MIN/MAX upgrade lands ───
-    async function build24hRunwayData(rwy, registerEntries) {
-      const [wsBins, hwBins, rvrBins, morBins, tempBins, humBins] = await Promise.all([
-        fetchHistoryFromBackend(rwy, 'windSpeed', 24, 3600),
-        fetchComputedWindComponentHistory(rwy, 'headwind', 24, 3600),
-        fetchHistoryFromBackend(rwy, 'rvr', 24, 3600),
-        fetchHistoryFromBackend(rwy, 'mor', 24, 3600),
-        fetchHistoryFromBackend(rwy, 'temperature', 24, 3600),
-        fetchHistoryFromBackend(rwy, 'humidity', 24, 3600)
-      ]);
-
-      function minMaxOf(bins, key) {
-        let mn = null, mx = null, mnT = null, mxT = null;
-        bins.forEach(b => {
-          const hasRange = b.min !== undefined && b.min !== null && b.max !== undefined && b.max !== null;
-          const lo = hasRange ? b.min : b.value;
-          const hi = hasRange ? b.max : b.value;
-          if (lo === undefined || lo === null || isNaN(lo)) return;
-          if (mn === null || lo < mn) { mn = lo; mnT = b.min_timestamp ?? b.timestamp; }
-          if (mx === null || hi > mx) { mx = hi; mxT = b.max_timestamp ?? b.timestamp; }
-        });
-        return { min: mn, max: mx, minTs: mnT, maxTs: mxT };
-      }
-
-      // Backend bin timestamps are epoch seconds (UTC); format directly.
-      function fmtEpochSec(ts) {
-        if (ts === undefined || ts === null) return '—';
-        const d = new Date(ts * 1000);
-        if (isNaN(d.getTime())) return '—';
-        return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0') + 'Z';
-      }
-
-      const ws = minMaxOf(wsBins);
-      const hw = minMaxOf(hwBins);
-      const rvr = minMaxOf(rvrBins);
-      const mor = minMaxOf(morBins);
-      const temp = minMaxOf(tempBins);
-      const hum = minMaxOf(humBins);
-      const gust = getMaxWindGust24h(rwy, registerEntries);
-
-      // Fog-risk spread: derive from temp/hum bins isn't possible without dew
-      // point history; reuse min temp & corresponding humidity as an approx
-      // unless dew point history is available.
-      const dewBins = await fetchHistoryFromBackend(rwy, 'dewPoint', 24, 3600);
-      const dew = minMaxOf(dewBins);
-      let minSpread = null;
-      if (temp.min !== null && dew.max !== null) {
-        // Worst-case (smallest) spread isn't simply min(temp)-max(dew) across
-        // *different* timestamps, but it's the best available approximation
-        // without per-bin paired temp/dew samples.
-        minSpread = Math.round((temp.min - dew.max) * 10) / 10;
-      }
-
+    // ── thresholds (taken from Settings where the app already has a limit) ──
+    function wrLimits() {
+      const cw = Number(S.cw) || 15, rvr = Number(S.rvr) || 550, ws = Number(S.ws) || 25;
       return {
-        rwy,
-        wsMax: ws.max, wsMaxT: fmtEpochSec(ws.maxTs),
-        wsMin: ws.min, wsMinT: fmtEpochSec(ws.minTs),
-        hwMax: hw.max, hwMaxT: fmtEpochSec(hw.maxTs),
-        gust,
-        rvrMin: rvr.min, rvrMinT: fmtEpochSec(rvr.minTs),
-        morMin: mor.min, morMinT: fmtEpochSec(mor.minTs),
-        tempMax: temp.max, tempMaxT: fmtEpochSec(temp.maxTs),
-        tempMin: temp.min, tempMinT: fmtEpochSec(temp.minTs),
-        humMax: hum.max, humMaxT: fmtEpochSec(hum.maxTs),
-        humMin: hum.min, humMinT: fmtEpochSec(hum.minTs),
-        minSpread
+        wsRed: ws,  wsAmb: Math.min(SEVERITY_THRESHOLDS.windSpeed.normalMax, ws * 0.6),
+        cwRed: cw,  cwAmb: cw * 2 / 3,
+        rvrRed: rvr, rvrAmb: Math.max(1000, rvr),
+        visRed: SEVERITY_THRESHOLDS.visibility.highMax, visAmb: SEVERITY_THRESHOLDS.visibility.normalMax,
+        cbRed: 300, cbAmb: 1000
       };
     }
 
-    function s24row(lbl, val, unit, colorCls, timeStr, approx) {
-      const valDisp = (val === null || val === undefined || val === '—') ? '—' : `${val}${unit||''}`;
-      return `<tr>
-        <td class="s24-lbl">${lbl}${approx ? ' <span class="s24-approx">(approx)</span>' : ''}</td>
-        <td class="s24-val ${colorCls||''}">${valDisp}</td>
-        <td class="s24-time">${timeStr || '—'}</td>
-      </tr>`;
+    // ── weather phenomena from the METAR "weather" field ──
+    function wrWxCodes(raw) {
+      if (!raw) return [];
+      const out = [];
+      String(raw).toUpperCase().split(/[\s,]+/).filter(Boolean).forEach(tok => {
+        const t = tok.replace(/^[-+]/, '');
+        if (!t || t === 'NSW' || t === 'NIL' || t === '--') return;
+        let c;
+        if (/TS/.test(t)) c = 'TS';
+        else if (/(GR|GS)/.test(t)) c = 'GR';
+        else if (/^(BC|PR|MI)FG$/.test(t)) c = t;
+        else if (/FG/.test(t)) c = 'FG';
+        else if (/DZ/.test(t)) c = 'DZ';
+        else if (/RA/.test(t)) c = 'RA';
+        else c = t;
+        if (!out.includes(c)) out.push(c);
+      });
+      return out;
+    }
+    const wrWxSev   = c => (c === 'TS' || c === 'GR' || c === 'FG') ? 2 : 1;
+    const wrWxColor = c => (c === 'TS' || c === 'GR' || c === 'FG') ? WR_C.red : (c === 'RA' || c === 'DZ') ? WR_C.r28 : WR_C.amb;
+
+    // ── METAR visibility (metres) and lowest cloud layer ──
+    function wrVisMeters(raw) {
+      if (raw === undefined || raw === null) return null;
+      const s = String(raw).trim().toUpperCase();
+      if (!s || s === '--' || s === '—') return null;
+      if (s === 'CAVOK') return 9999;
+      const m = s.match(/^P?(\d+(?:\.\d+)?)\s*(KM)?$/);
+      let n;
+      if (m) { n = parseFloat(m[1]); if (m[2] === 'KM') n *= 1000; }
+      else { n = parseLeadingNumber(s); if (n === null) return null; if (/KM/.test(s)) n *= 1000; }
+      return Math.min(9999, Math.round(n));
+    }
+    function wrCloudOf(e) {
+      const RE = /^(FEW|SCT|BKN|OVC|VV)(\d{3})/;
+      let best = null;
+      ['cloud1', 'cloud2', 'cloud3', 'cloud4'].forEach(k => {
+        const raw = e[k]; if (!raw) return;
+        const m = RE.exec(String(raw).toUpperCase()); if (!m) return;
+        const ft = parseInt(m[2], 10) * 100;
+        if (!best || ft < best.ft) best = { ft, type: m[1] };
+      });
+      return best;
     }
 
-    function buildRunway24hTable(d, headerCls, label) {
-      const wsMaxColor = d.wsMax !== null ? (d.wsMax >= 25 ? 'red' : d.wsMax >= 15 ? 'amber' : 'green') : '';
-      const hwMaxColor = d.hwMax !== null ? (Math.abs(d.hwMax) >= 30 ? 'red' : Math.abs(d.hwMax) >= 20 ? 'amber' : 'green') : '';
-      const gustColor = d.gust ? (d.gust.value >= 25 ? 'red' : d.gust.value >= 15 ? 'amber' : 'green') : '';
-      const rvrColor = d.rvrMin !== null ? (d.rvrMin < 550 ? 'red' : d.rvrMin < 1000 ? 'amber' : 'green') : '';
-      const spreadColor = d.minSpread !== null ? (d.minSpread < 2 ? 'red' : d.minSpread < 3 ? 'amber' : 'green') : '';
-
-      return `<table class="snap-24h-table ${headerCls}">
-        <caption>RWY ${d.rwy} — 24H Summary${label ? ' · ' + label : ''}</caption>
-        <tbody>
-          ${s24row('Max Wind Speed', d.wsMax, ' kt', wsMaxColor, d.wsMaxT)}
-          ${s24row('Min Wind Speed', d.wsMin, ' kt', '', d.wsMinT)}
-          ${s24row('Max Headwind', d.hwMax, ' kt', hwMaxColor, d.hwMaxT)}
-          ${s24row('Max Wind Gust (reported)', d.gust ? d.gust.value : null, ' kt', gustColor, d.gust ? d.gust.time : null)}
-          ${s24row('Min RVR', d.rvrMin, ' m', rvrColor, d.rvrMinT, true)}
-          ${s24row('Min MOR', d.morMin, ' m', '', d.morMinT, true)}
-          ${s24row('Max Temp', d.tempMax, ' °C', '', d.tempMaxT, true)}
-          ${s24row('Min Temp', d.tempMin, ' °C', '', d.tempMinT, true)}
-          ${s24row('Max Humidity', d.humMax, ' %', '', d.humMaxT, true)}
-          ${s24row('Min Humidity', d.humMin, ' %', '', d.humMinT, true)}
-          ${s24row('Min T–Td Spread (Fog Risk)', d.minSpread, '°C', spreadColor, '', true)}
-        </tbody>
-      </table>`;
+    // ── statistics over backend bins ──
+    function wrBinStats(bins, from, to) {
+      let n = 0, sum = 0, wsum = 0, mn = null, mx = null, mnTs = null, mxTs = null, hasRange = false;
+      bins.forEach(b => {
+        const ts = b.timestamp * 1000;
+        if (ts < from || ts >= to) return;
+        const v = b.value;
+        if (v === null || v === undefined || isNaN(v)) return;
+        const rng = b.min != null && b.max != null && !isNaN(b.min) && !isNaN(b.max);
+        if (rng) hasRange = true;
+        const lo = rng ? b.min : v, hi = rng ? b.max : v;
+        const w = b.count > 0 ? b.count : 1;
+        sum += v * w; wsum += w; n++;
+        if (mn === null || lo < mn) { mn = lo; mnTs = (rng && b.min_timestamp) ? b.min_timestamp * 1000 : ts; }
+        if (mx === null || hi > mx) { mx = hi; mxTs = (rng && b.max_timestamp) ? b.max_timestamp * 1000 : ts; }
+      });
+      return n ? { n, min: mn, max: mx, avg: sum / wsum, minTs: mnTs, maxTs: mxTs, hasRange } : null;
+    }
+    function wrDirStats(bins, from, to) {
+      const vals = [];
+      bins.forEach(b => {
+        const ts = b.timestamp * 1000;
+        if (ts < from || ts >= to || b.value == null || isNaN(b.value)) return;
+        vals.push(((b.value % 360) + 360) % 360);
+      });
+      if (!vals.length) return null;
+      let sx = 0, sy = 0;
+      vals.forEach(v => { const r = v * Math.PI / 180; sx += Math.cos(r); sy += Math.sin(r); });
+      const mean = ((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360;
+      let dmin = 0, dmax = 0;
+      vals.forEach(v => { const d = ((v - mean + 540) % 360) - 180; if (d < dmin) dmin = d; if (d > dmax) dmax = d; });
+      return { n: vals.length, mean, lo: (mean + dmin + 360) % 360, hi: (mean + dmax + 360) % 360, span: dmax - dmin };
+    }
+    function wrComponentBins(rwy, wsBins, wdBins) {
+      const hd = RUNWAY_HEADING[rwy];
+      const wsBy = new Map(wsBins.map(b => [b.timestamp, b]));
+      const hw = [], cw = [];
+      wdBins.forEach(wdB => {
+        const wsB = wsBy.get(wdB.timestamp);
+        if (!wsB) return;
+        const wd = wdB.value, ws = wsB.value;
+        if (wd == null || ws == null || isNaN(wd) || isNaN(ws)) return;
+        const a = (wd - hd) * Math.PI / 180;
+        hw.push({ timestamp: wdB.timestamp, value: ws * Math.cos(a), count: wsB.count });
+        cw.push({ timestamp: wdB.timestamp, value: Math.abs(ws * Math.sin(a)), count: wsB.count });
+      });
+      return { hw, cw };
     }
 
-    function buildCommonAirfield24hTable(common) {
-      const visStr = common.lowestVis ? `${common.lowestVis.value} m` : '—';
-      const visColor = common.lowestVis ? (common.lowestVis.value < 550 ? 'red' : common.lowestVis.value < 1500 ? 'amber' : 'green') : '';
-      const cloudStr = common.lowestCloud ? `${common.lowestCloud.raw} (${common.lowestCloud.value} ft)` : '—';
-      const weatherStr = common.harshest ? `${common.harshest.label} (${common.harshest.raw})` : 'NSW';
-
-      return `<table class="snap-24h-table common">
-        <caption>Airfield Common — 24H</caption>
-        <tbody>
-          <tr><td class="s24-lbl">Lowest Visibility</td><td class="s24-val ${visColor}">${visStr}</td><td class="s24-time">${common.lowestVis ? common.lowestVis.time : '—'}</td></tr>
-          <tr><td class="s24-lbl">Lowest Cloud Base</td><td class="s24-val">${cloudStr}</td><td class="s24-time">${common.lowestCloud ? common.lowestCloud.time : '—'}</td></tr>
-          <tr><td class="s24-lbl">Harshest Weather</td><td class="s24-val ${common.harshest ? 'amber' : ''}">${weatherStr}</td><td class="s24-time">${common.harshest ? common.harshest.time : '—'}</td></tr>
-        </tbody>
-      </table>`;
+    // ── fetch one runway (finest bin that returns data) ──
+    async function wrFetchRunway(rwy, hours) {
+      for (const bin of WR_BIN_CHAIN) {
+        const [ws, wd, rvr, qnh, temp, dew, hum] = await Promise.all([
+          fetchHistoryFromBackend(rwy, 'windSpeed', hours, bin),
+          fetchHistoryFromBackend(rwy, 'windDirection', hours, bin),
+          fetchHistoryFromBackend(rwy, 'rvr', hours, bin),
+          fetchHistoryFromBackend(rwy, 'qnh', hours, bin),
+          fetchHistoryFromBackend(rwy, 'temperature', hours, bin),
+          fetchHistoryFromBackend(rwy, 'dewPoint', hours, bin),
+          fetchHistoryFromBackend(rwy, 'humidity', hours, bin)
+        ]);
+        if (ws.length || wd.length || rvr.length || qnh.length || temp.length || dew.length || hum.length) {
+          const comp = wrComponentBins(rwy, ws, wd);
+          return { rwy, bin, ws, wd, rvr, qnh, temp, dew, hum, hw: comp.hw, cw: comp.cw };
+        }
+      }
+      return { rwy, bin: null, ws: [], wd: [], rvr: [], qnh: [], temp: [], dew: [], hum: [], hw: [], cw: [] };
     }
 
+    // ── weather phenomena → intervals (start = first report with it, end = first report without it) ──
+    function wrPhenomena(reports, endMs) {
+      const codesSeen = [];
+      reports.forEach(r => r.codes.forEach(c => { if (!codesSeen.includes(c)) codesSeen.push(c); }));
+      const out = [];
+      codesSeen.forEach(c => {
+        let start = null;
+        for (let i = 0; i < reports.length; i++) {
+          const has = reports[i].codes.includes(c);
+          if (has && start === null) start = reports[i].ts;
+          if (!has && start !== null) { out.push({ code: c, from: start, to: reports[i].ts }); start = null; }
+        }
+        if (start !== null) out.push({ code: c, from: start, to: endMs });
+      });
+      return out.sort((a, b) => a.from - b.from);
+    }
+
+    // ── tiny SVG graph (attributes only, so html2canvas / print render it identically) ──
+    function wrGraph(o) {
+      const W = 215, H = 108, L = 25, R = 6, T = 8, B = 15;
+      const pw = W - L - R, ph = H - T - B;
+      const X = ms => L + (ms - o.x0) / (o.x1 - o.x0) * pw;
+      const Y = v => T + ph - (Math.min(Math.max(v, o.ymin), o.ymax) - o.ymin) / (o.ymax - o.ymin) * ph;
+      const F = 'font-family="Inter,Arial,sans-serif"';
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block">`;
+      s += `<rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="#fff"/>`;
+      (o.bands || []).forEach(b => {
+        const y1 = Y(b.to), y2 = Y(b.from);
+        s += `<rect x="${L}" y="${y1.toFixed(1)}" width="${pw}" height="${(y2 - y1).toFixed(1)}" fill="${b.color}" fill-opacity="${b.op}"/>`;
+      });
+      (o.yticks || []).forEach(v => {
+        const y = Y(v).toFixed(1);
+        s += `<line x1="${L}" y1="${y}" x2="${L + pw}" y2="${y}" stroke="${WR_C.grid}" stroke-width="0.6"/>`;
+        s += `<text x="${L - 3}" y="${(+y + 2.4).toFixed(1)}" text-anchor="end" font-size="6.2" fill="${WR_C.grey}" ${F}>${v}</text>`;
+      });
+      // hourly ticks
+      const firstHr = Math.ceil(o.x0 / 3600000) * 3600000;
+      for (let t = firstHr; t <= o.x1; t += 3600000) {
+        const x = X(t).toFixed(1);
+        s += `<line x1="${x}" y1="${T}" x2="${x}" y2="${T + ph}" stroke="${WR_C.grid}" stroke-width="0.6"/>`;
+        s += `<text x="${x}" y="${H - 5}" text-anchor="middle" font-size="6.2" fill="${WR_C.grey}" ${F}>${wrP2(new Date(t).getUTCHours())}</text>`;
+      }
+      s += `<line x1="${L}" y1="${T}" x2="${L}" y2="${T + ph}" stroke="${WR_C.axis}" stroke-width="0.8"/>`;
+      s += `<line x1="${L}" y1="${T + ph}" x2="${L + pw}" y2="${T + ph}" stroke="${WR_C.axis}" stroke-width="0.8"/>`;
+
+      let any = false;
+      (o.series || []).forEach(se => {
+        // split into segments at data gaps
+        const segs = []; let cur = [];
+        se.pts.forEach(p => {
+          if (cur.length && p[0] - cur[cur.length - 1][0] > o.gapMs) { segs.push(cur); cur = []; }
+          cur.push(p);
+        });
+        if (cur.length) segs.push(cur);
+        segs.forEach(sg => {
+          any = true;
+          const pts = sg.map(p => X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1)).join(' ');
+          if (se.fill && sg.length > 1) {
+            s += `<polygon points="${X(sg[0][0]).toFixed(1)},${Y(o.ymin).toFixed(1)} ${pts} ${X(sg[sg.length - 1][0]).toFixed(1)},${Y(o.ymin).toFixed(1)}" fill="${se.color}" fill-opacity="0.12"/>`;
+          }
+          if (sg.length === 1) s += `<circle cx="${X(sg[0][0]).toFixed(1)}" cy="${Y(sg[0][1]).toFixed(1)}" r="1" fill="${se.color}"/>`;
+          else s += `<polyline points="${pts}" fill="none" stroke="${se.color}" stroke-width="${se.w || 1}" stroke-linejoin="round"/>`;
+        });
+      });
+      if (!any) s += `<text x="${L + pw / 2}" y="${T + ph / 2 + 2}" text-anchor="middle" font-size="8" fill="${WR_C.grey}" ${F}>No data</text>`;
+
+      if (o.note && any) {
+        s += `<text x="${L + pw / 2}" y="${T + ph / 2 + 2}" text-anchor="middle" font-size="7.5" fill="${WR_C.grey}" ${F}>${o.note}</text>`;
+      }
+      if (o.callout && any) {
+        const c = o.callout, px = X(c.ms), py = Y(c.v);
+        const bw = c.text.length * 3.95 + 7, bh = 10;
+        const below = py < T + ph * 0.45;
+        let bx = px - bw / 2; bx = Math.max(L + 1, Math.min(L + pw - bw - 1, bx));
+        const by = below ? Math.min(py + 14, T + ph - bh - 2) : Math.max(py - 14 - bh, T + 1);
+        const ly = below ? by : by + bh;
+        s += `<line x1="${px.toFixed(1)}" y1="${py.toFixed(1)}" x2="${(bx + bw / 2).toFixed(1)}" y2="${ly.toFixed(1)}" stroke="${c.color}" stroke-width="0.7"/>`;
+        s += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="${c.color}"/>`;
+        s += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh}" rx="2" fill="#fff" stroke="${c.color}" stroke-width="0.8"/>`;
+        s += `<text x="${(bx + bw / 2).toFixed(1)}" y="${(by + 7.2).toFixed(1)}" text-anchor="middle" font-size="6.4" font-weight="700" fill="${c.color}" ${F}>${c.text}</text>`;
+      }
+      return s + '</svg>';
+    }
+
+    // ── 24h overview strip (weather ribbon + condition bar + block boundaries) ──
+    function wrOverviewSVG(startMs, endMs, phen, condRuns, blocks) {
+      const W = 1000, L = 68, R = 6, pw = W - L - R;
+      const X = ms => L + (ms - startMs) / (endMs - startMs) * pw;
+      const F = 'font-family="Inter,Arial,sans-serif"';
+      let s = `<svg viewBox="0 0 ${W} 74" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block">`;
+      s += `<text x="0" y="14" font-size="10" font-weight="700" fill="${WR_C.grey}" ${F}>WEATHER</text>`;
+      s += `<text x="0" y="40" font-size="10" font-weight="700" fill="${WR_C.grey}" ${F}>CONDITION</text>`;
+      s += `<rect x="${L}" y="3" width="${pw}" height="16" fill="#eef1f5"/>`;
+      phen.forEach(p => {
+        const x1 = X(Math.max(p.from, startMs)), x2 = X(Math.min(p.to, endMs));
+        if (x2 <= x1) return;
+        s += `<rect x="${x1.toFixed(1)}" y="3" width="${Math.max(1, x2 - x1).toFixed(1)}" height="16" fill="${wrWxColor(p.code)}"/>`;
+        if (x2 - x1 > p.code.length * 7 + 6) s += `<text x="${((x1 + x2) / 2).toFixed(1)}" y="14.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff" ${F}>${p.code}</text>`;
+      });
+      const SC = [WR_C.grn, WR_C.amb, WR_C.red];
+      condRuns.forEach(r => {
+        const x1 = X(r.from), x2 = X(r.to);
+        s += `<rect x="${x1.toFixed(1)}" y="25" width="${Math.max(0.8, x2 - x1 + 0.4).toFixed(1)}" height="20" fill="${SC[r.sev]}"/>`;
+      });
+      blocks.forEach((b, i) => {
+        const x = X(b.from).toFixed(1);
+        s += `<line x1="${x}" y1="25" x2="${x}" y2="45" stroke="#fff" stroke-width="2"/>`;
+        s += `<line x1="${x}" y1="45" x2="${x}" y2="52" stroke="${WR_C.ink}" stroke-width="1"/>`;
+        s += `<text x="${((X(b.from) + X(b.to)) / 2).toFixed(1)}" y="64" text-anchor="middle" font-size="10.5" font-weight="700" fill="${WR_C.ink}" ${F}>${wrHHMM(b.from)}Z – ${wrHHMM(b.to)}Z</text>`;
+      });
+      s += `<line x1="${X(endMs).toFixed(1)}" y1="45" x2="${X(endMs).toFixed(1)}" y2="52" stroke="${WR_C.ink}" stroke-width="1"/>`;
+      return s + '</svg>';
+    }
+
+    // ── helpers for the tables ──
+    function wrCls(v, red, amb, reverse) {
+      if (v === null || v === undefined) return '';
+      if (reverse) return v < red ? 'wr-red' : v < amb ? 'wr-amb' : '';
+      return v >= red ? 'wr-red' : v >= amb ? 'wr-amb' : '';
+    }
+    const wrNum   = v => (v === null || v === undefined || isNaN(v)) ? '–' : String(Math.round(v));
+    const wrNum10 = v => (v === null || v === undefined || isNaN(v)) ? '–' : String(Math.round(v / 10) * 10);
+    const wrOne   = v => (v === null || v === undefined || isNaN(v)) ? '–' : v.toFixed(1);
+    const wrSign  = v => { if (v === null || v === undefined || isNaN(v)) return '–'; const r = Math.round(v); return r > 0 ? '+' + r : String(r === 0 ? 0 : r); };
+    const wrDeg   = v => (v === null || v === undefined || isNaN(v)) ? '–' : String(Math.round(v) % 360).padStart(3, '0');
+    const wrCell  = (txt, cls) => `<td class="wr-v ${cls || ''}">${txt}</td>`;
+
+    function wrRunwayRows(L, bd) {
+      // bd = { r28:{ws,dir,hw,cw,rvr}, r10:{...} }
+      const rows = [];
+      function trio(st, fmt, clsMin, clsMax) {
+        if (!st) return wrCell('–') + wrCell('–') + wrCell('–');
+        return wrCell(fmt(st.min), clsMin) + wrCell(fmt(st.avg)) + wrCell(fmt(st.max), clsMax);
+      }
+      function row(label, key, fmt, fnMin, fnMax) {
+        let h = `<tr><td class="wr-l">${label}</td>`;
+        ['r28', 'r10'].forEach(r => {
+          const st = bd[r][key];
+          h += trio(st, fmt, st && fnMin ? fnMin(st.min) : '', st && fnMax ? fnMax(st.max) : '');
+        });
+        return h + '</tr>';
+      }
+      rows.push(row('Wind speed  kt', 'ws', wrNum, null, v => wrCls(v, L.wsRed, L.wsAmb)));
+      // direction row (circular)
+      let dr = '<tr><td class="wr-l">Wind dir  deg</td>';
+      ['r28', 'r10'].forEach(r => {
+        const d = bd[r].dir;
+        if (!d) dr += wrCell('–') + wrCell('–') + wrCell('–');
+        else dr += wrCell(wrDeg(d.lo)) + wrCell(d.span > 150 ? 'VRB' : wrDeg(d.mean)) + wrCell(wrDeg(d.hi));
+      });
+      rows.push(dr + '</tr>');
+      rows.push(row('Headwind  kt  (-ve = tail)', 'hw', wrSign, null, null));
+      rows.push(row('Crosswind  kt', 'cw', wrNum, null, v => wrCls(v, L.cwRed, L.cwAmb)));
+      rows.push(row('RVR  m', 'rvr', wrNum10, v => wrCls(v, L.rvrRed, L.rvrAmb, true), null));
+      rows.push(row('QNH  hPa', 'qnh', wrOne, null, null));
+      rows.push(row('Temperature  °C', 'temp', wrOne, null, null));
+      rows.push(row('Dew point  °C', 'dew', wrOne, null, null));
+      rows.push(row('Humidity  %', 'hum', wrNum, null, null));
+      return rows.join('');
+    }
+
+    // ── one 6-hour block ──
+    function wrBlockHTML(bk, L, runs, reports, phen, endMs) {
+      const to = bk.last ? endMs + 1 : bk.to;
+      const bd = {};
+      runs.forEach(r => {
+        bd['r' + r.rwy] = {
+          ws: wrBinStats(r.ws, bk.from, to), dir: wrDirStats(r.wd, bk.from, to),
+          hw: wrBinStats(r.hw, bk.from, to), cw: wrBinStats(r.cw, bk.from, to),
+          rvr: wrBinStats(r.rvr, bk.from, to),
+          qnh: wrBinStats(r.qnh, bk.from, to), temp: wrBinStats(r.temp, bk.from, to),
+          dew: wrBinStats(r.dew, bk.from, to), hum: wrBinStats(r.hum, bk.from, to)
+        };
+      });
+      const rep = reports.filter(r => r.ts >= bk.from && r.ts < to);
+      const vis = rep.map(r => r.vis).filter(v => v !== null);
+      const visMin = vis.length ? Math.min(...vis) : null, visMax = vis.length ? Math.max(...vis) : null;
+      const visAvg = vis.length ? vis.reduce((a, b) => a + b, 0) / vis.length : null;
+      let cb = null, anyRep = rep.length > 0;
+      rep.forEach(r => { if (r.cloud && (!cb || r.cloud.ft < cb.ft)) cb = { ...r.cloud, ts: r.ts }; });
+
+      const ph = phen.filter(p => p.to > bk.from && p.from < to).map(p => ({ code: p.code, from: Math.max(p.from, bk.from), to: Math.min(p.to, bk.to) }));
+
+      // severity
+      let sev = 0;
+      rep.forEach(r => { sev = Math.max(sev, r.sev); });
+      ['r28', 'r10'].forEach(k => {
+        const d = bd[k];
+        if (d.rvr) { if (d.rvr.min < L.rvrRed) sev = 2; else if (d.rvr.min < L.rvrAmb) sev = Math.max(sev, 1); }
+        if (d.ws)  { if (d.ws.max >= L.wsRed) sev = 2; else if (d.ws.max >= L.wsAmb) sev = Math.max(sev, 1); }
+        if (d.cw)  { if (d.cw.max >= L.cwRed) sev = 2; else if (d.cw.max >= L.cwAmb) sev = Math.max(sev, 1); }
+      });
+      const sevName = ['NORMAL', 'WATCH', 'POOR'][sev];
+
+      // graphs
+      const winMs = bk.to - bk.from;
+      const gapMs = Math.max(...runs.map(r => (r.bin || 120) * 1000), 120000) * 2.5;
+      const sel = (arr) => arr.filter(b => { const t = b.timestamp * 1000; return t >= bk.from && t < to && b.value != null && !isNaN(b.value); }).map(b => [b.timestamp * 1000, b.value]);
+      const r28 = runs.find(r => r.rwy === '28'), r10 = runs.find(r => r.rwy === '10');
+      const wsP28 = sel(r28.ws), wsP10 = sel(r10.ws), rvP28 = sel(r28.rvr), rvP10 = sel(r10.rvr);
+      const wsMaxAll = Math.max(0, ...wsP28.map(p => p[1]), ...wsP10.map(p => p[1]));
+      const wTop = Math.max(12, Math.ceil(wsMaxAll * 1.45 / 2) * 2);
+      // wind callout = highest reading of the two runways (MAX shown is the bin-average peak shown on the line)
+      let wCall = null;
+      ['r28', 'r10'].forEach(k => {
+        const d = bd[k].ws, runCol = k === 'r28' ? WR_C.r28 : WR_C.r10;
+        if (!d) return;
+        const arr = k === 'r28' ? wsP28 : wsP10;
+        let pk = null; arr.forEach(p => { if (!pk || p[1] > pk[1]) pk = p; });
+        if (pk && (!wCall || pk[1] > wCall.v)) wCall = { ms: pk[0], v: pk[1], color: runCol, text: `MAX ${Math.round(pk[1])} kt  ${wrHHMM(pk[0])}Z` };
+      });
+      const rvAll = rvP28.concat(rvP10);
+      const rvMax = Math.max(2150, ...rvAll.map(p => p[1]));
+      let rCall = null, rNote = null;
+      if (rvAll.length) {
+        let lo = rvAll[0]; rvAll.forEach(p => { if (p[1] < lo[1]) lo = p; });
+        if (lo[1] < 1900) rCall = { ms: lo[0], v: lo[1], color: lo[1] < L.rvrRed ? WR_C.red : WR_C.amb, text: `MIN ${Math.round(lo[1] / 10) * 10} m  ${wrHHMM(lo[0])}Z` };
+        else rNote = 'RVR 2000+ (no reduction)';
+      }
+      const gWind = wrGraph({
+        x0: bk.from, x1: bk.to, ymin: 0, ymax: wTop, gapMs,
+        yticks: [0, Math.round(wTop / 2), wTop],
+        bands: wTop > L.wsAmb ? [{ from: L.wsAmb, to: Math.min(L.wsRed, wTop), color: WR_C.amb, op: 0.10 }, { from: L.wsRed, to: wTop, color: WR_C.red, op: 0.10 }] : [],
+        series: [{ pts: wsP28, color: WR_C.r28, w: 1.15, fill: true }, { pts: wsP10, color: WR_C.r10, w: 0.95 }],
+        callout: wCall
+      });
+      const gRvr = wrGraph({
+        x0: bk.from, x1: bk.to, ymin: 0, ymax: rvMax, gapMs,
+        yticks: [0, L.rvrRed, 1000, 2000].filter((v, i, a) => a.indexOf(v) === i),
+        bands: [{ from: 0, to: L.rvrRed, color: WR_C.red, op: 0.13 }, { from: L.rvrRed, to: L.rvrAmb, color: WR_C.amb, op: 0.12 }],
+        series: [{ pts: rvP28, color: WR_C.r28, w: 1.15 }, { pts: rvP10, color: WR_C.r10, w: 0.95 }],
+        callout: rCall, note: rNote
+      });
+
+      // header + chips
+      const nM = rep.filter(r => r.kind !== 'SPECI').length, nS = rep.filter(r => r.kind === 'SPECI').length;
+      const chips = ph.length
+        ? ph.map(p => `<span class="wr-chip-wx" style="background:${wrWxColor(p.code)}">${p.code} ${wrHHMM(p.from)}-${wrHHMM(p.to)}</span>`).join('')
+        : `<span class="wr-nil">Nil significant weather</span>`;
+
+      // airfield
+      const visRow = `<tr><td class="wr-l">Visibility (METAR)  m</td>${
+        vis.length ? wrCell(wrNum10(visMin), wrCls(visMin, L.visRed, L.visAmb, true)) + wrCell(wrNum10(visAvg)) + wrCell(wrNum10(visMax))
+                   : wrCell('–') + wrCell('–') + wrCell('–')}</tr>`;
+      let cbCells;
+      if (!anyRep) cbCells = wrCell('–') + `<td class="wr-v wr-sub" colspan="2">no reports</td>`;
+      else if (!cb) cbCells = wrCell('NSC') + `<td class="wr-v wr-sub" colspan="2">no cloud reported</td>`;
+      else cbCells = wrCell(String(cb.ft), wrCls(cb.ft, L.cbRed, L.cbAmb, true)) + `<td class="wr-v wr-sub" colspan="2">${cb.type} @ ${wrHHMM(cb.ts)}Z</td>`;
+      const cbRow = `<tr><td class="wr-l">Lowest cloud base  ft</td>${cbCells}</tr>`;
+
+      const dayTag = (wrDay(bk.from) !== wrDay(bk.to - 1)) ? `${wrDay(bk.from)} → ${wrDay(bk.to - 1)}` : wrDay(bk.from);
+      return `
+      <div class="wr-block wr-sev${sev}">
+        <div class="wr-bhead">
+          <div class="wr-btime"><b>${wrHHMM(bk.from)}Z – ${wrHHMM(bk.to)}Z</b><small>IST ${wrISTHHMM(bk.from)} – ${wrISTHHMM(bk.to)} · ${dayTag}</small></div>
+          <span class="wr-sevchip">${sevName}</span>
+        </div>
+        <div class="wr-wxline"><span class="wr-wxlbl">WX</span><span class="wr-chips">${chips}</span><span class="wr-cnt">METAR ${nM} · SPECI ${nS}</span></div>
+        <div class="wr-lgd"><i style="background:${WR_C.r28}"></i>RWY 28 <i style="background:${WR_C.r10}"></i>RWY 10</div>
+        <div class="wr-graphs">
+          <div class="wr-g"><div class="wr-gt">WIND SPEED (kt)</div>${gWind}</div>
+          <div class="wr-g"><div class="wr-gt">RVR (m)</div>${gRvr}</div>
+        </div>
+        <table class="wr-t">
+          <thead>
+            <tr><th class="wr-th0">RUNWAY DATA</th><th colspan="3" class="wr-th28">RWY 28</th><th colspan="3" class="wr-th10">RWY 10</th></tr>
+            <tr class="wr-sh"><th></th><th>MIN</th><th>AVG</th><th>MAX</th><th>MIN</th><th>AVG</th><th>MAX</th></tr>
+          </thead>
+          <tbody>${wrRunwayRows(L, bd)}</tbody>
+        </table>
+        <table class="wr-t wr-t2">
+          <thead><tr><th class="wr-thA">AIRFIELD DATA</th><th>MIN</th><th>AVG</th><th>MAX</th></tr></thead>
+          <tbody>${visRow}${cbRow}</tbody>
+        </table>
+      </div>`;
+    }
+
+    // ── the whole report ──
     async function buildAndInject24hSummary() {
       const container = document.getElementById('snap24hContainer');
       if (!container) return;
       try {
-        const entries = await fetch24hRegisterEntries();
-        const common = getCommonAirfield24h(entries);
-        const [d28, d10] = await Promise.all([
-          build24hRunwayData('28', entries),
-          build24hRunwayData('10', entries)
-        ]);
+        const nowMs = Date.now();
+        const BLK = WR_BLOCK_HOURS * 3600000;
+        const endMs = WR_END_AT_BOUNDARY ? Math.floor(nowMs / BLK) * BLK : nowMs;
+        const startMs = endMs - WR_BLOCK_COUNT * BLK;
+        const hoursBack = Math.max(WR_BLOCK_COUNT * WR_BLOCK_HOURS, Math.ceil((nowMs - startMs) / 3600000));
 
-        container.innerHTML = `
-          <div class="snap-24h-heading">24H Summary (RWY 28 / RWY 10)</div>
-          <div class="snap-24h-grid">
-            ${buildRunway24hTable(d28, 'rwy28')}
-            ${buildRunway24hTable(d10, 'rwy10')}
+        const [run28, run10, regRaw] = await Promise.all([
+          wrFetchRunway('28', hoursBack),
+          wrFetchRunway('10', hoursBack),
+          fetchMetarHistoryFromRegister(hoursBack).catch(() => [])
+        ]);
+        const runs = [run28, run10];
+        const L = wrLimits();
+
+        // register → ascending list of reports inside the window
+        const reports = (regRaw || []).map(e => {
+          const ts = registerEntryEpochMs(e);
+          const vis = wrVisMeters(e.visibility);
+          const codes = wrWxCodes(e.weather);
+          let sev = 0;
+          if (vis !== null) { if (vis < L.visRed) sev = 2; else if (vis < 5000) sev = 1; }
+          codes.forEach(c => { sev = Math.max(sev, wrWxSev(c)); });
+          return { ts, e, vis, codes, sev, kind: String(e.selectedOption || 'METAR').toUpperCase(), cloud: wrCloudOf(e) };
+        }).filter(r => r.ts !== null && r.ts >= startMs && r.ts <= endMs).sort((a, b) => a.ts - b.ts);
+
+        const phen = wrPhenomena(reports, endMs);
+
+        // blocks
+        const blocks = [];
+        for (let i = 0; i < WR_BLOCK_COUNT; i++) {
+          blocks.push({ from: startMs + i * BLK, to: startMs + (i + 1) * BLK, last: i === WR_BLOCK_COUNT - 1 });
+        }
+
+        // condition strip (10-min steps): latest METAR/SPECI state + RVR below limit
+        const rvrMin = new Map();
+        [run28, run10].forEach(r => r.rvr.forEach(b => {
+          if (b.value == null || isNaN(b.value)) return;
+          const k = Math.floor(b.timestamp * 1000 / 600000);
+          if (!rvrMin.has(k) || b.value < rvrMin.get(k)) rvrMin.set(k, b.value);
+        }));
+        const condRuns = []; let ri = -1;
+        for (let t = startMs; t < endMs; t += 600000) {
+          while (ri + 1 < reports.length && reports[ri + 1].ts <= t) ri++;
+          let sev = ri >= 0 ? reports[ri].sev : 0;
+          const rv = rvrMin.get(Math.floor(t / 600000));
+          if (rv !== undefined) { if (rv < L.rvrRed) sev = 2; else if (rv < L.rvrAmb) sev = Math.max(sev, 1); }
+          const last = condRuns[condRuns.length - 1];
+          const t2 = Math.min(t + 600000, endMs);
+          if (last && last.sev === sev) last.to = t2; else condRuns.push({ from: t, to: t2, sev });
+        }
+
+        // footnote text (bin size + whether MIN/MAX are in-bin extremes)
+        const binUsed = Math.max(...runs.map(r => r.bin || 0));
+        const binTxt = binUsed ? (binUsed >= 60 ? (binUsed / 60) + '-min' : binUsed + '-sec') : '—';
+        const hasRange = runs.some(r => [r.ws, r.rvr, r.qnh, r.temp, r.dew, r.hum].some(a => a.some(b => b.min != null && b.max != null)));
+        const noBackend = runs.every(r => !r.bin);
+
+        const windNotes = noBackend ? '' : `
+              <li><b>Wind, headwind, crosswind, RVR, QNH, temperature, dew point, humidity:</b> backend readings grouped in <b>${binTxt} bins</b>, from each runway's own sensors.
+                  AVG = mean of all bins in the block. MIN / MAX = ${hasRange ? 'lowest / highest reading recorded inside the bins' : 'lowest / highest <b>' + binTxt + ' average</b> (very short peaks inside a bin are smoothed out)'}.
+                  The graph line and its MAX / MIN label use the ${binTxt} values.</li>
+              <li><b>Headwind / crosswind</b> are calculated from each runway's own ${binTxt} wind speed and direction.
+                  Headwind: + head, − tail. Crosswind: magnitude only. Wind dir: circular mean, “VRB” when it varies by more than 150°.</li>
+        `;
+
+        const gen = nowMs;
+        const html = `
+        <div class="wr-paper">
+          <div class="wr-head">
+            <div>
+              <div class="wr-title">VOGA WEATHER REPORT</div>
+              <div class="wr-sub">24-hour summary · ${WR_BLOCK_COUNT} blocks of ${WR_BLOCK_HOURS} hours</div>
+            </div>
+            <div class="wr-headr">
+              <div class="wr-gen">Generated: ${wrDayYear(gen)}  ${wrHHMM(gen)}Z  <span>(IST ${wrISTHHMM(gen)})</span></div>
+              <div class="wr-per">Period: ${wrDay(startMs)} ${wrHHMM(startMs)}Z  →  ${wrDay(endMs)} ${wrHHMM(endMs)}Z</div>
+            </div>
           </div>
-          <div class="snap-24h-heading">Airfield Common — 24H</div>
-          <div class="snap-24h-grid">
-            ${buildCommonAirfield24hTable(common)}
+          <div class="wr-overview">
+            ${wrOverviewSVG(startMs, endMs, phen, condRuns, blocks)}
+            <div class="wr-legend">
+              <span><i style="background:${WR_C.grn}"></i>Normal</span>
+              <span><i style="background:${WR_C.amb}"></i>Watch: vis &lt; 5 km / RA, BR etc. / wind ≥ ${Math.round(L.wsAmb)} kt / RVR &lt; ${L.rvrAmb} m / X-wind ≥ ${Math.round(L.cwAmb)} kt</span>
+              <span><i style="background:${WR_C.red}"></i>Poor: TS / FG / vis &lt; ${L.visRed} m / RVR &lt; ${L.rvrRed} m / wind ≥ ${L.wsRed} kt / X-wind ≥ ${L.cwRed} kt</span>
+            </div>
           </div>
-          <div class="snap-24h-note">RVR / MOR / Temp / Humidity rows are avg-based (approx).</div>`;
+          <div class="wr-grid">
+            ${blocks.map(b => wrBlockHTML(b, L, runs, reports, phen, endMs)).join('')}
+          </div>
+          <div class="wr-foot">
+            <div class="wr-foot-h">HOW THESE VALUES ARE OBTAINED</div>
+            ${noBackend ? '<div class="wr-foot-warn">⚠ Backend history not reachable — wind / RVR values could not be loaded.</div>' : ''}
+            <ul>
+              ${windNotes}
+              <li><b>Visibility, cloud base and weather (TS, FG, RA, BR…):</b> from METAR / SPECI reports (about every 30 min + SPECI), not continuous.
+                  Weather start / end times are the report times, so can be off by up to 30 min. Cloud base = lowest layer reported (FEW/SCT/BKN/OVC/VV).</li>
+              <li>Limits used for colours come from Settings: wind ${L.wsRed} kt · crosswind ${L.cwRed} kt · RVR ${L.rvrRed} m.</li>
+            </ul>
+          </div>
+        </div>`;
+        container.innerHTML = html;
       } catch (err) {
-        console.error('24h summary build failed:', err);
-        container.innerHTML = `<div class="snap-24h-note">⚠ Could not load 24H summary (backend/register unreachable).</div>`;
+        console.error('Weather report build failed:', err);
+        container.innerHTML = `<div class="snap-24h-note">⚠ Could not build the weather report (${escapeHtml(err.message || err)}). Check network/backend and try again.</div>`;
       }
     }
 
@@ -3850,7 +4144,7 @@
       const metar = document.getElementById('metar-display')?.textContent?.trim() || '—';
       const status = document.getElementById('status')?.textContent || '—';
 
-      return `
+      const currentPanels = !WR_SHOW_CURRENT_PANELS ? '' : `
         <div class="snap-station-bar">
           <div class="snap-station-item"><span class="snap-station-lbl">Station</span><span class="snap-station-val">VOGA / MOPA — Goa</span></div>
           <div class="snap-station-item"><span class="snap-station-lbl">Time (UTC)</span><span class="snap-station-val">${utcStr}</span></div>
@@ -3863,9 +4157,11 @@
         <div class="snap-metar-box">
           <div class="snap-metar-hdr">📡 LATEST METAR / SPECI</div>
           <div class="snap-metar-body">${escapeHtml(metar)}</div>
-        </div>
+        </div>`;
+
+      return `${currentPanels}
         <div class="snap-24h-section" id="snap24hContainer">
-          <div class="snap-24h-loading">Loading 24H summary…</div>
+          <div class="snap-24h-loading">Loading weather report…</div>
         </div>`;
     }
 
@@ -3912,10 +4208,11 @@
         const wrapper = document.createElement('div');
         wrapper.id = 'pdf-export-wrapper';
         // A4 usable width at 96dpi-equivalent px for good canvas resolution
-        const A4_W_MM = 210, MARGIN_MM = 12;
+        const A4_W_MM = 210, MARGIN_MM = 5;   // thin page margin (report fills the page)
         const usableWidthMM = A4_W_MM - MARGIN_MM * 2;
         const PX_PER_MM = 3.78; // ~96dpi
-        const targetWidthPx = Math.round(usableWidthMM * PX_PER_MM);
+        // Weather report is laid out at 1000px wide, then scaled onto the A4 width (wide enough that the page is width-limited => thin side margins)
+        const targetWidthPx = 1000;
 
         wrapper.style.position = 'fixed';
         wrapper.style.left = '-99999px';
@@ -3923,7 +4220,7 @@
         wrapper.style.width = targetWidthPx + 'px';
         wrapper.style.background = '#fff';
         wrapper.style.color = '#000';
-        wrapper.style.padding = '6px 12px';
+        wrapper.style.padding = '0';
         wrapper.className = 'pdf-export-print-styles';
         wrapper.appendChild(clone);
         document.body.appendChild(wrapper);
@@ -3932,7 +4229,9 @@
         // print-style stylesheet scoped to this wrapper.
         const styleTag = document.createElement('style');
         styleTag.textContent = `
-          #pdf-export-wrapper, #pdf-export-wrapper * { color:#000; }
+          #pdf-export-wrapper, #pdf-export-wrapper *:not(.wr-paper):not(.wr-paper *) { color:#000; }
+          #pdf-export-wrapper .snap-24h-section { margin:0 !important; }
+          #pdf-export-wrapper #snapshotContent { padding:0 !important; overflow:visible !important; max-height:none !important; }
           #pdf-export-wrapper #snap-actions, #pdf-export-wrapper .snap-close { display:none !important; }
           #pdf-export-wrapper .snap-panel-header.rwy28 { background:#1565c0 !important; color:#fff !important; }
           #pdf-export-wrapper .snap-panel-header.rwy10 { background:#00695c !important; color:#fff !important; }
@@ -3980,26 +4279,35 @@
         const pageHeightPx = Math.floor(usableHeightMM * (canvas.width / usableWidthMM));
         const totalPages = Math.ceil(canvas.height / pageHeightPx);
 
-        for (let page = 0; page < totalPages; page++) {
-          if (page > 0) doc.addPage();
+        if (canvas.height <= pageHeightPx * 1.3) {
+          // Weather report: keep everything on ONE A4 page (scale down a little if needed)
+          let drawW = usableWidthMM;
+          let drawH = canvas.height * (usableWidthMM / canvas.width);
+          if (drawH > usableHeightMM) { const k = usableHeightMM / drawH; drawW *= k; drawH = usableHeightMM; }
+          doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG',
+            MARGIN_MM + (usableWidthMM - drawW) / 2, MARGIN_MM, drawW, drawH);
+        } else {
+          for (let page = 0; page < totalPages; page++) {
+            if (page > 0) doc.addPage();
 
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          const sliceHeightPx = Math.min(pageHeightPx, canvas.height - page * pageHeightPx);
-          sliceCanvas.height = sliceHeightPx;
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            const sliceHeightPx = Math.min(pageHeightPx, canvas.height - page * pageHeightPx);
+            sliceCanvas.height = sliceHeightPx;
 
-          const ctx = sliceCanvas.getContext('2d');
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-          ctx.drawImage(
-            canvas,
-            0, page * pageHeightPx, canvas.width, sliceHeightPx,
-            0, 0, canvas.width, sliceHeightPx
-          );
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+            ctx.drawImage(
+              canvas,
+              0, page * pageHeightPx, canvas.width, sliceHeightPx,
+              0, 0, canvas.width, sliceHeightPx
+            );
 
-          const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
-          const sliceHeightMM = sliceHeightPx * (usableWidthMM / canvas.width);
-          doc.addImage(imgData, 'JPEG', MARGIN_MM, MARGIN_MM, usableWidthMM, sliceHeightMM);
+            const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+            const sliceHeightMM = sliceHeightPx * (usableWidthMM / canvas.width);
+            doc.addImage(imgData, 'JPEG', MARGIN_MM, MARGIN_MM, usableWidthMM, sliceHeightMM);
+          }
         }
 
         // ── Footer on last page ──────────────────────────────────────
@@ -4008,11 +4316,11 @@
         doc.setFontSize(7);
         doc.setTextColor(150, 150, 150);
         doc.text(
-          'VOGA/MOPA DCWIS · Generated ' + utcStr,
-          MARGIN_MM, A4_H_MM - 6
+          'VOGA WEATHER REPORT · Generated ' + utcStr,
+          MARGIN_MM, A4_H_MM - 2
         );
 
-        const fname = `VOGA_Snapshot_${now.toISOString().slice(0,16).replace('T','_').replace(':','')}.pdf`;
+        const fname = `VOGA_Weather_Report_${now.toISOString().slice(0,16).replace('T','_').replace(':','')}.pdf`;
         doc.save(fname);
 
       } catch (err) {
