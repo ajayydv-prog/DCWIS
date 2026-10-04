@@ -1969,7 +1969,7 @@ body:not(.dark) #settingsBox { background:#ffffff; border-color:#b0c4de; }
 .wr-t tbody tr:nth-child(odd) td { background:#f6f8fb; }
 .wr-t td.wr-l { text-align:left; padding-left:6px; font-size:9.5px; color:#1d2433; }
 .wr-t td.wr-v { font-weight:800; font-size:11.5px; color:#1d2433; }
-.wr-t td.wr-v.wr-sub { font-weight:600; font-size:9.5px; color:#7c869a; }
+.wr-t td.wr-v.wr-subtxt { font-weight:600; font-size:9.5px; color:#7c869a; }
 .wr-t td.wr-red { color:#d64045; }
 .wr-t td.wr-amb { color:#d98a00; }
 /* strong divider between RWY 28 and RWY 10 columns (runway table only) */
@@ -1992,3 +1992,29 @@ body:not(.dark) #settingsBox { background:#ffffff; border-color:#b0c4de; }
   #snapshotContent { padding:0 !important; }
   .snap-24h-section { margin-top:0 !important; }
 }
+
+/* report period picker (screen only) */
+#snap-period-bar {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:8px 20px; flex-shrink:0;
+  background:rgba(0,0,0,0.18); border-bottom:1px solid rgba(255,255,255,0.08);
+  font-family:'Inter',sans-serif; font-size:11px; color:#a9bdd6;
+}
+.wr-pb-lbl { font-weight:700; letter-spacing:.4px; text-transform:uppercase; font-size:10px; color:#7aaccf; }
+.wr-pb-btn {
+  font-family:inherit; font-size:11px; font-weight:700; padding:5px 12px; border-radius:7px; cursor:pointer;
+  background:transparent; color:#cfe0f5; border:1px solid rgba(255,255,255,0.22);
+}
+.wr-pb-btn.active { background:#1f6fb2; border-color:#1f6fb2; color:#fff; }
+.wr-pb-date { display:flex; align-items:center; gap:6px; }
+.wr-pb-date input {
+  font-family:inherit; font-size:11px; padding:4px 6px; border-radius:6px;
+  background:#0d1f35; color:#e8f1fc; border:1px solid rgba(255,255,255,0.25); color-scheme:dark;
+}
+.wr-pb-hint { font-size:10px; color:#7f93ad; }
+.wr-pb-hint.wr-hint-warn { color:#ffb454; }
+.wr-future { border-color:#c8cfdb; }
+.wr-future .wr-bhead { background:#9aa5b8; }
+.wr-future .wr-sevchip { color:#7c869a; }
+.wr-futurebody { padding:40px 12px; text-align:center; color:#7c869a; font-size:11px; }
+@media print { #snap-period-bar { display:none !important; } }

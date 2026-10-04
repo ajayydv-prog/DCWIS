@@ -3541,7 +3541,13 @@
     const WR_BLOCK_COUNT = 4;                       // 4 × 6h = 24h
     const WR_BIN_CHAIN   = [120, 300, 600, 1800];   // seconds; first entry is the preferred bin
     const WR_END_AT_BOUNDARY = false;               // false: window ends "now"   |   true: ends at the last 00/06/12/18Z boundary
+    const WR_MIN_BIN_BY_AGE = [[48, 120], [96, 300], [Infinity, 600]];  // [hours back up to, finest bin (s)] — older range => coarser bin so the load stays quick
     const WR_SHOW_CURRENT_PANELS = false;           // true: also print the live RWY panels + latest METAR above the report
+
+    let wrPeriod = null;      // null = last 24 h (rolling) | { y, m, d } = that UTC day, 0000–2400Z
+    let wrReq = 0;            // request counter (ignore stale async results)
+    let wrUiBound = false;
+    let wrFileTag = '';       // used in the PDF file name
 
     const WR_C = { r28:'#1f6fb2', r10:'#7b4fb0', red:'#d64045', amb:'#e59a00', grn:'#2e9e5b',
                    navy:'#0b2545', grey:'#7c869a', ink:'#1d2433', grid:'#e6eaf1', axis:'#c8cfdb', teal:'#00796b' };
@@ -3663,7 +3669,9 @@
 
     // ── fetch one runway (finest bin that returns data) ──
     async function wrFetchRunway(rwy, hours) {
-      for (const bin of WR_BIN_CHAIN) {
+      const minBin = (WR_MIN_BIN_BY_AGE.find(a => hours <= a[0]) || [0, 120])[1];
+      const chain = WR_BIN_CHAIN.filter(b => b >= minBin);
+      for (const bin of (chain.length ? chain : [WR_BIN_CHAIN[WR_BIN_CHAIN.length - 1]])) {
         const [ws, wd, rvr, qnh, temp, dew, hum] = await Promise.all([
           fetchHistoryFromBackend(rwy, 'windSpeed', hours, bin),
           fetchHistoryFromBackend(rwy, 'windDirection', hours, bin),
@@ -3766,16 +3774,16 @@
     }
 
     // ── 24h overview strip (weather ribbon + condition bar + block boundaries) ──
-    function wrOverviewSVG(startMs, endMs, phen, condRuns, blocks) {
+    function wrOverviewSVG(startMs, axisEnd, phen, condRuns, blocks) {
       const W = 1000, L = 68, R = 6, pw = W - L - R;
-      const X = ms => L + (ms - startMs) / (endMs - startMs) * pw;
+      const X = ms => L + (ms - startMs) / (axisEnd - startMs) * pw;
       const F = 'font-family="Inter,Arial,sans-serif"';
       let s = `<svg viewBox="0 0 ${W} 74" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block">`;
       s += `<text x="0" y="14" font-size="10" font-weight="700" fill="${WR_C.grey}" ${F}>WEATHER</text>`;
       s += `<text x="0" y="40" font-size="10" font-weight="700" fill="${WR_C.grey}" ${F}>CONDITION</text>`;
       s += `<rect x="${L}" y="3" width="${pw}" height="16" fill="#eef1f5"/>`;
       phen.forEach(p => {
-        const x1 = X(Math.max(p.from, startMs)), x2 = X(Math.min(p.to, endMs));
+        const x1 = X(Math.max(p.from, startMs)), x2 = X(Math.min(p.to, axisEnd));
         if (x2 <= x1) return;
         s += `<rect x="${x1.toFixed(1)}" y="3" width="${Math.max(1, x2 - x1).toFixed(1)}" height="16" fill="${wrWxColor(p.code)}"/>`;
         if (x2 - x1 > p.code.length * 7 + 6) s += `<text x="${((x1 + x2) / 2).toFixed(1)}" y="14.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff" ${F}>${p.code}</text>`;
@@ -3791,7 +3799,7 @@
         s += `<line x1="${x}" y1="45" x2="${x}" y2="52" stroke="${WR_C.ink}" stroke-width="1"/>`;
         s += `<text x="${((X(b.from) + X(b.to)) / 2).toFixed(1)}" y="64" text-anchor="middle" font-size="10.5" font-weight="700" fill="${WR_C.ink}" ${F}>${wrHHMM(b.from)}Z – ${wrHHMM(b.to)}Z</text>`;
       });
-      s += `<line x1="${X(endMs).toFixed(1)}" y1="45" x2="${X(endMs).toFixed(1)}" y2="52" stroke="${WR_C.ink}" stroke-width="1"/>`;
+      s += `<line x1="${X(axisEnd).toFixed(1)}" y1="45" x2="${X(axisEnd).toFixed(1)}" y2="52" stroke="${WR_C.ink}" stroke-width="1"/>`;
       return s + '</svg>';
     }
 
@@ -3844,7 +3852,10 @@
 
     // ── one 6-hour block ──
     function wrBlockHTML(bk, L, runs, reports, phen, endMs) {
-      const to = bk.last ? endMs + 1 : bk.to;
+      if (bk.future) {
+        return `<div class="wr-block wr-future"><div class="wr-bhead"><div class="wr-btime"><b>${wrHHMM(bk.from)}Z – ${wrHHMM(bk.to)}Z</b><small>IST ${wrISTHHMM(bk.from)} – ${wrISTHHMM(bk.to)}</small></div><span class="wr-sevchip">UPCOMING</span></div><div class="wr-futurebody">This block has not started yet.</div></div>`;
+      }
+      const to = bk.toEff;
       const bd = {};
       runs.forEach(r => {
         bd['r' + r.rwy] = {
@@ -3926,16 +3937,16 @@
         vis.length ? wrCell(wrNum10(visMin), wrCls(visMin, L.visRed, L.visAmb, true)) + wrCell(wrNum10(visAvg)) + wrCell(wrNum10(visMax))
                    : wrCell('–') + wrCell('–') + wrCell('–')}</tr>`;
       let cbCells;
-      if (!anyRep) cbCells = wrCell('–') + `<td class="wr-v wr-sub" colspan="2">no reports</td>`;
-      else if (!cb) cbCells = wrCell('NSC') + `<td class="wr-v wr-sub" colspan="2">no cloud reported</td>`;
-      else cbCells = wrCell(String(cb.ft), wrCls(cb.ft, L.cbRed, L.cbAmb, true)) + `<td class="wr-v wr-sub" colspan="2">${cb.type} @ ${wrHHMM(cb.ts)}Z</td>`;
+      if (!anyRep) cbCells = wrCell('–') + `<td class="wr-v wr-subtxt" colspan="2">no reports</td>`;
+      else if (!cb) cbCells = wrCell('NSC') + `<td class="wr-v wr-subtxt" colspan="2">no cloud reported</td>`;
+      else cbCells = wrCell(String(cb.ft), wrCls(cb.ft, L.cbRed, L.cbAmb, true)) + `<td class="wr-v wr-subtxt" colspan="2">${cb.type} @ ${wrHHMM(cb.ts)}Z</td>`;
       const cbRow = `<tr><td class="wr-l">Lowest cloud base  ft</td>${cbCells}</tr>`;
 
       const dayTag = (wrDay(bk.from) !== wrDay(bk.to - 1)) ? `${wrDay(bk.from)} → ${wrDay(bk.to - 1)}` : wrDay(bk.from);
       return `
       <div class="wr-block wr-sev${sev}">
         <div class="wr-bhead">
-          <div class="wr-btime"><b>${wrHHMM(bk.from)}Z – ${wrHHMM(bk.to)}Z</b><small>IST ${wrISTHHMM(bk.from)} – ${wrISTHHMM(bk.to)} · ${dayTag}</small></div>
+          <div class="wr-btime"><b>${wrHHMM(bk.from)}Z – ${wrHHMM(bk.to)}Z</b><small>IST ${wrISTHHMM(bk.from)} – ${wrISTHHMM(bk.to)} · ${dayTag}${bk.ongoing ? ' · ongoing till ' + wrHHMM(endMs) + 'Z' : ''}</small></div>
           <span class="wr-sevchip">${sevName}</span>
         </div>
         <div class="wr-wxline"><span class="wr-wxlbl">WX</span><span class="wr-chips">${chips}</span><span class="wr-cnt">METAR ${nM} · SPECI ${nS}</span></div>
@@ -3962,18 +3973,32 @@
     async function buildAndInject24hSummary() {
       const container = document.getElementById('snap24hContainer');
       if (!container) return;
+      const myReq = ++wrReq;
       try {
         const nowMs = Date.now();
         const BLK = WR_BLOCK_HOURS * 3600000;
-        const endMs = WR_END_AT_BOUNDARY ? Math.floor(nowMs / BLK) * BLK : nowMs;
-        const startMs = endMs - WR_BLOCK_COUNT * BLK;
+        const DAY = WR_BLOCK_COUNT * BLK;
+        let mode, startMs, endMs, axisEnd;
+        if (wrPeriod) {                       // custom UTC day: 0000–2400Z (today = up to "now")
+          mode = 'day';
+          startMs = Date.UTC(wrPeriod.y, wrPeriod.m - 1, wrPeriod.d);
+          axisEnd = startMs + DAY;
+          endMs = Math.min(axisEnd, nowMs);
+        } else {                              // default: last 24 h
+          mode = 'rolling';
+          endMs = WR_END_AT_BOUNDARY ? Math.floor(nowMs / BLK) * BLK : nowMs;
+          startMs = endMs - DAY;
+          axisEnd = endMs;
+        }
         const hoursBack = Math.max(WR_BLOCK_COUNT * WR_BLOCK_HOURS, Math.ceil((nowMs - startMs) / 3600000));
+        wrFileTag = mode === 'day' ? (new Date(startMs).toISOString().slice(0, 10) + '_UTCday') : '';
 
         const [run28, run10, regRaw] = await Promise.all([
           wrFetchRunway('28', hoursBack),
           wrFetchRunway('10', hoursBack),
           fetchMetarHistoryFromRegister(hoursBack).catch(() => [])
         ]);
+        if (myReq !== wrReq) return;          // a newer request was started meanwhile
         const runs = [run28, run10];
         const L = wrLimits();
 
@@ -3986,14 +4011,19 @@
           if (vis !== null) { if (vis < L.visRed) sev = 2; else if (vis < L.visAmb) sev = 1; }
           codes.forEach(c => { sev = Math.max(sev, wrWxSev(c)); });
           return { ts, e, vis, codes, sev, kind: String(e.selectedOption || 'METAR').toUpperCase(), cloud: wrCloudOf(e) };
-        }).filter(r => r.ts !== null && r.ts >= startMs && r.ts <= endMs).sort((a, b) => a.ts - b.ts);
+        }).filter(r => r.ts !== null && r.ts >= startMs && r.ts < (endMs >= axisEnd ? axisEnd : endMs + 1)).sort((a, b) => a.ts - b.ts);
 
         const phen = wrPhenomena(reports, endMs);
 
         // blocks
         const blocks = [];
         for (let i = 0; i < WR_BLOCK_COUNT; i++) {
-          blocks.push({ from: startMs + i * BLK, to: startMs + (i + 1) * BLK, last: i === WR_BLOCK_COUNT - 1 });
+          const from = startMs + i * BLK, to = from + BLK;
+          let toEff;
+          if (mode === 'rolling') toEff = (i === WR_BLOCK_COUNT - 1) ? endMs + 1 : to;
+          else toEff = (endMs >= axisEnd) ? to : Math.min(to, endMs + 1);
+          blocks.push({ from, to, toEff, future: mode === 'day' && from > endMs,
+                        ongoing: mode === 'day' && from <= endMs && to > endMs });
         }
 
         // condition strip (10-min steps): latest METAR/SPECI state + RVR below limit
@@ -4021,7 +4051,7 @@
         const noBackend = runs.every(r => !r.bin);
 
         const windNotes = noBackend ? '' : `
-              <li><b>Wind, headwind, crosswind, RVR, QNH, temperature, dew point, humidity:</b> backend readings grouped in <b>${binTxt} bins</b>, from each runway's own sensors.
+              <li><b>Wind, headwind, crosswind, RVR, QNH, temperature, dew point, humidity:</b> backend readings grouped in <b>${binTxt} bins</b>${binUsed > WR_BIN_CHAIN[0] ? ' (a coarser bin is used when the period is older or finer data is not available)' : ''}, from each runway's own sensors.
                   AVG = mean of all bins in the block. MIN / MAX = ${hasRange ? 'lowest / highest reading recorded inside the bins' : 'lowest / highest <b>' + binTxt + ' average</b> (very short peaks inside a bin are smoothed out)'}.
                   The graph line and its MAX / MIN label use the ${binTxt} values.</li>
               <li><b>Headwind / crosswind</b> are calculated from each runway's own ${binTxt} wind speed and direction.
@@ -4034,15 +4064,15 @@
           <div class="wr-head">
             <div>
               <div class="wr-title">VOGA WEATHER REPORT</div>
-              <div class="wr-sub">24-hour summary · ${WR_BLOCK_COUNT} blocks of ${WR_BLOCK_HOURS} hours</div>
+              <div class="wr-sub">${mode === 'day' ? 'UTC day ' + wrDayYear(startMs) + ' (0000Z – 2400Z)' : '24-hour summary · last 24 h'} · ${WR_BLOCK_COUNT} blocks of ${WR_BLOCK_HOURS} hours</div>
             </div>
             <div class="wr-headr">
               <div class="wr-gen">Generated: ${wrDayYear(gen)}  ${wrHHMM(gen)}Z  <span>(IST ${wrISTHHMM(gen)})</span></div>
-              <div class="wr-per">Period: ${wrDay(startMs)} ${wrHHMM(startMs)}Z  →  ${wrDay(endMs)} ${wrHHMM(endMs)}Z</div>
+              <div class="wr-per">Period: ${wrDay(startMs)} ${wrHHMM(startMs)}Z  →  ${wrDay(axisEnd)} ${mode === 'day' ? '0000' : wrHHMM(axisEnd)}Z${mode === 'day' && endMs < axisEnd ? '  (today: data up to ' + wrHHMM(endMs) + 'Z)' : ''}</div>
             </div>
           </div>
           <div class="wr-overview">
-            ${wrOverviewSVG(startMs, endMs, phen, condRuns, blocks)}
+            ${wrOverviewSVG(startMs, axisEnd, phen, condRuns, blocks)}
             <div class="wr-legend">
               <span><i style="background:${WR_C.grn}"></i>Normal: vis ≥ ${L.visAmb} m · BR / HZ / FU</span>
               <span><i style="background:${WR_C.amb}"></i>Watch: vis &lt; ${L.visAmb} m / RA, DZ etc. / wind ≥ ${Math.round(L.wsAmb)} kt / RVR &lt; ${L.rvrAmb} m / X-wind ≥ ${Math.round(L.cwAmb)} kt</span>
@@ -4068,6 +4098,52 @@
         console.error('Weather report build failed:', err);
         container.innerHTML = `<div class="snap-24h-note">⚠ Could not build the weather report (${escapeHtml(err.message || err)}). Check network/backend and try again.</div>`;
       }
+    }
+
+    // ── report period picker (Last 24 h  |  a chosen UTC day 0000–2400Z) ──
+    function wrReload() {
+      const c = document.getElementById('snap24hContainer');
+      if (c) c.innerHTML = '<div class="snap-24h-loading">Loading weather report…</div>';
+      buildAndInject24hSummary();
+    }
+    function wrInitPeriodUI() {
+      const inp = document.getElementById('wrDate'), lastBtn = document.getElementById('wrBtnLast'), hint = document.getElementById('wrPeriodHint');
+      if (!inp || !lastBtn) return;
+      const DAYMS = 86400000, n = new Date();
+      const today = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+      const fmt = ms => { const d = new Date(ms); return d.getUTCFullYear() + '-' + wrP2(d.getUTCMonth() + 1) + '-' + wrP2(d.getUTCDate()); };
+      inp.max = fmt(today);
+      inp.min = fmt(today - 6 * DAYMS);          // backend keeps 7 days; 6 days back is always a full day
+      inp.value = '';
+      wrPeriod = null;
+      lastBtn.classList.add('active');
+      hint.textContent = 'Date = UTC day (0000Z–2400Z). Backend keeps 7 days.';
+      hint.classList.remove('wr-hint-warn');
+      if (wrUiBound) return;
+      wrUiBound = true;
+      inp.addEventListener('change', () => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(inp.value);
+        if (!m) return;
+        const ms = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+        const t0 = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+        if (ms > t0 || ms < t0 - 6 * DAYMS) {
+          hint.textContent = '⚠ Pick a date within the last 7 days (UTC).';
+          hint.classList.add('wr-hint-warn');
+          return;
+        }
+        hint.textContent = 'Date = UTC day (0000Z–2400Z). Backend keeps 7 days.';
+        hint.classList.remove('wr-hint-warn');
+        wrPeriod = { y: +m[1], m: +m[2], d: +m[3] };
+        lastBtn.classList.remove('active');
+        wrReload();
+      });
+      lastBtn.addEventListener('click', () => {
+        wrPeriod = null; inp.value = '';
+        lastBtn.classList.add('active');
+        hint.textContent = 'Date = UTC day (0000Z–2400Z). Backend keeps 7 days.';
+        hint.classList.remove('wr-hint-warn');
+        wrReload();
+      });
     }
 
     function buildSnapshotHTML() {
@@ -4167,6 +4243,7 @@
     }
 
     window.openSnapshot = function() {
+      wrInitPeriodUI();   // resets to "Last 24 h"
       document.getElementById('snapshotContent').innerHTML = buildSnapshotHTML();
       document.getElementById('snapshotModal').classList.add('active');
       buildAndInject24hSummary(); // async, fills in #snap24hContainer when ready
@@ -4321,7 +4398,7 @@
           MARGIN_MM, A4_H_MM - 2
         );
 
-        const fname = `VOGA_Weather_Report_${now.toISOString().slice(0,16).replace('T','_').replace(':','')}.pdf`;
+        const fname = `VOGA_Weather_Report_${wrFileTag || now.toISOString().slice(0,16).replace('T','_').replace(':','')}.pdf`;
         doc.save(fname);
 
       } catch (err) {
