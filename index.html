@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2/dist/chartjs-plugin-zoom.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=20261003-wr">
+  <link rel="stylesheet" href="style.css?v=20261004-wr2">
 
   <!-- PWA: installable app support -->
   <link rel="manifest" href="manifest.json">
@@ -217,6 +217,12 @@
         </div>
         <button class="snap-close" onclick="closeSnapshot()">&times;</button>
       </div>
+      <div id="snap-period-bar">
+        <span class="wr-pb-lbl">Report period</span>
+        <button type="button" id="wrBtnLast" class="wr-pb-btn active">Last 24 h</button>
+        <label class="wr-pb-date">or date (UTC) <input type="date" id="wrDate"></label>
+        <span id="wrPeriodHint" class="wr-pb-hint"></span>
+      </div>
       <div id="snapshotContent"></div>
       <div id="snap-actions">
         <button class="snap-btn btn-pdf" onclick="downloadSnapshotPDF()">⬇ Download PDF</button>
@@ -362,5 +368,5 @@
   </div>
 
   <!-- Settings popup (#settingsModal) is built by app.js at startup -->
-  <script src="app.js?v=20261003-wr"></script>
+  <script src="app.js?v=20261004-wr2"></script>
 </body></html>
