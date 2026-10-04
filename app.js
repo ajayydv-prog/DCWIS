@@ -3560,7 +3560,7 @@
         wsRed: ws,  wsAmb: Math.min(SEVERITY_THRESHOLDS.windSpeed.normalMax, ws * 0.6),
         cwRed: cw,  cwAmb: cw * 2 / 3,
         rvrRed: rvr, rvrAmb: Math.max(1000, rvr),
-        visRed: SEVERITY_THRESHOLDS.visibility.highMax, visAmb: SEVERITY_THRESHOLDS.visibility.normalMax,
+        visRed: SEVERITY_THRESHOLDS.visibility.highMax, visAmb: 3000,   // vis >= 3000 m = green, < 3000 m = orange, < visRed = red
         cbRed: 300, cbAmb: 1000
       };
     }
@@ -3584,8 +3584,9 @@
       });
       return out;
     }
-    const wrWxSev   = c => (c === 'TS' || c === 'GR' || c === 'FG') ? 2 : 1;
-    const wrWxColor = c => (c === 'TS' || c === 'GR' || c === 'FG') ? WR_C.red : (c === 'RA' || c === 'DZ') ? WR_C.r28 : WR_C.amb;
+    const WR_NORMAL_WX = ['BR', 'HZ', 'FU'];        // treated as normal (green)
+    const wrWxSev   = c => (c === 'TS' || c === 'GR' || c === 'FG') ? 2 : WR_NORMAL_WX.includes(c) ? 0 : 1;
+    const wrWxColor = c => (c === 'TS' || c === 'GR' || c === 'FG') ? WR_C.red : WR_NORMAL_WX.includes(c) ? WR_C.grn : (c === 'RA' || c === 'DZ') ? WR_C.r28 : WR_C.amb;
 
     // ── METAR visibility (metres) and lowest cloud layer ──
     function wrVisMeters(raw) {
@@ -3982,7 +3983,7 @@
           const vis = wrVisMeters(e.visibility);
           const codes = wrWxCodes(e.weather);
           let sev = 0;
-          if (vis !== null) { if (vis < L.visRed) sev = 2; else if (vis < 5000) sev = 1; }
+          if (vis !== null) { if (vis < L.visRed) sev = 2; else if (vis < L.visAmb) sev = 1; }
           codes.forEach(c => { sev = Math.max(sev, wrWxSev(c)); });
           return { ts, e, vis, codes, sev, kind: String(e.selectedOption || 'METAR').toUpperCase(), cloud: wrCloudOf(e) };
         }).filter(r => r.ts !== null && r.ts >= startMs && r.ts <= endMs).sort((a, b) => a.ts - b.ts);
@@ -4043,8 +4044,8 @@
           <div class="wr-overview">
             ${wrOverviewSVG(startMs, endMs, phen, condRuns, blocks)}
             <div class="wr-legend">
-              <span><i style="background:${WR_C.grn}"></i>Normal</span>
-              <span><i style="background:${WR_C.amb}"></i>Watch: vis &lt; 5 km / RA, BR etc. / wind ≥ ${Math.round(L.wsAmb)} kt / RVR &lt; ${L.rvrAmb} m / X-wind ≥ ${Math.round(L.cwAmb)} kt</span>
+              <span><i style="background:${WR_C.grn}"></i>Normal: vis ≥ ${L.visAmb} m · BR / HZ / FU</span>
+              <span><i style="background:${WR_C.amb}"></i>Watch: vis &lt; ${L.visAmb} m / RA, DZ etc. / wind ≥ ${Math.round(L.wsAmb)} kt / RVR &lt; ${L.rvrAmb} m / X-wind ≥ ${Math.round(L.cwAmb)} kt</span>
               <span><i style="background:${WR_C.red}"></i>Poor: TS / FG / vis &lt; ${L.visRed} m / RVR &lt; ${L.rvrRed} m / wind ≥ ${L.wsRed} kt / X-wind ≥ ${L.cwRed} kt</span>
             </div>
           </div>
