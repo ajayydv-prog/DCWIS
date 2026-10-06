@@ -1,5 +1,16 @@
 {
-  "generated_utc": "2026-10-06T09:57:50.943981+00:00",
-  "has_warning": false,
-  "warning": null
+  "generated_utc": "2026-10-06T10:02:55.633956+00:00",
+  "has_warning": true,
+  "warning": {
+    "station": "VOGA",
+    "issue_date": "20261006",
+    "icao": "VOGA",
+    "issue_time_z": "060945",
+    "warning_number": "01",
+    "valid_from": "060945",
+    "valid_to": "061345",
+    "phenomenon": "MOD TSRA",
+    "obs_type": "OBS",
+    "changes": "NC "
+  }
 }
