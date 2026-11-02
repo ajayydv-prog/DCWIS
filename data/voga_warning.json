@@ -1,5 +1,16 @@
 {
-  "generated_utc": "2026-11-02T20:57:33.046812+00:00",
-  "has_warning": false,
-  "warning": null
+  "generated_utc": "2026-11-02T21:02:35.141864+00:00",
+  "has_warning": true,
+  "warning": {
+    "station": "VOGA",
+    "issue_date": "20261102",
+    "icao": "VOGA",
+    "issue_time_z": "022100Z",
+    "warning_number": "3",
+    "valid_from": "022130",
+    "valid_to": "030130",
+    "phenomenon": "MOD TSRA WITH SFC WSPD 17KT MAX27 FROM SE",
+    "obs_type": "FCST",
+    "changes": "NC"
+  }
 }
