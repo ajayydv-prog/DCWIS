@@ -7,7 +7,8 @@
     const POLL_INTERVAL_MS = 1000;
 
     // ── Live METAR/SPECI source via backend proxy ──
-    const REGISTER_BASE = 'https://dcwis-register-proxy.ajaypahe01.workers.dev/register';
+    const REGISTER_API = 'https://www.marsmet.online/api/history-public';
+    const REGISTER_STATION = 'VOGA';
     const REGISTER_MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
     const REGISTER_CACHE_MS = 60000;
     const registerCache = {};
@@ -166,7 +167,8 @@
     //  WEATHER REGISTER — fetch + cache one calendar month's JSON
     // ═══════════════════════════════════════════════════════════════
     function registerUrlFor(year, monthIndex0){
-      return `${REGISTER_BASE}/${year}/current_weather_${year}_${REGISTER_MONTH_NAMES[monthIndex0]}.json`;
+      const mm = String(monthIndex0 + 1).padStart(2, '0');
+      return `${REGISTER_API}?station=${REGISTER_STATION}&month=${year}-${mm}`;
     }
 
     async function fetchRegisterMonth(year, monthIndex0){
@@ -179,8 +181,14 @@
       try {
         const res = await fetch(url);
         if(!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        const entries = Array.isArray(data) ? data : [];
+        const raw = await res.json();
+        let entries = Array.isArray(raw) ? raw : (raw.data || raw.entries || raw.history || []);
+        entries = entries
+          .filter(e => !e.station || e.station === REGISTER_STATION)
+          .map(e => ({ e, ts: registerEntryEpochMs(e) }))
+          .filter(x => x.ts !== null)
+          .sort((a, b) => a.ts - b.ts)
+          .map(x => x.e);
         registerCache[key] = { data: entries, time: Date.now() };
         return entries;
       } catch (err) {
@@ -322,7 +330,9 @@
             throw new Error('empty register for current month');
           }
           const latest = monthData[monthData.length - 1];
-          metarDisplay.textContent = buildMetarText(latest);
+          metarDisplay.textContent = latest.message
+            ? latest.message.replace(/=+\s*$/, '')
+            : buildMetarText(latest);
           metarDisplay.style.color = '';
           metarDisplay.style.opacity = '1';
           metarDisplay.classList.remove('fade');
