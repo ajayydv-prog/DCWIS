@@ -185,9 +185,9 @@
         let entries = Array.isArray(raw) ? raw : (raw.data || raw.entries || raw.history || []);
         entries = entries
           .filter(e => !e.station || e.station === REGISTER_STATION)
-          .map(e => ({ e, ts: registerEntryEpochMs(e) }))
+          .map(e => ({ e, ts: registerEntryEpochMs(e), sent: Date.parse(e.sent) || 0 }))
           .filter(x => x.ts !== null)
-          .sort((a, b) => a.ts - b.ts)
+          .sort((a, b) => (a.ts - b.ts) || (a.sent - b.sent))
           .map(x => x.e);
         registerCache[key] = { data: entries, time: Date.now() };
         return entries;
@@ -340,7 +340,7 @@
         })
         .catch(err => {
           console.error('METAR fetch error:', err);
-          metarDisplay.textContent = '⚠ METAR unavailable';
+          metarDisplay.textContent = '⚠ METAR unavailable (' + (err && err.message ? err.message : 'error') + ')';
           metarDisplay.style.color = '#ff4444';
         });
     }
